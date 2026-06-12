@@ -18,7 +18,8 @@ import { rateLimit } from './middleware/rateLimit';
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: config.corsOrigin.split(',').map(o => o.trim()), credentials: true }));
+const corsOrigins = config.corsOrigin === '*' ? '*' : config.corsOrigin.split(',').map(o => o.trim());
+app.use(cors({ origin: corsOrigins, credentials: corsOrigins !== '*' }));
 app.use(express.json({ limit: '2mb' }));
 
 // Global API rate limit (per SRS §23.3)
