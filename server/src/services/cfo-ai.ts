@@ -133,9 +133,10 @@ function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[]): st
     const weakest = Object.entries(score.dimensions).filter(([, d]) => d.available).sort((a, b) => a[1].score - b[1].score)[0];
     parts.push(`**Your Money Health Score is ${score.score}/100.** Your weakest dimension is ${weakest?.[0].replace(/_/g, ' ')} (${weakest?.[1].score}/100): ${weakest?.[1].explanation} [Your profile]\n\nCheck your Actions list — it is sorted by exactly how many points each step adds.`);
   } else {
-    // General: answer from retrieved KB docs
-    if (docs.length > 0) {
-      parts.push(docs.slice(0, 2).map((d) => `**${d.title}** [${d.source_tag}]\n\n${d.content}`).join('\n\n---\n\n'));
+    // General: answer from retrieved KB docs (exclude personal memories)
+    const kbDocs = docs.filter((d) => d.scope === 'global');
+    if (kbDocs.length > 0) {
+      parts.push(kbDocs.slice(0, 2).map((d) => `**${d.title}** [${d.source_tag}]\n\n${d.content}`).join('\n\n---\n\n'));
     } else {
       parts.push(`I can answer questions about your taxes (regime choice, 80C, HRA), insurance gaps, emergency fund, net worth, debt strategy, and goals — all grounded in your actual numbers.\n\nTry: "Should I prepay my home loan or invest?", "Which tax regime saves me more?", or "Is my term cover enough?"`);
     }
