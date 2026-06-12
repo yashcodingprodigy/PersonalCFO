@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-sans: 'Manrope Variable', system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+}
+
+body {
+  @apply bg-paper text-ink antialiased;
+}
+
+::selection {
+  background: #dff5ee;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl2 shadow-card border border-paper-200/60;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-pine-900 text-white px-6 py-3 text-sm font-semibold
+      hover:bg-pine-800 active:bg-pine-950 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-pine-900/20 text-pine-900 px-6 py-3 text-sm font-semibold
+      hover:bg-pine-900/5 transition-colors disabled:opacity-50;
+  }
+  .input {
+    @apply w-full rounded-lg border border-paper-200 bg-paper-50 px-4 py-3 text-sm outline-none
+      focus:border-pine-600 focus:ring-2 focus:ring-mint-300/40 placeholder:text-ink-faint;
+  }
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1.5;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide;
+  }
+}
+
+/* Print styles for the monthly report */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+  .card { box-shadow: none; border: 1px solid #e7e2d6; }
+}
+
+/* Subtle count-up effect handled in JS; keep motion gentle */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

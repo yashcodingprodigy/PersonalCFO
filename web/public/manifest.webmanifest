@@ -1,0 +1,12 @@
+{
+  "name": "Personal CFO",
+  "short_name": "Personal CFO",
+  "description": "India's personal finance operating system — know exactly what to do with your money.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F7F5F0",
+  "theme_color": "#0B2F2A",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,167 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { get, post } from '@/lib/api';
+import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
+import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
+
+export default function Dashboard() {
+  const [score, setScore] = useState<any>(null);
+  const [networth, setNetworth] = useState<any>(null);
+  const [actions, setActions] = useState<any[]>([]);
+  const [aa, setAa] = useState<any>(null);
+  const [busyAa, setBusyAa] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function load() {
+    const [s, n, a, st] = await Promise.all([
+      get('/score'), get('/networth'), get('/actions?status=pending'), get('/aa/status'),
+    ]);
+    setScore(s); setNetworth(n); setActions(a.slice(0, 3)); setAa(st);
+  }
+  useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
+
+  async function connectAa() {
+    setBusyAa(true);
+    try {
+      await post('/aa/initiate');
+      await post('/aa/refresh');
+      await load();
+    } catch (e: any) { setErr(e.message); } finally { setBusyAa(false); }
+  }
+
+  if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
+  if (!score) return <DashSkeleton />;
+
+  const dims = Object.entries(score.dimensions) as [string, any][];
+  const unavailable = dims.filter(([, d]) => !d.available);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-medium">Overview</h1>
+          <p className="text-sm text-ink-soft mt-1">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
+        {!aa?.linked && (
+          <button onClick={connectAa} disabled={busyAa} className="btn-secondary text-xs !px-4 !py-2">
+            {busyAa ? 'Connecting via AA…' : 'Connect bank accounts'}
+          </button>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-5 gap-6">
+        {/* Score card */}
+        <section className="card p-6 lg:col-span-2 flex flex-col items-center text-center">
+          <ScoreGauge score={score.score} />
+          {score.change_since_last_month != null && score.change_since_last_month !== 0 && (
+            <p className={`text-sm font-semibold ${score.change_since_last_month > 0 ? 'text-signal-green' : 'text-signal-red'}`}>
+              {score.change_since_last_month > 0 ? '▲' : '▼'} {Math.abs(score.change_since_last_month)} points since last month
+            </p>
+          )}
+          <p className="text-xs text-ink-faint mt-3 leading-relaxed max-w-xs">
+            Your score across six dimensions of financial health, measured against standard planning benchmarks.
+          </p>
+          {unavailable.length > 0 && (
+            <Link href="/settings" className="mt-3 text-xs text-pine-700 underline">
+              {unavailable.length} dimension{unavailable.length > 1 ? 's' : ''} locked — add missing data
+            </Link>
+          )}
+        </section>
+
+        {/* Dimensions */}
+        <section className="card p-6 lg:col-span-3">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Score dimensions</h2>
+          <div className="divide-y divide-paper-100">
+            {dims.map(([key, d]) =>
+              d.available ? (
+                <DimensionBar key={key} label={DIMENSION_LABELS[key] || key} score={d.score} explanation={d.explanation} />
+              ) : (
+                <div key={key} className="py-3 opacity-50">
+                  <div className="flex justify-between"><span className="text-sm font-semibold">{DIMENSION_LABELS[key]}</span><span className="text-xs">locked</span></div>
+                  <p className="text-xs text-ink-soft mt-1">{d.explanation}</p>
+                </div>
+              )
+            )}
+          </div>
+        </section>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Net worth summary */}
+        <section className="card p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Net worth</h2>
+          <p className="font-display text-4xl font-semibold mt-3 tabular-nums">{inr(networth?.netWorth)}</p>
+          <div className="mt-4 flex h-2.5 rounded-full overflow-hidden bg-paper-100">
+            {networth && networth.totalAssets > 0 && (
+              <div className="bg-pine-700" style={{ width: `${(networth.totalAssets / (networth.totalAssets + networth.totalLiabilities)) * 100}%` }} />
+            )}
+            {networth && networth.totalLiabilities > 0 && (
+              <div className="bg-signal-amber" style={{ width: `${(networth.totalLiabilities / (networth.totalAssets + networth.totalLiabilities)) * 100}%` }} />
+            )}
+          </div>
+          <div className="mt-3 flex justify-between text-xs text-ink-soft">
+            <span><span className="inline-block w-2 h-2 rounded-full bg-pine-700 mr-1.5" />Assets {inr(networth?.totalAssets)}</span>
+            <span><span className="inline-block w-2 h-2 rounded-full bg-signal-amber mr-1.5" />Liabilities {inr(networth?.totalLiabilities)}</span>
+          </div>
+          {networth?.months_to_1cr != null && networth.netWorth < 1000000000 && (
+            <p className="mt-4 text-xs text-ink-soft leading-relaxed border-t border-paper-100 pt-3">
+              At your current savings rate, you reach <strong>₹1 Cr</strong> in about{' '}
+              <strong>{Math.floor(networth.months_to_1cr / 12)}y {networth.months_to_1cr % 12}m</strong>.
+            </p>
+          )}
+          <Link href="/networth" className="mt-4 inline-block text-sm font-semibold text-pine-700 hover:underline">Full breakdown →</Link>
+        </section>
+
+        {/* Top actions */}
+        <section className="card p-6 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Your next moves</h2>
+            <Link href="/actions" className="text-sm font-semibold text-pine-700 hover:underline">All actions →</Link>
+          </div>
+          <div className="mt-3 space-y-3">
+            {actions.length === 0 && (
+              <p className="text-sm text-ink-soft py-6 text-center">No pending actions — your plan is clear. Check back after your next data refresh.</p>
+            )}
+            {actions.map((a) => (
+              <Link key={a.action_id} href="/actions" className="block rounded-xl border border-paper-200 p-4 hover:shadow-card transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{a.title}</p>
+                    <p className="text-xs text-ink-soft mt-1 line-clamp-2">{a.impact_text}</p>
+                  </div>
+                  <span className="chip bg-mint-100 text-pine-800 shrink-0">+{a.impact_score} pts</span>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <span className="chip bg-paper-100 text-ink-soft capitalize">{a.category}</span>
+                  <span className="chip bg-paper-100 text-ink-soft capitalize">{a.difficulty}</span>
+                  {a.deadline && <span className="chip bg-signal-amber/10 text-signal-amber">by {new Date(a.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <p className="text-[11px] text-ink-faint leading-relaxed max-w-3xl">
+        Personal CFO provides financial education and organisation based on your data and published planning
+        standards. It is not SEBI-registered investment advice. Scores and projections are estimates, not guarantees.
+      </p>
+    </div>
+  );
+}
+
+function DashSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-9 w-44 bg-paper-200 rounded" />
+      <div className="grid lg:grid-cols-5 gap-6">
+        <div className="card h-80 lg:col-span-2" /><div className="card h-80 lg:col-span-3" />
+      </div>
+      <div className="grid lg:grid-cols-3 gap-6"><div className="card h-56" /><div className="card h-56 lg:col-span-2" /></div>
+    </div>
+  );
+}
