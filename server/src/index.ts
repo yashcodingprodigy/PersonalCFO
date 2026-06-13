@@ -25,7 +25,7 @@ app.use(express.json({ limit: '2mb' }));
 // Global API rate limit (per SRS §23.3)
 app.use(rateLimit({ windowMs: 60_000, max: 1000, keyPrefix: 'api' }));
 
-app.get('/v1/health', (_req, res) => res.json({ status: 'ok', service: 'personalcfo-api', ts: new Date().toISOString() }));
+app.get('/v1/health', (_req, res) => res.json({ status: 'ok', service: 'paywatch-api', ts: new Date().toISOString() }));
 
 app.use('/v1/auth', authRouter);
 app.use('/v1/user', userRouter);
@@ -49,6 +49,6 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 app.listen(config.port, () => {
-  console.log(`Personal CFO API listening on :${config.port} (${config.env})`);
+  console.log(`PayWatch API listening on :${config.port} (${config.env})`);
   console.log(`  SMS: ${config.smsProvider} · Billing: ${config.billingProvider} · AA: ${config.aaProvider} · AI: ${config.anthropicApiKey ? 'claude' : 'rules-engine'}`);
 });

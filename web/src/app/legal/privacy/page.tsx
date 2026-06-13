@@ -35,7 +35,7 @@ export default function Privacy() {
         <li><strong>Correction:</strong> edit any data point in the app directly.</li>
         <li><strong>Erasure:</strong> delete your account from Settings — all personal data is permanently removed within 7 days. GST invoice records are retained in anonymised form for the statutory period, as required by law.</li>
         <li><strong>Consent withdrawal:</strong> revoke Account Aggregator consent in Settings; AA-sourced data is deleted within 24 hours.</li>
-        <li><strong>Grievance:</strong> grievance@personalcfo.in — acknowledged within 48 hours.</li>
+        <li><strong>Grievance:</strong> grievance@paywatch.in — acknowledged within 48 hours.</li>
       </ul>
 
       <h2>Retention</h2>

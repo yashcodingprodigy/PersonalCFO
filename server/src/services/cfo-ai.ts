@@ -67,7 +67,7 @@ export interface CfoAnswer {
 // ── Claude generation ───────────────────────────────────────────────
 async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[]): Promise<string> {
   const kb = docs.map((d, i) => `[${i + 1}] (${d.source_tag}) ${d.title}: ${d.content}`).join('\n\n');
-  const system = `You are the in-house CFO for an Indian salaried professional, inside the Personal CFO app.
+  const system = `You are the in-house CFO for an Indian salaried professional, inside the PayWatch app.
 
 THE USER'S FINANCIAL PROFILE (use these exact numbers in your answer):
 ${userContext}

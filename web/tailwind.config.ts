@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-// Personal CFO brand system — modern fintech, premium restraint.
+// PayWatch brand system — modern fintech, premium restraint.
 // Deep pine green anchors trust; mint provides the single accent;
 // warm paper neutrals keep it calm and editorial.
 const config: Config = {

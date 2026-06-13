@@ -1,4 +1,4 @@
-# Personal CFO
+# PayWatch
 
 India's personal finance operating system — one app that knows your full financial picture and tells
 you exactly what to do next. Built from `PersonalCFO_SRS_v2.docx`.
@@ -6,7 +6,7 @@ you exactly what to do next. Built from `PersonalCFO_SRS_v2.docx`.
 ## Architecture
 
 ```
-PersonalCFO/
+PayWatch/
 ├── server/   Express + TypeScript API · PostgreSQL · port 4000
 └── web/      Next.js 14 PWA · Tailwind · port 3000
 ```
@@ -37,7 +37,7 @@ entirely offline. Swapping FTS for pgvector + local embeddings is a drop-in upgr
 
 ```bash
 # 1. PostgreSQL (any 14+) — create a database
-createdb personalcfo
+createdb paywatch
 
 # 2. API
 cd server
@@ -52,7 +52,7 @@ npm install
 npm run dev                   # http://localhost:3000
 ```
 
-Sign in with any Indian mobile number — in dev mode the OTP is **424242** (also shown on screen).
+Sign in with any Indian mobile number — in dev mode the OTP is **424242** (printed to the server logs, never shown on screen).
 On the dashboard, press **"Connect bank accounts"** to load simulated Account Aggregator data and
 watch the score update.
 

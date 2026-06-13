@@ -18,7 +18,7 @@ export function Wordmark({ dark = false, size = 'md' }: { dark?: boolean; size?:
     <span className={`inline-flex items-center gap-2.5 ${cls} font-bold tracking-tight ${dark ? 'text-white' : 'text-pine-900'}`}>
       <LogoMark size={size === 'lg' ? 36 : size === 'sm' ? 24 : 28} dark={dark} />
       <span>
-        Personal <span className="font-display italic font-medium">CFO</span>
+        Pay<span className="font-display italic font-medium">Watch</span>
       </span>
     </span>
   );

@@ -8,7 +8,7 @@ export default function Terms() {
 
       <h2>1. The service</h2>
       <p>
-        Personal CFO (operated by Personal CFO Technologies Pvt. Ltd., Bengaluru) provides financial education,
+        PayWatch (operated by PayWatch Technologies Pvt. Ltd., Bengaluru) provides financial education,
         organisation and planning tools: a Money Health Score, action suggestions, tax estimates, insurance gap
         analysis, goal tracking and an AI question-answering assistant. The service is available on subscription
         plans described in the app, with prices inclusive of 18% GST.
@@ -16,7 +16,7 @@ export default function Terms() {
 
       <h2>2. Not investment advice</h2>
       <p>
-        The service is not investment advice, and Personal CFO is not a SEBI-registered Investment Adviser.
+        The service is not investment advice, and PayWatch is not a SEBI-registered Investment Adviser.
         Outputs are educational estimates computed from your inputs and published planning standards. You are
         solely responsible for your financial decisions. Independent advisors available through any marketplace
         feature are independently SEBI-registered and responsible for their own advice.
@@ -66,7 +66,7 @@ export default function Terms() {
       <h2>9. Governing law</h2>
       <p>
         These terms are governed by the laws of India, with courts in Bengaluru, Karnataka having exclusive
-        jurisdiction. Grievance Officer: grievance@personalcfo.in.
+        jurisdiction. Grievance Officer: grievance@paywatch.in.
       </p>
     </>
   );

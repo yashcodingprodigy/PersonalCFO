@@ -6,11 +6,11 @@ import '@fontsource-variable/fraunces';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Personal CFO — Know exactly what to do with your money', template: '%s · Personal CFO' },
+  title: { default: 'PayWatch — Know exactly what to do with your money', template: '%s · PayWatch' },
   description:
     "India's personal finance operating system. One app that knows your full financial picture — and tells you exactly what to do next. Financial education and organisation, not SEBI investment advice.",
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Personal CFO' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'PayWatch' },
 };
 
 export const viewport: Viewport = {

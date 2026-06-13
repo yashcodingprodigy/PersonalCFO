@@ -26,7 +26,7 @@ export default function Landing() {
             <em className="text-mint-300">We tell you what to do.</em>
           </h1>
           <p className="mt-6 text-lg text-white/70 leading-relaxed max-w-xl">
-            Personal CFO consolidates your salary, investments, loans, insurance and taxes into one
+            PayWatch consolidates your salary, investments, loans, insurance and taxes into one
             Money Health Score — then gives you a prioritised action plan with exact amounts,
             deadlines and the rupee impact of each step.
           </p>
@@ -37,7 +37,7 @@ export default function Landing() {
             <span className="text-sm text-white/50">Plans from ₹299/month · cancel anytime</span>
           </div>
           <p className="mt-8 text-xs text-white/40 max-w-lg leading-relaxed">
-            Personal CFO is a financial education and organisation tool, not a SEBI-registered investment
+            PayWatch is a financial education and organisation tool, not a SEBI-registered investment
             adviser. We never recommend specific stocks or schemes, and we never see your bank credentials.
           </p>
         </div>
@@ -130,7 +130,7 @@ export default function Landing() {
           <div>
             <LogoMark size={28} />
             <p className="mt-4 max-w-md leading-relaxed">
-              Personal CFO Technologies Pvt. Ltd. · Bengaluru, India. Financial education and organisation
+              PayWatch Technologies Pvt. Ltd. · Bengaluru, India. Financial education and organisation
               platform. Not a SEBI-registered Investment Adviser — we do not recommend specific securities.
               Data secured with AES-256 encryption, stored in India (AWS ap-south-1), never sold or shared
               without your explicit consent.
@@ -145,12 +145,12 @@ export default function Landing() {
             </div>
             <div className="space-y-2 flex flex-col">
               <span className="text-white/80 font-semibold mb-1">Contact</span>
-              <a href="mailto:support@personalcfo.in" className="hover:text-white">support@personalcfo.in</a>
-              <a href="mailto:grievance@personalcfo.in" className="hover:text-white">Grievance officer</a>
+              <a href="mailto:support@paywatch.in" className="hover:text-white">support@paywatch.in</a>
+              <a href="mailto:grievance@paywatch.in" className="hover:text-white">Grievance officer</a>
             </div>
           </div>
         </div>
-        <div className="border-t border-white/10 py-4 text-center">© {new Date().getFullYear()} Personal CFO Technologies Pvt. Ltd.</div>
+        <div className="border-t border-white/10 py-4 text-center">© {new Date().getFullYear()} PayWatch Technologies Pvt. Ltd.</div>
       </footer>
     </main>
   );

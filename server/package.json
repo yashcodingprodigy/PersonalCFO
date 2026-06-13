@@ -1,8 +1,8 @@
 {
-  "name": "personalcfo-api",
+  "name": "paywatch-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Personal CFO API — India's Personal Finance Operating System",
+  "description": "PayWatch API — India's Personal Finance Operating System",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

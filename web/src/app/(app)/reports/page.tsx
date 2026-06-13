@@ -23,7 +23,7 @@ export default function ReportsPage() {
 
       {/* Cover */}
       <section className="card p-8 bg-pine-950 !border-0 text-white">
-        <p className="text-mint-300 text-xs font-bold uppercase tracking-[0.2em]">Personal CFO · Monthly Financial Report</p>
+        <p className="text-mint-300 text-xs font-bold uppercase tracking-[0.2em]">PayWatch · Monthly Financial Report</p>
         <h2 className="font-display text-4xl mt-3">{r.month}</h2>
         <p className="text-white/60 text-sm mt-1">{r.user.name}{r.user.city ? ` · ${r.user.city}` : ''}</p>
         <div className="mt-8 flex items-end gap-6">

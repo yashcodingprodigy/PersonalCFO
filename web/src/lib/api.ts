@@ -6,19 +6,19 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
 export function getTokens() {
   if (typeof window === 'undefined') return { access: null, refresh: null };
   return {
-    access: localStorage.getItem('pcfo_access'),
-    refresh: localStorage.getItem('pcfo_refresh'),
+    access: localStorage.getItem('paywatch_access'),
+    refresh: localStorage.getItem('paywatch_refresh'),
   };
 }
 
 export function setTokens(access: string, refresh: string) {
-  localStorage.setItem('pcfo_access', access);
-  localStorage.setItem('pcfo_refresh', refresh);
+  localStorage.setItem('paywatch_access', access);
+  localStorage.setItem('paywatch_refresh', refresh);
 }
 
 export function clearTokens() {
-  localStorage.removeItem('pcfo_access');
-  localStorage.removeItem('pcfo_refresh');
+  localStorage.removeItem('paywatch_access');
+  localStorage.removeItem('paywatch_refresh');
 }
 
 export class ApiError extends Error {

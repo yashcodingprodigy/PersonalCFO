@@ -5,7 +5,7 @@ export const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   env: process.env.NODE_ENV || 'development',
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  databaseUrl: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/personalcfo',
+  databaseUrl: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/paywatch',
   jwtSecret: process.env.JWT_SECRET || 'dev-only-secret-change-in-production',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-only-refresh-secret',
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL || '15m',

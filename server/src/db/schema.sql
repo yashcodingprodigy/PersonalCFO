@@ -1,4 +1,4 @@
--- Personal CFO — PostgreSQL schema v1
+-- PayWatch — PostgreSQL schema v1
 -- All monetary values stored in paise (₹1 = 100 paise) to avoid float errors.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

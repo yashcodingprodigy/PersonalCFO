@@ -63,11 +63,11 @@ billingRouter.post('/subscribe', async (req: AuthedRequest, res) => {
   // Sequential GST invoice
   const seq = await one(`SELECT COUNT(*)::int AS c FROM invoices`);
   const fy = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
-  const invoiceNumber = `PCFO/${fy}-${String(fy + 1).slice(2)}/${String(seq!.c + 1).padStart(5, '0')}`;
+  const invoiceNumber = `PAYW/${fy}-${String(fy + 1).slice(2)}/${String(seq!.c + 1).padStart(5, '0')}`;
   await query(
     `INSERT INTO invoices (user_id, invoice_number, description, base_amount, gst_amount, total_amount)
      VALUES ($1,$2,$3,$4,$5,$6)`,
-    [req.userId, invoiceNumber, `Personal CFO ${PLANS[plan].name} plan — ${cycle}`, base, gst, total]
+    [req.userId, invoiceNumber, `PayWatch ${PLANS[plan].name} plan — ${cycle}`, base, gst, total]
   );
 
   await query(`UPDATE users SET plan = $2, plan_status = 'active', subscription_id = $3 WHERE user_id = $1`, [req.userId, plan, created.providerSubId]);

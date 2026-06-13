@@ -168,7 +168,7 @@ export default function Dashboard() {
       </div>
 
       <p className="text-[11px] text-ink-faint leading-relaxed max-w-3xl">
-        Personal CFO provides financial education and organisation based on your data and published planning
+        PayWatch provides financial education and organisation based on your data and published planning
         standards. It is not SEBI-registered investment advice. Scores and projections are estimates, not guarantees.
       </p>
     </div>

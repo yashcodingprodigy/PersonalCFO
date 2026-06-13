@@ -21,7 +21,7 @@ complianceRouter.get('/data/export', async (req: AuthedRequest, res) => {
     query(`SELECT consent_type, granted, created_at FROM consents WHERE user_id = $1`, [userId]),
   ]);
   await query(`INSERT INTO audit_log (user_id, event) VALUES ($1, 'data_exported')`, [userId]);
-  res.setHeader('Content-Disposition', 'attachment; filename="personalcfo-data-export.json"');
+  res.setHeader('Content-Disposition', 'attachment; filename="paywatch-data-export.json"');
   res.json({
     exported_at: new Date().toISOString(),
     format_note: 'All monetary values are in paise (divide by 100 for rupees).',

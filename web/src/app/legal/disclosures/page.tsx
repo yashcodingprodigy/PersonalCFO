@@ -6,17 +6,17 @@ export default function Disclosures() {
       <h1>Regulatory Disclosures</h1>
       <p>Last updated: June 2026</p>
 
-      <h2>What Personal CFO is</h2>
+      <h2>What PayWatch is</h2>
       <p>
-        Personal CFO is a financial education, organisation and planning tool. We consolidate the financial
+        PayWatch is a financial education, organisation and planning tool. We consolidate the financial
         data you already own, calculate scores and gaps using publicly available financial planning standards,
         and suggest categories of action — such as &ldquo;increase your term insurance cover&rdquo; or
         &ldquo;use your remaining Section 80C limit&rdquo;.
       </p>
 
-      <h2>What Personal CFO is not</h2>
+      <h2>What PayWatch is not</h2>
       <p>
-        Personal CFO is <strong>not</strong> a SEBI-registered Investment Adviser (RIA), research analyst,
+        PayWatch is <strong>not</strong> a SEBI-registered Investment Adviser (RIA), research analyst,
         stock broker, or portfolio manager. We do not recommend specific securities, stocks, or mutual fund
         schemes, and our AI assistant is technically prevented from doing so. Nothing in the app constitutes
         investment advice under the SEBI (Investment Advisers) Regulations, 2013. For personalised investment
@@ -56,7 +56,7 @@ export default function Disclosures() {
 
       <h2>Grievances</h2>
       <p>
-        Grievance Officer: grievance@personalcfo.in. We acknowledge complaints within 48 hours and resolve
+        Grievance Officer: grievance@paywatch.in. We acknowledge complaints within 48 hours and resolve
         within 30 days, in line with the IT (Intermediary Guidelines) Rules, 2021 and the DPDP Act, 2023.
       </p>
     </>
