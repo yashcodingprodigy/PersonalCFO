@@ -3,7 +3,9 @@ import { ProfileData, computeScore } from './score';
 
 export async function loadProfileData(userId: string): Promise<ProfileData | null> {
   const user = await one(
-    `SELECT annual_gross_income, monthly_take_home, dependents_count, age FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
+    `SELECT annual_gross_income, monthly_take_home, dependents_count, age,
+            employment_type, risk_appetite, city, state
+       FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
     [userId]
   );
   if (!user) return null;
@@ -33,6 +35,10 @@ export async function loadProfileData(userId: string): Promise<ProfileData | nul
       monthly_take_home: Number(user.monthly_take_home) || 0,
       dependents_count: user.dependents_count || 0,
       age: user.age,
+      employment_type: user.employment_type,
+      risk_appetite: user.risk_appetite,
+      city: user.city,
+      state: user.state,
     },
     assets: profile?.assets || {},
     liabilities: profile?.liabilities || {},

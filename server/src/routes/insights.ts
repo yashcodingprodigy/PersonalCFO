@@ -4,9 +4,11 @@ import { z } from 'zod';
 import { query } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { loadProfileData, recalculateAndStoreScore } from '../services/profile';
-import { computeNetWorth, projectMonthsToTarget } from '../services/networth';
-import { compareRegimes, taxCalendarEntries, currentFY } from '../services/tax';
+import { computeNetWorth, projectMonthsToTarget, growthProjection } from '../services/networth';
+import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan } from '../services/tax';
 import { analyseInsurance } from '../services/insurance';
+import { buildInvestmentGuidance } from '../services/investment';
+import { analyzeStatement } from '../services/statement';
 import { deductionUsage } from '../services/score';
 import { categorise } from '../adapters/aa';
 import { remember } from '../services/rag';
@@ -21,7 +23,7 @@ insightsRouter.get('/networth', async (req: AuthedRequest, res) => {
   const nw = computeNetWorth(p);
   const surplus = p.monthlyExpenses != null ? p.user.monthly_take_home - p.monthlyExpenses : 0;
   const monthsTo1Cr = projectMonthsToTarget(nw.netWorth, surplus, 10000000_00);
-  res.json({ ...nw, monthly_surplus: surplus, months_to_1cr: monthsTo1Cr });
+  res.json({ ...nw, monthly_surplus: surplus, months_to_1cr: monthsTo1Cr, growth: growthProjection(p, nw) });
 });
 
 // GET /tax — full tax position
@@ -34,6 +36,7 @@ insightsRouter.get('/tax', async (req: AuthedRequest, res) => {
     fy: currentFY(),
     comparison,
     deductions,
+    reductionPlan: taxReductionPlan(p),
     calendar: taxCalendarEntries(),
     disclaimer: 'Tax calculations are estimates for planning purposes based on FY2025-26 slabs. Verify with your CA or the Income Tax portal before filing.',
   });
@@ -47,6 +50,50 @@ insightsRouter.get('/insurance', async (req: AuthedRequest, res) => {
     ...analyseInsurance(p),
     disclaimer: 'Coverage guidance uses standard planning rules (25× income for term cover). We do not recommend specific insurers or policies and earn no commission unless explicitly disclosed.',
   });
+});
+
+// GET /invest — personalised, SEBI-compliant investment guidance
+insightsRouter.get('/invest', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  res.json(buildInvestmentGuidance(p));
+});
+
+// POST /statements/analyze — analyse client-parsed statement transactions.
+// Optionally persist them so the Money Score (which derives expenses from
+// transactions) updates too.
+insightsRouter.post('/statements/analyze', async (req: AuthedRequest, res) => {
+  const txnSchema = z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    description: z.string().min(1).max(300),
+    amount: z.number().int().positive(),
+    direction: z.enum(['debit', 'credit']),
+  });
+  const schema = z.object({
+    transactions: z.array(txnSchema).min(1).max(5000),
+    persist: z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+
+  const p = await loadProfileData(req.userId!);
+  const report = analyzeStatement(parsed.data.transactions, p);
+
+  let imported = 0;
+  if (parsed.data.persist) {
+    for (const t of parsed.data.transactions) {
+      await query(
+        `INSERT INTO transactions (user_id, txn_date, description, amount, direction, category, source)
+         VALUES ($1,$2,$3,$4,$5,$6,'statement')`,
+        [req.userId, t.date, t.description, t.amount, t.direction, categorise(t.description)]
+      );
+      imported++;
+    }
+    await recalculateAndStoreScore(req.userId!, 'statement_import');
+    await remember(req.userId!, 'statement_upload', 'Uploaded a bank statement', `User imported ${imported} transactions from a bank statement on ${new Date().toISOString().slice(0, 10)}.`);
+  }
+
+  res.json({ report, imported });
 });
 
 // GET /transactions

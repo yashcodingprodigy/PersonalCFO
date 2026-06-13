@@ -7,6 +7,10 @@ export interface ProfileData {
     monthly_take_home: number;
     dependents_count: number;
     age: number | null;
+    employment_type?: string | null;
+    risk_appetite?: 'conservative' | 'moderate' | 'aggressive' | null;
+    city?: string | null;
+    state?: string | null;
   };
   assets: any;
   liabilities: any;

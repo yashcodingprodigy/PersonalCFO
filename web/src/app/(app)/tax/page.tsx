@@ -40,6 +40,59 @@ export default function TaxPage() {
         <p className="text-sm leading-relaxed">{c.reasoning}</p>
       </div>
 
+      {/* How to reduce your tax — beginner-friendly action plan */}
+      {tax.reductionPlan && (
+        <section className="card p-6">
+          <div className="flex items-baseline justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">How to reduce your tax</h2>
+            {tax.reductionPlan.totalPotentialSaving > 0 && (
+              <span className="text-sm font-semibold text-signal-green">Up to {inr(tax.reductionPlan.totalPotentialSaving)} in reach</span>
+            )}
+          </div>
+          <p className="text-xs text-ink-soft mt-1 mb-4">
+            Personalised steps in plain English. Each extra ₹100 of deduction saves you about ₹{tax.reductionPlan.marginalRatePct} in tax (your current rate).
+          </p>
+          {tax.reductionPlan.newRegimeNote && (
+            <div className="rounded-lg bg-paper-100 px-4 py-3 text-[12px] text-ink-soft leading-relaxed mb-4">{tax.reductionPlan.newRegimeNote}</div>
+          )}
+          <div className="space-y-3">
+            {tax.reductionPlan.steps.map((s: any, i: number) => (
+              <div key={i} className="rounded-xl border border-paper-200 p-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="chip bg-pine-900 text-white">{s.section}</span>
+                      <h3 className="text-sm font-bold">{s.title}</h3>
+                    </div>
+                    <p className="text-xs text-ink-soft mt-2 leading-relaxed">{s.whatItMeans}</p>
+                    <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>How:</strong> {s.howTo}</p>
+                  </div>
+                  {s.taxSaved > 0 && (
+                    <div className="text-right shrink-0">
+                      <p className="font-display text-lg font-semibold text-signal-green tabular-nums">−{inr(s.taxSaved)}</p>
+                      <p className="text-[11px] text-ink-faint">tax saved</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-ink-faint mt-4">Update your amounts in Settings → Tax data to make these numbers exact.</p>
+        </section>
+      )}
+
+      {/* Capital gains explainer */}
+      {tax.reductionPlan?.capitalGains && (
+        <section className="card p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">{tax.reductionPlan.capitalGains.title}</h2>
+          <ul className="space-y-2.5 text-sm text-ink-soft leading-relaxed">
+            {tax.reductionPlan.capitalGains.points.map((pt: string, i: number) => (
+              <li key={i} className="flex gap-2"><span className="text-mint-500 font-bold shrink-0">·</span>{pt}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Deduction tracker */}
       <section className="card p-6">
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-4">Deduction tracker (old regime)</h2>
@@ -73,6 +126,31 @@ export default function TaxPage() {
           ))}
         </ul>
       </section>
+
+      {/* Filing checklist + glossary */}
+      {tax.reductionPlan && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          <section className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Documents to keep ready for filing</h2>
+            <ul className="space-y-2 text-sm text-ink-soft leading-relaxed">
+              {tax.reductionPlan.documentChecklist.map((d: string, i: number) => (
+                <li key={i} className="flex gap-2"><span className="text-pine-700 font-bold shrink-0">✓</span>{d}</li>
+              ))}
+            </ul>
+          </section>
+          <section className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Tax words, in plain English</h2>
+            <dl className="space-y-2.5 text-sm">
+              {tax.reductionPlan.glossary.map((g: any, i: number) => (
+                <div key={i}>
+                  <dt className="font-semibold text-ink">{g.term}</dt>
+                  <dd className="text-ink-soft leading-relaxed">{g.meaning}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+      )}
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{tax.disclaimer}</p>
     </div>

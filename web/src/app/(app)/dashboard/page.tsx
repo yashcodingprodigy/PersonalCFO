@@ -53,6 +53,27 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Net-worth growth incentive */}
+      {networth?.growth?.available && (
+        <section className="card p-6 bg-pine-950 text-white overflow-hidden relative">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-mint-300">Your {networth.growth.horizonYears}-year opportunity</p>
+          <p className="mt-2 text-lg sm:text-xl font-display leading-snug">
+            Grow your net worth from <span className="font-semibold text-mint-300">{inr(networth.growth.baseline)}</span> to{' '}
+            <span className="font-semibold text-mint-300">{inr(networth.growth.improved)}</span>
+            <span className="text-white/70 text-base"> — about {inr(networth.growth.uplift)} more</span>
+          </p>
+          <p className="text-xs text-white/60 mt-1">Same starting point. The difference is a few habits, projected over {networth.growth.horizonYears} years.</p>
+          <ul className="mt-4 space-y-1.5">
+            {networth.growth.levers.map((l: string, i: number) => (
+              <li key={i} className="flex gap-2 text-sm text-white/90"><span className="text-mint-300 font-bold shrink-0">→</span>{l}</li>
+            ))}
+          </ul>
+          <Link href="/actions" className="mt-4 inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2 text-sm font-bold hover:bg-mint-400 transition-colors">
+            Show me how — go to my actions
+          </Link>
+        </section>
+      )}
+
       <div className="grid lg:grid-cols-5 gap-6">
         {/* Score card */}
         <section className="card p-6 lg:col-span-2 flex flex-col items-center text-center">

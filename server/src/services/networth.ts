@@ -58,6 +58,63 @@ export function computeNetWorth(p: ProfileData): NetWorthBreakdown {
   };
 }
 
+// Future value of a starting corpus plus a monthly contribution, compounded.
+export function projectValue(start: number, monthlySurplus: number, months: number, annualRate = 0.08): number {
+  const r = annualRate / 12;
+  let nw = start;
+  for (let m = 0; m < months; m++) nw = nw * (1 + r) + Math.max(0, monthlySurplus);
+  return Math.round(nw);
+}
+
+export interface GrowthProjection {
+  available: boolean;
+  horizonYears: number;
+  current: number;
+  baseline: number;        // where you land doing nothing different
+  improved: number;        // where you land doing the levers below
+  uplift: number;          // improved - baseline
+  baselineSurplus: number;
+  improvedSurplus: number;
+  levers: string[];
+}
+
+// "Grow your net worth from X to Y by doing these things."
+// Compares the do-nothing trajectory against a realistic improved one
+// (lift savings rate toward 25%, deploy idle cash, protect with insurance).
+export function growthProjection(p: ProfileData, nw: NetWorthBreakdown): GrowthProjection {
+  const horizonYears = 5;
+  const months = horizonYears * 12;
+  const takeHome = p.user.monthly_take_home || 0;
+  const expenses = p.monthlyExpenses;
+  if (!takeHome) {
+    return { available: false, horizonYears, current: nw.netWorth, baseline: nw.netWorth, improved: nw.netWorth, uplift: 0, baselineSurplus: 0, improvedSurplus: 0, levers: [] };
+  }
+
+  const currentSurplus = expenses != null ? Math.max(0, takeHome - expenses) : Math.round(takeHome * 0.1);
+  const baselineSurplus = currentSurplus;
+  const improvedSurplus = Math.max(baselineSurplus, Math.round(takeHome * 0.25));
+
+  const baseline = projectValue(nw.netWorth, baselineSurplus, months, 0.08);
+  // Improved trajectory also earns a touch more by moving idle cash into investments.
+  const idleCash = nw.allocation.cash;
+  const improvedRate = idleCash > nw.totalAssets * 0.3 ? 0.09 : 0.085;
+  const improved = projectValue(nw.netWorth, improvedSurplus, months, improvedRate);
+  const uplift = Math.max(0, improved - baseline);
+
+  const levers: string[] = [];
+  if (improvedSurplus > baselineSurplus) {
+    const savePct = expenses != null && takeHome > 0 ? Math.round(((takeHome - expenses) / takeHome) * 100) : null;
+    levers.push(savePct != null
+      ? `Lift your savings rate from ${savePct}% toward 25% — the single biggest lever.`
+      : 'Aim to invest about 25% of your take-home each month.');
+  }
+  if (idleCash > nw.totalAssets * 0.3 && nw.totalAssets > 0) levers.push('Move idle cash beyond your emergency fund into investments so it earns ~8% instead of ~3%.');
+  levers.push('Automate a SIP on salary day so investing happens before you can spend it.');
+  levers.push('Close any insurance gaps so one emergency doesn’t undo years of progress.');
+
+  return { available: uplift > 0, horizonYears, current: nw.netWorth, baseline, improved, uplift, baselineSurplus, improvedSurplus, levers };
+}
+
 // Forward projection: months to reach target at current monthly surplus +
 // assumed blended 8% p.a. growth on invested corpus.
 export function projectMonthsToTarget(netWorth: number, monthlySurplus: number, target: number): number | null {

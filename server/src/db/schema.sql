@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at         TIMESTAMPTZ
 );
 
+-- Additive columns (idempotent) — safe to re-run on an existing database.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS state         VARCHAR(60);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS risk_appetite VARCHAR(20)
+  CHECK (risk_appetite IN ('conservative','moderate','aggressive'));
+
 CREATE TABLE IF NOT EXISTS otp_codes (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   mobile      VARCHAR(13) NOT NULL,

@@ -26,6 +26,16 @@ export interface InsuranceAnalysis {
     notes: string[];
   };
   flags: { severity: 'high' | 'medium' | 'low'; message: string }[];
+  beginnerIntro: string;
+  recommendations: {
+    priority: 'high' | 'medium' | 'low';
+    title: string;
+    whatItIs: string;
+    whyForYou: string;
+    howTo: string;
+    estCostAnnual: { low: number; high: number } | null;
+  }[];
+  avoid: string[];
 }
 
 export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
@@ -74,6 +84,74 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
     flags.push({ severity: 'low', message: 'Home/property insurance is inexpensive and usually skipped — worth a quote.' });
   }
 
+  // ── Beginner-friendly personalised recommendations ─────────────────
+  const recommendations: InsuranceAnalysis['recommendations'] = [];
+
+  if (termGap > 0 && (dependents > 0 || income > 0)) {
+    recommendations.push({
+      priority: dependents > 0 ? 'high' : 'medium',
+      title: termCover > 0 ? `Top up your term life cover by ${inr(termGap)}` : `Buy term life insurance (about ${inr(recommendedTerm)})`,
+      whatItIs: 'Term insurance pays your family a large lump sum if you pass away during the policy period. It is pure protection — no maturity payout — which is exactly why it is so cheap.',
+      whyForYou: dependents > 0
+        ? `${dependents} ${dependents === 1 ? 'person depends' : 'people depend'} on your income. The 25× income rule (${inr(recommendedTerm)}) is enough to replace your earnings and clear debts so they aren't left struggling.`
+        : 'Even without dependents now, locking in cover while young and healthy keeps premiums very low for life.',
+      howTo: 'Buy online directly from a few insurers, choose cover till age 60–65, disclose health honestly, and pick a “pure term” plan — nothing fancier.',
+      estCostAnnual: termGap > 0 ? { low: Math.round(lakhs * perLakhLow), high: Math.round(lakhs * perLakhHigh) } : null,
+    });
+  }
+
+  if (healthGap > 0) {
+    const ghLakhs = healthGap / 100 / 100000;
+    recommendations.push({
+      priority: healthCover === 0 ? 'high' : 'medium',
+      title: healthCover > 0 ? `Raise your health cover by ${inr(healthGap)}` : `Get health insurance (about ${inr(recommendedHealth)})`,
+      whatItIs: 'Health insurance pays your hospital bills. A “family floater” covers everyone under one shared amount; a “super top-up” cheaply extends cover above a threshold.',
+      whyForYou: `For a family of ${familySize}, ${inr(Math.round(recommendedHealth))} is a sensible floor — a single ICU stay in a metro can cross ₹5L.${healthCover > 0 ? ' A super top-up over your existing policy is the cheapest way to close the gap.' : ''}`,
+      howTo: 'Pick a floater with no room-rent cap and a high claim-settlement ratio; add parents on a separate policy. Don’t rely only on employer cover — it ends with the job.',
+      estCostAnnual: { low: Math.round(ghLakhs * 800 * 100), high: Math.round(ghLakhs * 1500 * 100) },
+    });
+  }
+
+  if (age >= 40) recommendations.push({
+    priority: 'medium',
+    title: 'Add a critical-illness cover',
+    whatItIs: 'A policy that pays a one-time lump sum if you are diagnosed with a major illness (cancer, heart attack, stroke) — separate from hospital bills.',
+    whyForYou: `Past 40 the odds rise, and this money replaces lost income during recovery, not just treatment costs.`,
+    howTo: 'Add it as a rider on your term plan or buy a standalone ₹10–25L cover.',
+    estCostAnnual: null,
+  });
+
+  if ((p.liabilities?.home_loans || []).length > 0) recommendations.push({
+    priority: 'medium',
+    title: 'Get personal-accident cover',
+    whatItIs: 'Pays out on accidental death or disability — inexpensive but commonly skipped, especially important when you carry a big loan.',
+    whyForYou: 'A disability that stops your income would still leave the home-loan EMIs running; this protects against that.',
+    howTo: 'Often available as a low-cost add-on to health or term policies, or standalone for a few hundred rupees a month.',
+    estCostAnnual: null,
+  });
+
+  if (Number(p.assets?.property) > 0) recommendations.push({
+    priority: 'low',
+    title: 'Consider home / property insurance',
+    whatItIs: 'Covers your house and belongings against fire, theft and natural disasters.',
+    whyForYou: 'It is one of the cheapest policies relative to what it protects, and almost everyone forgets it.',
+    howTo: 'Get a quote for building + contents cover from a general insurer.',
+    estCostAnnual: null,
+  });
+
+  const order = { high: 0, medium: 1, low: 2 };
+  recommendations.sort((a, b) => order[a.priority] - order[b.priority]);
+
+  const beginnerIntro = recommendations.some((r) => r.priority === 'high')
+    ? 'Insurance is the seatbelt of your finances — boring until the day it saves everything. Based on your profile, here is exactly what to get and why, starting with the most urgent.'
+    : 'Good news — your core cover looks solid. Below are smaller, optional protections worth considering, plus what to steer clear of.';
+
+  const avoid = [
+    'Endowment, money-back and ULIP plans — they bundle insurance with weak investment returns. Keep insurance and investing separate.',
+    'Buying cover just to “save tax” in March — choose what actually protects you; the tax benefit is a bonus, not the goal.',
+    'Tiny ₹2–3L health policies — one serious hospitalisation can blow past them. Go higher with a top-up instead.',
+  ];
+
   return {
     term: {
       current: termCover,
@@ -84,5 +162,8 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
     },
     health: { current: healthCover, recommended: Math.round(recommendedHealth), gap: Math.round(healthGap), notes: healthNotes },
     flags,
+    beginnerIntro,
+    recommendations,
+    avoid,
   };
 }

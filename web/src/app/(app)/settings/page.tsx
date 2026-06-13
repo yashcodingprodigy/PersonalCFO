@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { get, post, patch, del, api, clearTokens } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
+import { STATES, citiesForState } from '@/lib/india';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -17,10 +18,15 @@ export default function SettingsPage() {
 
   // editable money fields (rupees)
   const [fields, setFields] = useState<Record<string, string>>({});
+  // profile basics (non-money)
+  const [stateName, setStateName] = useState('');
+  const [city, setCity] = useState('');
+  const [risk, setRisk] = useState('');
 
   async function load() {
     const [u, p, b, a] = await Promise.all([get('/user/me'), get('/user/profile'), get('/billing/subscription'), get('/aa/status')]);
     setUser(u); setProfile(p); setBilling(b); setAa(a);
+    setStateName(u.state || ''); setCity(u.city || ''); setRisk(u.risk_appetite || '');
     setFields({
       take_home: String(Math.round((u.monthly_take_home || 0) / 100)),
       expenses: String(Math.round((p.assets?.monthly_expenses || 0) / 100)),
@@ -46,7 +52,12 @@ export default function SettingsPage() {
   const F = (k: string) => ({ value: fields[k] ?? '', onChange: (e: any) => setFields((f) => ({ ...f, [k]: e.target.value.replace(/[^\d]/g, '') })) });
 
   async function saveProfile() {
-    await patch('/user/me', { monthly_take_home: rupeesToPaise(fields.take_home || '0') });
+    await patch('/user/me', {
+      monthly_take_home: rupeesToPaise(fields.take_home || '0'),
+      ...(stateName ? { state: stateName } : {}),
+      ...(city ? { city } : {}),
+      ...(risk ? { risk_appetite: risk } : {}),
+    });
     await patch('/user/profile/assets', {
       monthly_expenses: rupeesToPaise(fields.expenses || '0'),
       savings_balance: rupeesToPaise(fields.savings || '0'),
@@ -125,7 +136,33 @@ export default function SettingsPage() {
 
       {tab === 'profile' && (
         <section className="card p-6 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Income, assets & cover (₹)</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Profile basics</h2>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label className="label">State</label>
+              <select className="input" value={stateName} onChange={(e) => { setStateName(e.target.value); setCity(''); }}>
+                <option value="">Select…</option>
+                {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">City</label>
+              <select className="input" value={city} onChange={(e) => setCity(e.target.value)} disabled={!stateName}>
+                <option value="">{stateName ? 'Select…' : 'Pick state first'}</option>
+                {citiesForState(stateName).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Risk comfort</label>
+              <select className="input" value={risk} onChange={(e) => setRisk(e.target.value)}>
+                <option value="">Auto (from profile)</option>
+                <option value="conservative">Play it safe</option>
+                <option value="moderate">Balanced</option>
+                <option value="aggressive">Go for growth</option>
+              </select>
+            </div>
+          </div>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint pt-2">Income, assets & cover (₹)</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div><label className="label">Monthly take-home</label><input className="input" inputMode="numeric" {...F('take_home')} /></div>
             <div><label className="label">Monthly expenses</label><input className="input" inputMode="numeric" {...F('expenses')} /></div>

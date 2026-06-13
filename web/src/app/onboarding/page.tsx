@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Wordmark } from '@/components/Logo';
 import { patch, post } from '@/lib/api';
 import { rupeesToPaise, inr } from '@/lib/format';
+import { STATES, citiesForState } from '@/lib/india';
 
 // Progressive 3-session onboarding (SRS §5.2). Every field except income
 // is optional — 'Fill later' never blocks progress.
@@ -34,6 +35,7 @@ export default function Onboarding() {
 
   // Session 1
   const [name, setName] = useState('');
+  const [stateName, setStateName] = useState('');
   const [city, setCity] = useState('');
   const [age, setAge] = useState('');
   const [employment, setEmployment] = useState('salaried');
@@ -47,6 +49,7 @@ export default function Onboarding() {
   const [epf, setEpf] = useState(''); const [ppf, setPpf] = useState('');
   const [fd, setFd] = useState(''); const [stocks, setStocks] = useState('');
   const [savings, setSavings] = useState(''); const [property, setProperty] = useState('');
+  const [risk, setRisk] = useState('');
 
   // Session 3
   const [homeLoanOut, setHomeLoanOut] = useState(''); const [homeLoanEmi, setHomeLoanEmi] = useState('');
@@ -60,7 +63,7 @@ export default function Onboarding() {
     e.preventDefault(); setBusy(true); setErr('');
     try {
       await patch('/user/me', {
-        name: name || undefined, city: city || undefined,
+        name: name || undefined, city: city || undefined, state: stateName || undefined,
         age: age ? Number(age) : undefined,
         employment_type: employment,
         annual_gross_income: bandToGross[grossBand],
@@ -89,7 +92,10 @@ export default function Onboarding() {
       if (stocks) assets.stocks = rupeesToPaise(stocks);
       if (property) assets.property = rupeesToPaise(property);
       if (Object.keys(assets).length) await patch('/user/profile/assets', assets);
-      await patch('/user/me', { onboarding_status: { session_1: 'complete', session_2: 'complete', session_3: 'pending' } });
+      await patch('/user/me', {
+        ...(risk ? { risk_appetite: risk } : {}),
+        onboarding_status: { session_1: 'complete', session_2: 'complete', session_3: 'pending' },
+      });
       const total = Object.values({ s: savings, f: fd, m: mfValue, e: epf, p: ppf, st: stocks, pr: property })
         .reduce((acc: number, v: any) => acc + (Number(v) || 0), 0);
       setLearned(total > 0
@@ -156,9 +162,23 @@ export default function Onboarding() {
             </div>
             <div className="grid sm:grid-cols-2 gap-5">
               <div><label className="label">Full name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></div>
-              <div><label className="label">City</label><input className="input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" /></div>
               <div><label className="label">Age</label><input className="input" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="29" /></div>
               <div>
+                <label className="label">State</label>
+                <select className="input" value={stateName} onChange={(e) => { setStateName(e.target.value); setCity(''); }}>
+                  <option value="">Select your state…</option>
+                  {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">City</label>
+                <select className="input" value={city} onChange={(e) => setCity(e.target.value)} disabled={!stateName}>
+                  <option value="">{stateName ? 'Select your city…' : 'Pick a state first'}</option>
+                  {citiesForState(stateName).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <p className="text-[11px] text-ink-faint mt-1">We use your city to get your HRA exemption and cost-of-living right.</p>
+              </div>
+              <div className="sm:col-span-2">
                 <label className="label">Employment</label>
                 <select className="input" value={employment} onChange={(e) => setEmployment(e.target.value)}>
                   <option value="salaried">Salaried</option><option value="self_employed">Self-employed</option>
@@ -197,15 +217,35 @@ export default function Onboarding() {
               <h1 className="font-display text-2xl font-medium">Assets & investments</h1>
               <p className="text-sm text-ink-soft mt-1">About 8 minutes. Approximations are fine — you can refine anytime. Every field is optional.</p>
             </div>
+            <div className="rounded-lg bg-paper-100 px-4 py-3 text-[12px] text-ink-soft leading-relaxed">
+              <strong>Tip:</strong> for investments, enter today&apos;s <em>current value</em> (what it&apos;s worth now if you sold it) — not how much you originally put in. You can see this on your Groww / Zerodha / fund app.
+            </div>
             <div className="grid sm:grid-cols-2 gap-5">
               <Money label="Savings account balance" value={savings} onChange={setSavings} hint="Used for your emergency fund check." />
               <Money label="Fixed deposits (total)" value={fd} onChange={setFd} />
-              <Money label="Mutual funds — current value" value={mfValue} onChange={setMfValue} />
-              <Money label="Monthly SIP amount" value={sip} onChange={setSip} />
+              <Money label="Mutual funds — current value" value={mfValue} onChange={setMfValue} hint="Today's value of all your mutual funds combined." />
+              <Money label="Monthly SIP amount" value={sip} onChange={setSip} hint="How much you auto-invest into funds each month." />
               <Money label="EPF balance" value={epf} onChange={setEpf} hint="Shown on the EPFO portal — or fill later." />
               <Money label="PPF balance" value={ppf} onChange={setPpf} />
-              <Money label="Stocks (Zerodha, Groww…)" value={stocks} onChange={setStocks} />
+              <Money label="Stocks — current market value" value={stocks} onChange={setStocks} hint="What your shares are worth today, not the amount you invested." />
               <Money label="Property value (if owned)" value={property} onChange={setProperty} />
+            </div>
+            <div>
+              <label className="label">How do you feel about investment ups and downs?</label>
+              <div className="grid sm:grid-cols-3 gap-2 mt-1">
+                {[
+                  { k: 'conservative', t: 'Play it safe', d: 'A drop would worry me' },
+                  { k: 'moderate', t: 'Balanced', d: 'Some ups & downs are fine' },
+                  { k: 'aggressive', t: 'Go for growth', d: 'I can ride out big swings' },
+                ].map((r) => (
+                  <button type="button" key={r.k} onClick={() => setRisk(r.k)}
+                    className={`rounded-lg border px-3 py-3 text-left transition-colors ${risk === r.k ? 'border-pine-700 bg-pine-900/5' : 'border-paper-200 hover:border-pine-600'}`}>
+                    <span className="block text-sm font-semibold">{r.t}</span>
+                    <span className="block text-[11px] text-ink-faint mt-0.5">{r.d}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-ink-faint mt-1">This personalises your investment plan. No wrong answer — and you can change it later.</p>
             </div>
             {err && <p className="text-sm text-signal-red">{err}</p>}
             <div className="flex gap-3">

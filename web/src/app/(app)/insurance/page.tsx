@@ -44,6 +44,12 @@ export default function InsurancePage() {
         <p className="text-sm text-ink-soft mt-1">Coverage measured against standard planning benchmarks — category guidance only, never specific products.</p>
       </div>
 
+      {ins.beginnerIntro && (
+        <div className="card p-5 border-l-4 border-l-mint-500">
+          <p className="text-sm text-ink-soft leading-relaxed">{ins.beginnerIntro}</p>
+        </div>
+      )}
+
       {ins.flags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {ins.flags.map((f: any, i: number) => (
@@ -63,6 +69,47 @@ export default function InsurancePage() {
         />
         <GapCard title="Health cover" current={ins.health.current} recommended={ins.health.recommended} gap={ins.health.gap} />
       </div>
+
+      {/* Personalised: what you should get */}
+      {ins.recommendations?.length > 0 && (
+        <section>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">What you should get — in order</h2>
+          <div className="space-y-3">
+            {ins.recommendations.map((r: any, i: number) => (
+              <article key={i} className="card p-5">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex items-start gap-3">
+                    <span className={`chip ${SEV[r.priority]} shrink-0`}>{r.priority === 'high' ? 'Get this first' : r.priority === 'medium' ? 'Worth getting' : 'Optional'}</span>
+                    <div>
+                      <h3 className="text-sm font-bold">{r.title}</h3>
+                      <p className="text-xs text-ink-soft mt-1 leading-relaxed">{r.whatItIs}</p>
+                      <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>Why you:</strong> {r.whyForYou}</p>
+                      <p className="text-xs text-ink-soft mt-1.5 leading-relaxed"><strong>How:</strong> {r.howTo}</p>
+                    </div>
+                  </div>
+                  {r.estCostAnnual && (
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold tabular-nums">{inr(r.estCostAnnual.low)}–{inr(r.estCostAnnual.high)}</p>
+                      <p className="text-[11px] text-ink-faint">est. / year</p>
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {ins.avoid?.length > 0 && (
+        <section className="card p-6 border-l-4 border-l-signal-amber">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-signal-amber mb-3">What to avoid</h2>
+          <ul className="space-y-2.5 text-sm text-ink-soft leading-relaxed">
+            {ins.avoid.map((a: string, i: number) => (
+              <li key={i} className="flex gap-2"><span className="text-signal-amber font-bold shrink-0">✕</span>{a}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card p-6">
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">What to know</h2>
