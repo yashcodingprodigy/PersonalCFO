@@ -43,13 +43,12 @@ authRouter.post('/otp/send', rateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'o
   const otp = config.isDev ? '424242' : crypto.randomInt(100000, 999999).toString();
   const hash = await bcrypt.hash(otp, 8);
   await query(`INSERT INTO otp_codes (mobile, code_hash, expires_at) VALUES ($1,$2, now() + INTERVAL '10 minutes')`, [mobile, hash]);
-  const sms = await sendOtpSms(mobile, otp);
+  await sendOtpSms(mobile, otp);
 
-  res.json({
-    sent: sms.delivered,
-    expires_in_minutes: 10,
-    ...(sms.devOtp ? { dev_otp: sms.devOtp, note: 'dev mode — OTP returned in response; configure SMS_PROVIDER=msg91 for production' } : {}),
-  });
+  // The OTP is never returned to the client. With SMS_PROVIDER=dev it is
+  // written to the server logs (visible in Railway logs); with msg91 it is
+  // delivered as a real SMS.
+  res.json({ sent: true, expires_in_minutes: 10 });
 });
 
 // POST /auth/otp/verify

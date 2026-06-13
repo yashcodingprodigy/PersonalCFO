@@ -11,7 +11,6 @@ export default function Login() {
   const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
-  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -21,8 +20,7 @@ export default function Login() {
     e.preventDefault();
     setErr(''); setBusy(true);
     try {
-      const res = await api('/auth/otp/send', { method: 'POST', body: JSON.stringify({ mobile: fullMobile }) });
-      if (res.dev_otp) setDevOtp(res.dev_otp);
+      await api('/auth/otp/send', { method: 'POST', body: JSON.stringify({ mobile: fullMobile }) });
       setStep('otp');
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
@@ -93,11 +91,6 @@ export default function Login() {
                   value={otp} maxLength={6}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 />
-                {devOtp && (
-                  <p className="mt-2 text-xs rounded-lg bg-mint-100 text-pine-800 px-3 py-2">
-                    Development mode — your OTP is <strong>{devOtp}</strong>
-                  </p>
-                )}
               </div>
               {err && <p className="text-sm text-signal-red">{err}</p>}
               <button className="btn-primary w-full" disabled={busy || otp.length !== 6}>
