@@ -18,6 +18,14 @@ export default function TaxPage() {
         <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · updated for the latest Finance Act.</p>
       </div>
 
+      {c.oldRegime.tax === 0 && c.newRegime.tax === 0 && (
+        <div className="card p-5 border-l-4 border-l-mint-500">
+          <p className="text-sm text-ink-soft leading-relaxed">
+            <strong>Good news — you owe no income tax yet.</strong> At your income, the new regime&apos;s rebate covers you fully, so there&apos;s nothing to pay or file-and-claim right now. Have a quick read below so you know how it works for when you start earning more — but you can skip the rest.
+          </p>
+        </div>
+      )}
+
       {/* Regime comparison */}
       <section className="grid sm:grid-cols-2 gap-4">
         {[c.oldRegime, c.newRegime].map((r: any) => (

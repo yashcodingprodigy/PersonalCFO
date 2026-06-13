@@ -274,6 +274,10 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
     'Always choose the “Direct” plan version of a fund (lower fees than “Regular”) and set up an auto-SIP on salary day.',
     'Start with the index fund even if the amount is small — consistency matters far more than the starting size.',
   ];
+  if (p.user.employment_type === 'student') {
+    startSteps.unshift('You don’t need much to begin — a ₹500 SIP started now beats a ₹5,000 SIP started ten years later, thanks to compounding. Begin small and raise it as your income grows.');
+    startSteps.push('Curious about individual stocks? Start with an index fund first — it spreads your risk across the whole market while you learn how the market actually behaves.');
+  }
 
   return {
     hasIncome: true, riskProfile: risk, riskReason: reason, riskWasExplicit,

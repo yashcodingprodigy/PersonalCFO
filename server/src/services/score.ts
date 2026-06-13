@@ -79,23 +79,45 @@ function savingsRateScore(p: ProfileData): DimensionScore {
 
 // ── 6.3.2 Insurance Adequacy (20%) ──────────────────────────────────
 function insuranceScore(p: ProfileData): DimensionScore {
+  const dependents = p.user.dependents_count || 0;
   const annualIncome = p.user.annual_gross_income;
+  const healthCover = sum(p.insurance?.health, 'sum_insured');
+  const familySize = 1 + dependents;
+  // ₹10L family floater minimum, adjusted for family size (₹5L per member floor)
+  const recommendedHealth = Math.max(1000000 * 100, 500000 * 100 * familySize);
+  const healthScore = clamp((healthCover / recommendedHealth) * 100);
+
+  // Students: usually no need for life cover yet and typically on a family
+  // health plan — leave this dimension out rather than penalise them.
+  if (p.user.employment_type === 'student') {
+    return { score: 0, weight: 0.2, explanation: "As a student you usually don't need life insurance yet, and you're often on a family health plan — we've left this out of your score for now.", available: false };
+  }
+
+  // No dependents → no one relies on your income, so life insurance isn't a
+  // priority. Score on health cover alone (no term penalty).
+  if (dependents === 0) {
+    if (!annualIncome && healthCover === 0) {
+      return { score: 0, weight: 0.2, explanation: 'Add your income and any health cover to assess this.', available: false };
+    }
+    return {
+      score: Math.round(healthScore), weight: 0.2,
+      explanation: healthCover > 0
+        ? 'No dependents yet, so life insurance isn’t a priority — this reflects your health cover.'
+        : 'With no dependents, focus on health insurance (a family floater is fine) — life cover can wait.',
+      available: true,
+    };
+  }
+
   if (!annualIncome) {
     return { score: 0, weight: 0.2, explanation: 'Add your income to assess insurance adequacy.', available: false };
   }
   const termCover = sum(p.insurance?.term, 'sum_assured');
-  const healthCover = sum(p.insurance?.health, 'sum_insured');
   const recommendedTerm = annualIncome * 25;
-  const familySize = 1 + (p.user.dependents_count || 0);
-  // ₹10L family floater minimum, adjusted for family size (₹5L per member floor)
-  const recommendedHealth = Math.max(1000000 * 100, 500000 * 100 * familySize);
-
   const termScore = clamp((termCover / recommendedTerm) * 100);
-  const healthScore = clamp((healthCover / recommendedHealth) * 100);
   let combined = termScore * 0.6 + healthScore * 0.4;
 
   // Hard cap: zero term insurance with dependents caps dimension at 30
-  if (termCover === 0 && (p.user.dependents_count || 0) > 0) combined = Math.min(combined, 30);
+  if (termCover === 0 && dependents > 0) combined = Math.min(combined, 30);
 
   const gapCr = ((recommendedTerm - termCover) / 1e7 / 100).toFixed(2);
   const explanation =
@@ -212,8 +234,15 @@ export function deductionUsage(p: ProfileData): { used: number; available: numbe
 }
 
 function taxEfficiencyScore(p: ProfileData): DimensionScore {
-  if (!p.user.annual_gross_income) {
+  const gross = p.user.annual_gross_income;
+  if (!gross) {
     return { score: 0, weight: 0.1, explanation: 'Add income details to assess tax efficiency.', available: false };
+  }
+  // Under the new regime the 87A rebate means zero tax up to ~₹12.75L gross
+  // (₹12L taxable + ₹75k standard deduction). Below that there's effectively
+  // nothing to optimise — don't score it (helps students / early earners).
+  if (gross <= 1275000_00) {
+    return { score: 0, weight: 0.1, explanation: "You're below the income-tax threshold — no tax to optimise yet. We'll switch this on as your income grows.", available: false };
   }
   // Under the new regime most deductions don't apply — score reflects
   // whether the user has picked the regime that saves them more.

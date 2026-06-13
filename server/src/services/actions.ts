@@ -48,8 +48,9 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
   const ccOutstanding = sum(p.liabilities?.credit_cards, 'outstanding');
   const ccLimit = sum(p.liabilities?.credit_cards, 'limit');
 
-  // ACT-001 — term cover below 25× annual income
-  if (income > 0 && termCover < income * 25) {
+  // ACT-001 — term cover below 25× annual income (only when someone depends
+  // on the user's income — no dependents means life cover isn't needed yet).
+  if (income > 0 && (p.user.dependents_count || 0) > 0 && termCover < income * 25) {
     const recommended = income * 25;
     const gap = recommended - termCover;
     out.push({
@@ -70,7 +71,7 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
   // ACT-002 — health cover below ₹5L × (dependents + 1)
   const familySize = 1 + (p.user.dependents_count || 0);
   const recommendedHealth = 500000 * 100 * familySize;
-  if (income > 0 && healthCover < recommendedHealth) {
+  if (income > 0 && healthCover < recommendedHealth && p.user.employment_type !== 'student') {
     const gap = recommendedHealth - healthCover;
     out.push({
       rule_id: 'ACT-002',
@@ -275,6 +276,29 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
         referral_link: null,
       });
     }
+  }
+
+  // ACT-013 — not investing yet, but has a surplus (esp. students / early earners)
+  const a0 = p.assets || {};
+  const investedTotal =
+    (Number(a0.mutual_funds?.value) || 0) + (Number(a0.stocks) || 0) + (Number(a0.us_stocks) || 0) +
+    (Number(a0.ppf) || 0) + (Number(a0.nps) || 0) + (Number(a0.mutual_funds?.monthly_sip) || 0);
+  const surplus = takeHome > 0 ? (expenses > 0 ? takeHome - expenses : Math.round(takeHome * 0.1)) : 0;
+  if (investedTotal === 0 && takeHome > 0 && surplus > 0) {
+    const start = Math.max(50000, Math.min(Math.round(surplus * 0.3), 500000)); // ₹500–₹5,000/month
+    out.push({
+      rule_id: 'ACT-013',
+      title: `Start investing — even ${inr(start)}/month`,
+      body: `You're not investing yet, and the biggest advantage you have is time. Because of compounding, a small SIP started now can outgrow a much larger one started ten years later. Start a monthly SIP of about ${inr(start)} into a large-cap index fund (low-cost and beginner-friendly) — do your one-time KYC on any investing app and automate it for the day your money arrives. Tip: if you're tempted by individual stocks, begin with an index fund instead — it spreads your risk across the whole market while you learn how investing works. Your full plan is in the Invest tab.`,
+      impact_text: `Starting early matters more than starting big — even a small SIP builds the habit and compounds for decades.`,
+      impact_score: 9,
+      dimension: 'investment_diversification',
+      difficulty: 'easy',
+      deadline: null,
+      category: 'investment',
+      is_seasonal: false,
+      referral_link: null,
+    });
   }
 
   // Sort: impact descending, then easy first

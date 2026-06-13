@@ -58,15 +58,19 @@ export default function Onboarding() {
   const [termCover, setTermCover] = useState(''); const [healthCover, setHealthCover] = useState('');
 
   const bandToGross: Record<string, number> = { '5-10': 75000000, '10-20': 150000000, '20-35': 275000000, '35+': 450000000 };
+  const isStudent = employment === 'student';
 
   async function submit1(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr('');
     try {
+      // Students rarely have a fixed annual salary — estimate it from their
+      // monthly money (allowance / stipend / part-time) instead of a band.
+      const grossIncome = isStudent ? rupeesToPaise(takeHome || '0') * 12 : bandToGross[grossBand];
       await patch('/user/me', {
         name: name || undefined, city: city || undefined, state: stateName || undefined,
         age: age ? Number(age) : undefined,
         employment_type: employment,
-        annual_gross_income: bandToGross[grossBand],
+        annual_gross_income: grossIncome,
         monthly_take_home: rupeesToPaise(takeHome),
         dependents_count: Number(dependents),
         onboarding_status: { session_1: 'complete', session_2: 'pending', session_3: 'pending' },
@@ -181,24 +185,36 @@ export default function Onboarding() {
               <div className="sm:col-span-2">
                 <label className="label">Employment</label>
                 <select className="input" value={employment} onChange={(e) => setEmployment(e.target.value)}>
+                  <option value="student">Student</option>
                   <option value="salaried">Salaried</option><option value="self_employed">Self-employed</option>
                   <option value="freelancer">Freelancer</option><option value="business">Business owner</option>
                 </select>
               </div>
             </div>
-            <div>
-              <label className="label">Annual gross income</label>
-              <div className="grid grid-cols-4 gap-2">
-                {['5-10', '10-20', '20-35', '35+'].map((b) => (
-                  <button type="button" key={b} onClick={() => setGrossBand(b)}
-                    className={`rounded-lg border px-2 py-2.5 text-xs font-semibold transition-colors ${grossBand === b ? 'border-pine-700 bg-pine-900 text-white' : 'border-paper-200 bg-white hover:border-pine-600'}`}>
-                    ₹{b}L
-                  </button>
-                ))}
+            {isStudent ? (
+              <div className="rounded-lg bg-mint-100 px-4 py-3 text-[12px] text-pine-800 leading-relaxed">
+                <strong>Welcome 👋</strong> No big salary, loans or insurance yet? Totally fine — PayWatch is built to grow with you. Just tell us what you get each month and we&apos;ll start with the basics: saving a little and investing early (which matters more than the amount).
               </div>
-            </div>
-            <Money label="Monthly take-home (after tax & PF) *" value={takeHome} onChange={setTakeHome} placeholder="1,08,000" hint="The exact amount that lands in your account." />
-            <Money label="Approximate monthly expenses" value={expenses} onChange={setExpenses} hint="Unlocks your savings rate — your most important number. Estimate is fine." />
+            ) : (
+              <div>
+                <label className="label">Annual gross income</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {['5-10', '10-20', '20-35', '35+'].map((b) => (
+                    <button type="button" key={b} onClick={() => setGrossBand(b)}
+                      className={`rounded-lg border px-2 py-2.5 text-xs font-semibold transition-colors ${grossBand === b ? 'border-pine-700 bg-pine-900 text-white' : 'border-paper-200 bg-white hover:border-pine-600'}`}>
+                      ₹{b}L
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Money
+              label={isStudent ? 'Money you get each month (allowance, stipend, part-time) *' : 'Monthly take-home (after tax & PF) *'}
+              value={takeHome} onChange={setTakeHome}
+              placeholder={isStudent ? '8,000' : '1,08,000'}
+              hint={isStudent ? 'Pocket money, internship stipend, part-time/freelance — add it all up. A rough number is fine.' : 'The exact amount that lands in your account.'}
+            />
+            <Money label={isStudent ? 'Roughly how much you spend each month' : 'Approximate monthly expenses'} value={expenses} onChange={setExpenses} hint={isStudent ? 'Food, outings, subscriptions, travel. This unlocks how much you can save.' : 'Unlocks your savings rate — your most important number. Estimate is fine.'} />
             <div>
               <label className="label">Financial dependents (spouse, children, parents)</label>
               <select className="input" value={dependents} onChange={(e) => setDependents(e.target.value)}>
@@ -215,10 +231,10 @@ export default function Onboarding() {
           <form onSubmit={submit2} className="card p-8 space-y-5">
             <div>
               <h1 className="font-display text-2xl font-medium">Assets & investments</h1>
-              <p className="text-sm text-ink-soft mt-1">About 8 minutes. Approximations are fine — you can refine anytime. Every field is optional.</p>
+              <p className="text-sm text-ink-soft mt-1">{isStudent ? 'Just starting out? Enter whatever you have — even ₹0 is a perfectly fine starting point. Every field is optional.' : 'About 8 minutes. Approximations are fine — you can refine anytime. Every field is optional.'}</p>
             </div>
             <div className="rounded-lg bg-paper-100 px-4 py-3 text-[12px] text-ink-soft leading-relaxed">
-              <strong>Tip:</strong> for investments, enter today&apos;s <em>current value</em> (what it&apos;s worth now if you sold it) — not how much you originally put in. You can see this on your Groww / Zerodha / fund app.
+              <strong>Tip:</strong> for investments, enter today&apos;s <em>current value</em> (what it&apos;s worth now if you sold it) — not how much you originally put in. You can see this on your Groww / Zerodha / fund app.{isStudent ? ' EPF/PPF/Property usually don\'t apply yet — just skip them.' : ''}
             </div>
             <div className="grid sm:grid-cols-2 gap-5">
               <Money label="Savings account balance" value={savings} onChange={setSavings} hint="Used for your emergency fund check." />
@@ -259,8 +275,13 @@ export default function Onboarding() {
           <form onSubmit={submit3} className="card p-8 space-y-5">
             <div>
               <h1 className="font-display text-2xl font-medium">Loans & insurance</h1>
-              <p className="text-sm text-ink-soft mt-1">Last step — unlocks your full Money Health Score across all six dimensions.</p>
+              <p className="text-sm text-ink-soft mt-1">Last step — unlocks your full Money Health Score.</p>
             </div>
+            {isStudent && (
+              <div className="rounded-lg bg-mint-100 px-4 py-3 text-[12px] text-pine-800 leading-relaxed">
+                Most students have none of these yet — no loans, and usually covered under a family health plan. If that&apos;s you, just tap <strong>Fill later</strong>. We won&apos;t hold it against your score: life insurance only matters once people depend on your income.
+              </div>
+            )}
             <div className="grid sm:grid-cols-2 gap-5">
               <Money label="Home loan outstanding" value={homeLoanOut} onChange={setHomeLoanOut} />
               <Money label="Home loan EMI / month" value={homeLoanEmi} onChange={setHomeLoanEmi} />

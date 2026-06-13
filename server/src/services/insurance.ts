@@ -51,8 +51,12 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
     sum(p.liabilities?.personal_loans, 'outstanding') +
     sum(p.liabilities?.car_loans, 'outstanding');
 
-  // Recommended term = 25× income, bumped to at least cover liabilities + 15× income
-  const recommendedTerm = Math.max(income * 25, totalLiabilities + income * 15);
+  const isStudent = p.user.employment_type === 'student';
+  // Term life cover replaces lost income for people who depend on you. With no
+  // dependents we only size it to clear any outstanding debt (often ₹0).
+  const recommendedTerm = dependents > 0
+    ? Math.max(income * 25, totalLiabilities + income * 15)
+    : totalLiabilities;
   const termGap = Math.max(0, recommendedTerm - termCover);
 
   // Premium heuristic: ₹900–1,300 per ₹1L of cover per year scaled by age band
@@ -65,9 +69,15 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   const healthGap = Math.max(0, recommendedHealth - healthCover);
 
   const termNotes: string[] = [];
-  if (termCover === 0 && dependents > 0) termNotes.push('You have dependents and zero term cover — this is the single most important gap in your finances.');
-  if (totalLiabilities > 0 && termCover < totalLiabilities) termNotes.push(`Your loans (${inr(totalLiabilities)}) exceed your term cover — your family would inherit the debt without the means to clear it.`);
-  termNotes.push('Buy pure term insurance only. Endowment, money-back and ULIP products mix insurance with poor investment returns.');
+  if (recommendedTerm === 0) {
+    termNotes.push(isStudent
+      ? "You don't have dependents or loans, so life insurance isn't needed yet. You can lock it in later when someone starts depending on your income — premiums stay cheap while you're young and healthy."
+      : "With no dependents or loans, term life insurance isn't a priority for you right now.");
+  } else {
+    if (termCover === 0 && dependents > 0) termNotes.push('You have dependents and zero term cover — this is the single most important gap in your finances.');
+    if (totalLiabilities > 0 && termCover < totalLiabilities) termNotes.push(`Your loans (${inr(totalLiabilities)}) exceed your term cover — your family would inherit the debt without the means to clear it.`);
+    termNotes.push('Buy pure term insurance only. Endowment, money-back and ULIP products mix insurance with poor investment returns.');
+  }
 
   const healthNotes: string[] = [];
   const healthPolicies = Array.isArray(p.insurance?.health) ? p.insurance.health : [];
@@ -103,10 +113,12 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   if (healthGap > 0) {
     const ghLakhs = healthGap / 100 / 100000;
     recommendations.push({
-      priority: healthCover === 0 ? 'high' : 'medium',
+      priority: healthCover === 0 ? (isStudent ? 'medium' : 'high') : 'medium',
       title: healthCover > 0 ? `Raise your health cover by ${inr(healthGap)}` : `Get health insurance (about ${inr(recommendedHealth)})`,
       whatItIs: 'Health insurance pays your hospital bills. A “family floater” covers everyone under one shared amount; a “super top-up” cheaply extends cover above a threshold.',
-      whyForYou: `For a family of ${familySize}, ${inr(Math.round(recommendedHealth))} is a sensible floor — a single ICU stay in a metro can cross ₹5L.${healthCover > 0 ? ' A super top-up over your existing policy is the cheapest way to close the gap.' : ''}`,
+      whyForYou: isStudent
+        ? `First, check whether you're already covered under your parents' family floater — many students are, and that's enough for now. If not, even a basic ₹5L policy protects your savings from a single hospital bill.`
+        : `For a family of ${familySize}, ${inr(Math.round(recommendedHealth))} is a sensible floor — a single ICU stay in a metro can cross ₹5L.${healthCover > 0 ? ' A super top-up over your existing policy is the cheapest way to close the gap.' : ''}`,
       howTo: 'Pick a floater with no room-rent cap and a high claim-settlement ratio; add parents on a separate policy. Don’t rely only on employer cover — it ends with the job.',
       estCostAnnual: { low: Math.round(ghLakhs * 800 * 100), high: Math.round(ghLakhs * 1500 * 100) },
     });
@@ -142,7 +154,9 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   const order = { high: 0, medium: 1, low: 2 };
   recommendations.sort((a, b) => order[a.priority] - order[b.priority]);
 
-  const beginnerIntro = recommendations.some((r) => r.priority === 'high')
+  const beginnerIntro = isStudent
+    ? "As a student, keep it simple: you don't need life insurance yet, and you may already be covered under a family health plan. Here's what's actually worth knowing — and what to ignore for now."
+    : recommendations.some((r) => r.priority === 'high')
     ? 'Insurance is the seatbelt of your finances — boring until the day it saves everything. Based on your profile, here is exactly what to get and why, starting with the most urgent.'
     : 'Good news — your core cover looks solid. Below are smaller, optional protections worth considering, plus what to steer clear of.';
 

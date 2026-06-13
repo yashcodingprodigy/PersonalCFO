@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   name               VARCHAR(100),
   city               VARCHAR(100),
   age                INTEGER,
-  employment_type    VARCHAR(20) CHECK (employment_type IN ('salaried','self_employed','freelancer','business')),
+  employment_type    VARCHAR(20) CHECK (employment_type IN ('salaried','self_employed','freelancer','business','student')),
   annual_gross_income BIGINT,
   monthly_take_home  BIGINT,
   dependents_count   INTEGER DEFAULT 0,
@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS state         VARCHAR(60);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS risk_appetite VARCHAR(20)
   CHECK (risk_appetite IN ('conservative','moderate','aggressive'));
+
+-- Allow 'student' as an employment type (idempotent: drop + re-add the CHECK).
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_employment_type_check;
+ALTER TABLE users ADD CONSTRAINT users_employment_type_check
+  CHECK (employment_type IN ('salaried','self_employed','freelancer','business','student'));
 
 CREATE TABLE IF NOT EXISTS otp_codes (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
