@@ -9,6 +9,7 @@ import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan } from 
 import { analyseInsurance } from '../services/insurance';
 import { buildInvestmentGuidance } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
+import { getMarketData } from '../services/market';
 import { deductionUsage } from '../services/score';
 import { categorise } from '../adapters/aa';
 import { remember } from '../services/rag';
@@ -50,6 +51,11 @@ insightsRouter.get('/insurance', async (req: AuthedRequest, res) => {
     ...analyseInsurance(p),
     disclaimer: 'Coverage guidance uses standard planning rules (25× income for term cover). We do not recommend specific insurers or policies and earn no commission unless explicitly disclosed.',
   });
+});
+
+// GET /market — educational themes + third-party financial news (no advice)
+insightsRouter.get('/market', async (_req: AuthedRequest, res) => {
+  res.json(await getMarketData());
 });
 
 // GET /invest — personalised, SEBI-compliant investment guidance

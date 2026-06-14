@@ -22,9 +22,15 @@ async function syncActions(userId: string) {
   for (const g of generated) {
     if (!existingRules.has(g.rule_id)) {
       await query(
-        `INSERT INTO actions (user_id, rule_id, title, body, impact_text, impact_score, dimension, difficulty, deadline, category, is_seasonal, referral_link)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-        [userId, g.rule_id, g.title, g.body, g.impact_text, g.impact_score, g.dimension, g.difficulty, g.deadline, g.category, g.is_seasonal, g.referral_link]
+        `INSERT INTO actions (user_id, rule_id, title, body, impact_text, impact_score, dimension, difficulty, deadline, category, is_seasonal, referral_link, priority)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [userId, g.rule_id, g.title, g.body, g.impact_text, g.impact_score, g.dimension, g.difficulty, g.deadline, g.category, g.is_seasonal, g.referral_link, g.priority || 'medium']
+      );
+    } else {
+      // keep priority fresh as the user's profile changes
+      await query(
+        `UPDATE actions SET priority = $3 WHERE user_id = $1 AND rule_id = $2 AND status IN ('pending','in_progress','deferred')`,
+        [userId, g.rule_id, g.priority || 'medium']
       );
     }
   }
@@ -98,6 +104,64 @@ actionsRouter.patch('/:id/status', async (req: AuthedRequest, res) => {
 
   const updated = await one(`SELECT * FROM actions WHERE action_id = $1`, [req.params.id]);
   res.json(updated);
+});
+
+// POST /actions/:id/complete — confirm done and (optionally) record what the
+// user actually invested so their profile + score update correctly.
+actionsRouter.post('/:id/complete', async (req: AuthedRequest, res) => {
+  const schema = z.object({
+    invested_amount: z.number().int().positive().optional(),   // paise
+    invested_type: z.enum([
+      'index_fund', 'mutual_fund', 'stocks', 'ppf', 'epf', 'nps', 'fd', 'gold',
+      'savings', 'term_insurance', 'health_insurance',
+    ]).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+
+  const action = await one(`SELECT * FROM actions WHERE action_id = $1 AND user_id = $2`, [req.params.id, req.userId]);
+  if (!action) return res.status(404).json({ error: 'not_found' });
+
+  const { invested_amount, invested_type } = parsed.data;
+
+  // Apply the profile delta if the user told us what they did.
+  if (invested_amount && invested_type) {
+    const prof = await one(`SELECT assets, insurance FROM profiles WHERE user_id = $1`, [req.userId]);
+    const assets = prof?.assets || {};
+    const insurance = prof?.insurance || {};
+    const cur = (k: string) => Number(assets[k]) || 0;
+
+    if (invested_type === 'index_fund' || invested_type === 'mutual_fund') {
+      const mf = assets.mutual_funds || {};
+      const delta = { mutual_funds: { ...mf, value: (Number(mf.value) || 0) + invested_amount } };
+      await query(`UPDATE profiles SET assets = assets || $2::jsonb, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(delta)]);
+    } else if (invested_type === 'term_insurance') {
+      const term = Array.isArray(insurance.term) ? insurance.term : [];
+      const delta = { term: [...term, { sum_assured: invested_amount }] };
+      await query(`UPDATE profiles SET insurance = insurance || $2::jsonb, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(delta)]);
+    } else if (invested_type === 'health_insurance') {
+      const health = Array.isArray(insurance.health) ? insurance.health : [];
+      const delta = { health: [...health, { sum_insured: invested_amount }] };
+      await query(`UPDATE profiles SET insurance = insurance || $2::jsonb, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(delta)]);
+    } else {
+      const field: Record<string, string> = { stocks: 'stocks', ppf: 'ppf', epf: 'epf', nps: 'nps', fd: 'fd_total', gold: 'gold', savings: 'savings_balance' };
+      const key = field[invested_type];
+      const delta = { [key]: cur(key) + invested_amount };
+      await query(`UPDATE profiles SET assets = assets || $2::jsonb, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(delta)]);
+    }
+  }
+
+  await query(
+    `UPDATE actions SET status = 'done', completed_at = now() WHERE action_id = $1 AND user_id = $2`,
+    [req.params.id, req.userId]
+  );
+  await remember(req.userId!, 'action_completed', `Completed: ${action.title}`,
+    `User completed "${action.title}" (${action.category}) on ${new Date().toISOString().slice(0, 10)}.` +
+    (invested_amount && invested_type ? ` They reported ${invested_type.replace('_', ' ')} of ₹${Math.round(invested_amount / 100).toLocaleString('en-IN')}.` : ''));
+  const result = await recalculateAndStoreScore(req.userId!, 'action_complete');
+
+  const updated = await one(`SELECT * FROM actions WHERE action_id = $1`, [req.params.id]);
+  res.json({ action: updated, score: result?.score ?? null });
 });
 
 // GET /actions/stats/summary — streak + completion stats

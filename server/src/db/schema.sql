@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS actions (
   completed_at  TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_actions_user ON actions(user_id, status);
+ALTER TABLE actions ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'medium';
 
 CREATE TABLE IF NOT EXISTS goals (
   goal_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),

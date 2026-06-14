@@ -54,13 +54,14 @@ PayWatch/
   - `investment.ts` — **SEBI-compliant investment guidance**: risk profile, target allocation, fund-category recommendations, model portfolios, monthly SIP plan. Never names a product.
   - `statement.ts` — **bank-statement analyser**: takes parsed transactions, returns category breakdown, invested total, recurring subs, reduce suggestions, watch-outs.
   - `networth.ts` — asset/liability breakdown, allocation, `growthProjection()` ("grow net worth from X to Y").
-  - `actions.ts` — rule engine ACT-001…ACT-012, quantified actions.
+  - `actions.ts` — rule engine ACT-001…ACT-021, quantified actions, each with a computed `priority` (high/medium/low from impact + deadline). Route adds `POST /actions/:id/complete` (confirm done + optional invested amount/type → writes the delta into the profile and recalcs score). `actions.priority` column added idempotently.
+  - `market.ts` — **Markets & Learn**: educational investment *themes* (category-level, never named securities) + live financial news via keyless Google News RSS (`fetchMarketNews`, fails soft). Strictly education/news, no stock tips.
   - `goals.ts`, `cfo-ai.ts` (RAG-grounded "Ask your CFO"), `rag.ts` (local Postgres FTS RAG store), `profile.ts` (loads ProfileData + recalc score).
 - `adapters/` — `sms.ts` (dev logs OTP / msg91 real), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox / Razorpay).
 
 ### Web (`web/src`)
 - `app/onboarding/page.tsx` — 3-session progressive onboarding. State→City dependent dropdowns (`lib/india.ts`), risk-comfort question, "current value" clarifications.
-- `app/(app)/` — dashboard, actions, networth, **invest**, tax, insurance, **statement**, goals, ask, reports, settings (all behind auth layout with sidebar nav).
+- `app/(app)/` — dashboard, actions (priority badges + filters + done-confirmation flow that updates the profile), networth, **invest**, **markets** (themes + news), tax, insurance, **statement**, goals, ask, reports, settings (all behind auth layout with sidebar nav).
 - `lib/india.ts` — Indian states/UTs → cities, `isMetro()` for HRA.
 - `lib/statementParse.ts` — **client-side** CSV/Excel/PDF parsing (loads PapaParse/SheetJS/pdf.js from cdnjs at runtime; the file never leaves the browser, only parsed rows are POSTed).
 - `lib/api.ts` — fetch wrapper with auto token refresh. `lib/format.ts` — `inr()`, labels.

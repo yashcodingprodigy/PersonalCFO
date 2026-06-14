@@ -11,6 +11,7 @@ const NAV = [
   { href: '/actions', label: 'Actions', icon: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
   { href: '/invest', label: 'Invest', icon: 'M3 13h2v7H3v-7Zm4-4h2v11H7V9Zm4-5h2v16h-2V4Zm4 8h2v8h-2v-8Z' },
+  { href: '/markets', label: 'Markets & news', icon: 'M3 3v18h18v-2H5V3H3Zm4 11 3-3 3 3 5-5-1.4-1.4L15 11l-3-3-4 4 1 1Z' },
   { href: '/tax', label: 'Tax', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Zm-1 14-4-4 1.4-1.4L11 13.2l5.6-5.6L18 9l-7 7Z' },
   { href: '/insurance', label: 'Insurance', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Z' },
   { href: '/statement', label: 'Statement scan', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z' },

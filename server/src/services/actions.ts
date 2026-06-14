@@ -17,6 +17,7 @@ export interface GeneratedAction {
   category: 'tax' | 'insurance' | 'investment' | 'debt' | 'savings' | 'estate';
   is_seasonal: boolean;
   referral_link: string | null;
+  priority?: 'high' | 'medium' | 'low';
 }
 
 const inr = (paise: number) => {
@@ -301,8 +302,115 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
     });
   }
 
-  // Sort: impact descending, then easy first
+  // ── Additional profile-aware & educational actions ─────────────────
+  const gold = Number(a0.gold) || 0;
+  const usStocks = Number(a0.us_stocks) || 0;
+  const equityVal = (Number(a0.mutual_funds?.value) || 0) + (Number(a0.stocks) || 0) + usStocks;
+  const sipAmt = Number(a0.mutual_funds?.monthly_sip) || 0;
+  const npsVal = Number(a0.nps) || 0;
+  const monthsCovered = expenses > 0 ? savings / expenses : 0;
+  const isStudent = p.user.employment_type === 'student';
+  const hasCreditLine = ccLimit > 0 || (p.liabilities?.home_loans || []).length > 0 || (p.liabilities?.personal_loans || []).length > 0 || (p.liabilities?.car_loans || []).length > 0;
+
+  // ACT-014 — step up your SIP each year
+  if (sipAmt > 0) {
+    const stepUp = Math.round(sipAmt * 0.1);
+    out.push({
+      rule_id: 'ACT-014', title: `Step up your SIP by ${inr(stepUp)}/month`,
+      body: `You invest ${inr(sipAmt)}/month. Increasing your SIP by about 10% each year (a "step-up SIP") as your income rises roughly doubles your final corpus over 20 years versus a flat SIP — and you barely feel it. Most apps let you set an automatic annual step-up once.`,
+      impact_text: `A 10% yearly step-up can add tens of lakhs to your long-term corpus with almost no extra effort.`,
+      impact_score: 6, dimension: 'investment_diversification', difficulty: 'easy', deadline: null, category: 'investment', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-015 — no gold allocation
+  if (investedTotal > 0 && gold === 0) {
+    out.push({
+      rule_id: 'ACT-015', title: 'Add a small gold allocation (5–10%)',
+      body: `You hold no gold. A small slice (5–10% of your portfolio) tends to hold its value — or rise — when stocks fall, smoothing out your overall ride. The cleanest ways are Sovereign Gold Bonds (which also pay 2.5% interest a year and are tax-free if held to maturity) or a gold ETF — not physical jewellery.`,
+      impact_text: `Gold cushions your portfolio during market crashes and improves diversification.`,
+      impact_score: 4, dimension: 'investment_diversification', difficulty: 'easy', deadline: null, category: 'investment', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-016 — no international exposure
+  if (equityVal > 0 && usStocks === 0 && !isStudent) {
+    out.push({
+      rule_id: 'ACT-016', title: 'Add some international exposure',
+      body: `All your equity is in India. Adding 10–15% in an international (often US) index fund spreads your risk across economies, so you're not betting everything on one country. Keep it simple with a global or US index fund rather than picking foreign companies.`,
+      impact_text: `Geographic diversification reduces the risk of any single market dragging down your whole portfolio.`,
+      impact_score: 4, dimension: 'investment_diversification', difficulty: 'easy', deadline: null, category: 'investment', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-017 — top up emergency fund from 3 to 6 months
+  if (expenses > 0 && monthsCovered >= 3 && monthsCovered < 6) {
+    const target = expenses * 6; const gap = target - savings;
+    out.push({
+      rule_id: 'ACT-017', title: `Top up your emergency fund by ${inr(gap)}`,
+      body: `You have ${monthsCovered.toFixed(1)} months of expenses set aside — a solid base. Building it to a full 6 months (${inr(target)}) gives you real breathing room for a job change or medical event. Keep it in a liquid fund or sweep-in FD so it earns a bit while staying instantly accessible.`,
+      impact_text: `A 6-month buffer means a setback never forces you into high-interest debt or selling investments at a loss.`,
+      impact_score: 5, dimension: 'emergency_fund', difficulty: 'medium', deadline: null, category: 'savings', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-018 — start spending tracking (no expense data)
+  if (p.monthlyExpenses == null) {
+    out.push({
+      rule_id: 'ACT-018', title: 'Upload a bank statement to see where your money goes',
+      body: `We don't have your spending yet, so your savings rate and emergency-fund scores are locked. Head to the Statement scan tab and upload a CSV/PDF bank statement (it's read on your device, never uploaded) — you'll get a full breakdown of where your money goes and unlock two score dimensions at once.`,
+      impact_text: `Seeing your real spending is the first step to improving it — and it unlocks your savings-rate score.`,
+      impact_score: 7, dimension: 'savings_rate', difficulty: 'easy', deadline: null, category: 'savings', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-019 — start NPS for retirement (working, 30+, none yet)
+  if (income > 0 && !isStudent && (p.user.age || 0) >= 30 && npsVal === 0) {
+    out.push({
+      rule_id: 'ACT-019', title: 'Open an NPS account for retirement',
+      body: `You don't have an NPS yet. The National Pension System is a low-cost, government-backed way to build a retirement corpus, with an extra ₹50,000 tax deduction (80CCD(1B), old regime) on top of 80C. It locks until 60, so treat it as long-term retirement money. Open one online via the eNPS portal.`,
+      impact_text: `Builds a dedicated retirement corpus and can save up to ₹15,600/year in tax (30% bracket).`,
+      impact_score: 5, dimension: 'investment_diversification', difficulty: 'easy', deadline: null, category: 'investment', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-020 — check your free credit report
+  if (hasCreditLine) {
+    out.push({
+      rule_id: 'ACT-020', title: 'Check your credit report (free, once a year)',
+      body: `You have at least one loan or credit card, so your credit score matters for future borrowing. You're entitled to one free credit report a year from each bureau (CIBIL, Experian, Equifax, CRIF). Check it for errors and to see what's helping or hurting your score — a quick 10-minute habit that can save you on future loan rates.`,
+      impact_text: `Catching errors early protects your borrowing power and can lower the interest you pay on future loans.`,
+      impact_score: 3, dimension: 'debt_health', difficulty: 'easy', deadline: null, category: 'debt', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ACT-021 — set up nominations
+  if (investedTotal > 0 || savings > 0) {
+    out.push({
+      rule_id: 'ACT-021', title: 'Add nominees to your bank, MF and investment accounts',
+      body: `Make sure every account — bank, mutual funds, demat, EPF, insurance — has a nominee. Without one, your family faces a slow, document-heavy process to claim your money. It takes a few minutes per account online (banking app, the fund RTA, or EPFO portal). Remember: a nominee is a trustee for your legal heirs, so a will still matters for clear instructions.`,
+      impact_text: `Ensures your money reaches your family quickly and without legal friction. Costs nothing.`,
+      impact_score: 3, dimension: 'investment_diversification', difficulty: 'easy', deadline: null, category: 'estate', is_seasonal: false, referral_link: null,
+    });
+  }
+
+  // ── Priority: from impact, bumped by approaching deadlines ──────────
+  for (const a of out) {
+    let pr: 'high' | 'medium' | 'low' = a.impact_score >= 10 ? 'high' : a.impact_score >= 6 ? 'medium' : 'low';
+    if (a.deadline) {
+      const days = (new Date(a.deadline).getTime() - Date.now()) / (24 * 3600 * 1000);
+      if (days <= 60 && pr !== 'high') pr = pr === 'low' ? 'medium' : 'high';
+    }
+    a.priority = pr;
+  }
+
+  // Sort: priority, then impact descending, then easy first
+  const prRank = { high: 0, medium: 1, low: 2 };
   const diffRank = { easy: 0, medium: 1, hard: 2 };
-  out.sort((x, y) => y.impact_score - x.impact_score || diffRank[x.difficulty] - diffRank[y.difficulty]);
+  out.sort((x, y) =>
+    prRank[x.priority!] - prRank[y.priority!] ||
+    y.impact_score - x.impact_score ||
+    diffRank[x.difficulty] - diffRank[y.difficulty]
+  );
   return out;
 }
