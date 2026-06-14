@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [aa, setAa] = useState<any>(null);
   const [busyAa, setBusyAa] = useState(false);
   const [hi, setHi] = useState(0); // growth horizon index 0/1/2
+  const [briefing, setBriefing] = useState<any>(null);
   const [err, setErr] = useState('');
 
   async function load() {
@@ -20,6 +21,7 @@ export default function Dashboard() {
       get('/score'), get('/networth'), get('/actions?status=pending'), get('/aa/status'),
     ]);
     setScore(s); setNetworth(n); setActions(a.slice(0, 3)); setAa(st);
+    get('/alerts/briefing').then(setBriefing).catch(() => {});
   }
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
 
@@ -53,6 +55,39 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* Monthly briefing */}
+      {briefing && (
+        <section className="card p-6">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">{briefing.month} · your money this month</h2>
+            <Link href="/alerts" className="text-sm font-semibold text-pine-700 hover:underline">
+              {briefing.openAlerts > 0 ? `${briefing.openAlerts} alert${briefing.openAlerts > 1 ? 's' : ''} →` : 'All clear →'}
+            </Link>
+          </div>
+          <div className="mt-4 grid sm:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-paper-50 border border-paper-200 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">This month, invest</p>
+              <p className="font-display text-2xl font-semibold tabular-nums mt-1 text-pine-700">{inr(briefing.investThisMonth)}</p>
+              <Link href="/invest" className="text-[11px] text-pine-700 underline">where to put it →</Link>
+            </div>
+            <div className="rounded-xl bg-paper-50 border border-paper-200 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Your #1 move</p>
+              <p className="text-sm font-semibold mt-1 line-clamp-2">{briefing.topAction?.title || 'You\'re on track — nothing pressing.'}</p>
+              {briefing.topAction && <Link href="/actions" className="text-[11px] text-pine-700 underline">do it →</Link>}
+            </div>
+            <div className="rounded-xl bg-paper-50 border border-paper-200 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Next deadline</p>
+              {briefing.nextDeadline ? (
+                <>
+                  <p className="text-sm font-semibold mt-1 line-clamp-2">{briefing.nextDeadline.title}</p>
+                  <p className="text-[11px] text-signal-amber">by {new Date(briefing.nextDeadline.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                </>
+              ) : <p className="text-sm text-ink-soft mt-1">Nothing urgent ahead.</p>}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Net-worth growth incentive */}
       {networth?.growth?.available && networth.growth.horizons?.[hi] && (() => {

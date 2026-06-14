@@ -8,6 +8,7 @@ import { get, clearTokens, getTokens, del } from '@/lib/api';
 
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: 'M3 13h7V3H3v10Zm0 8h7v-6H3v6Zm11 0h7V11h-7v10Zm0-18v6h7V3h-7Z' },
+  { href: '/alerts', label: 'Alerts', icon: 'M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z' },
   { href: '/actions', label: 'Actions', icon: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
   { href: '/invest', label: 'Invest', icon: 'M3 13h2v7H3v-7Zm4-4h2v11H7V9Zm4-5h2v16h-2V4Zm4 8h2v8h-2v-8Z' },
@@ -15,6 +16,7 @@ const NAV = [
   { href: '/tax', label: 'Tax', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Zm-1 14-4-4 1.4-1.4L11 13.2l5.6-5.6L18 9l-7 7Z' },
   { href: '/insurance', label: 'Insurance', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Z' },
   { href: '/statement', label: 'Statement scan', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z' },
+  { href: '/vault', label: 'Document vault', icon: 'M3 5h6l2 2h10v12H3V5Zm2 2v10h14V9h-8.8l-2-2H5Z' },
   { href: '/goals', label: 'Goals', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
   { href: '/ask', label: 'Ask your CFO', icon: 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z' },
   { href: '/reports', label: 'Reports', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z' },
@@ -25,11 +27,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     if (!getTokens().access) { router.replace('/login'); return; }
     get('/user/me').then(setUser).catch(() => {});
-  }, [router]);
+    get('/alerts/count').then((r) => setUnread(r.unread || 0)).catch(() => {});
+  }, [router, path]);
 
   async function logout() {
     try { await del('/auth/logout'); } catch {}
@@ -48,7 +52,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 ${path?.startsWith(n.href) ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
-              {n.label}
+              <span className="flex-1">{n.label}</span>
+              {n.href === '/alerts' && unread > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-mint-500 text-pine-950 text-[10px] font-bold">{unread}</span>
+              )}
             </Link>
           ))}
         </nav>

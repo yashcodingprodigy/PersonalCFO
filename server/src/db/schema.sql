@@ -207,6 +207,39 @@ CREATE TABLE IF NOT EXISTS consents (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Proactive alerts / monitor (the recurring-value engine).
+CREATE TABLE IF NOT EXISTS notifications (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  kind         VARCHAR(40) NOT NULL,
+  category     VARCHAR(20) NOT NULL DEFAULT 'general',
+  severity     VARCHAR(10) NOT NULL DEFAULT 'info',
+  title        VARCHAR(180) NOT NULL,
+  body         TEXT NOT NULL,
+  action_label VARCHAR(60),
+  action_href  VARCHAR(80),
+  due_date     DATE,
+  dedupe_key   VARCHAR(140) NOT NULL,
+  status       VARCHAR(12) NOT NULL DEFAULT 'unread' CHECK (status IN ('unread','read','dismissed')),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_dedupe ON notifications(user_id, dedupe_key);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, status, created_at DESC);
+
+-- Document vault (organisational — metadata, status & expiry reminders).
+CREATE TABLE IF NOT EXISTS documents (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  slot        VARCHAR(40) NOT NULL,
+  label       VARCHAR(140) NOT NULL,
+  status      VARCHAR(12) NOT NULL DEFAULT 'have' CHECK (status IN ('have','missing')),
+  expiry_date DATE,
+  note        TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_docs_user ON documents(user_id);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id         BIGSERIAL PRIMARY KEY,
   user_id    UUID,

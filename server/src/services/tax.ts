@@ -310,6 +310,97 @@ export function currentFY(): string {
   return `${start}-${String(start + 1).slice(2)}`;
 }
 
+export function fyStartYear(d = new Date()): number {
+  return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+// ── Year-round Tax Copilot (a CA's recurring work, productised) ───────
+export interface TaxCopilot {
+  fy: string;
+  season: string;
+  advanceTax: {
+    applicable: boolean;
+    reason: string;
+    totalLiability: number;
+    instalments: { label: string; dueDate: string; cumulativePct: number; cumulativeAmount: number; status: 'paid_window' | 'due_soon' | 'upcoming' | 'passed' }[];
+  };
+  proofChecklist: { item: string; when: string }[];
+  harvesting: { ltcgFreeLimit: number; note: string };
+  readyPack: {
+    fy: string; generatedAt: string; recommendedRegime: 'old' | 'new';
+    grossIncome: number; totalDeductions: number; taxableIncome: number; estimatedTax: number; effectiveRatePct: number;
+    deductionItems: { section: string; used: number; limit: number }[];
+    documentsNeeded: string[];
+  };
+}
+
+export function taxCopilot(p: ProfileData): TaxCopilot {
+  const now = new Date();
+  const m = now.getMonth(); // 0=Jan
+  const cmp = compareRegimes(p);
+  const best = cmp.recommended === 'old' ? cmp.oldRegime : cmp.newRegime;
+  const { items } = deductionUsage(p);
+  const y = fyStartYear(now);
+
+  const season =
+    m >= 3 && m <= 5 ? 'Start of the financial year — set up tax-saving SIPs early so you’re not scrambling in March.'
+    : m >= 6 && m <= 8 ? 'ITR filing season — file your return before July 31.'
+    : m >= 9 && m <= 11 ? 'Mid-year — check your remaining 80C/80D headroom and invest steadily.'
+    : m === 0 || m === 1 ? 'Proof season — submit investment proofs to HR before the payroll cutoff.'
+    : 'Final stretch — complete all FY deductions and consider capital-gains harvesting before March 31.';
+
+  const empNonSalary = p.user.employment_type && p.user.employment_type !== 'salaried' && p.user.employment_type !== 'student';
+  const advanceApplicable = !!empNonSalary && best.tax > 10000_00;
+  const dates = [
+    { label: '1st instalment', month: 5, day: 15, pct: 15 },   // 15 Jun
+    { label: '2nd instalment', month: 8, day: 15, pct: 45 },   // 15 Sep
+    { label: '3rd instalment', month: 11, day: 15, pct: 75 },  // 15 Dec
+    { label: '4th instalment', month: 2, day: 15, pct: 100 },  // 15 Mar (next year)
+  ];
+  const instalments = dates.map((d) => {
+    const yr = d.month === 2 ? y + 1 : y;
+    const due = new Date(yr, d.month, d.day);
+    const days = (due.getTime() - now.getTime()) / (24 * 3600 * 1000);
+    const status: 'paid_window' | 'due_soon' | 'upcoming' | 'passed' =
+      days < -3 ? 'passed' : days <= 15 ? 'due_soon' : days <= 45 ? 'upcoming' : 'paid_window';
+    return {
+      label: d.label, dueDate: due.toISOString().slice(0, 10), cumulativePct: d.pct,
+      cumulativeAmount: Math.round((best.tax * d.pct) / 100), status,
+    };
+  });
+
+  return {
+    fy: currentFY(), season,
+    advanceTax: {
+      applicable: advanceApplicable,
+      reason: advanceApplicable
+        ? 'You have non-salary income and an estimated tax above ₹10,000, so advance tax is due in four instalments. Paying on time avoids interest under sections 234B/234C.'
+        : (p.user.employment_type === 'salaried' ? 'Your employer deducts TDS from salary, so advance tax usually doesn’t apply unless you have large other income (capital gains, freelance, rent).' : 'Advance tax applies once your non-TDS tax liability crosses ₹10,000 in a year.'),
+      totalLiability: best.tax,
+      instalments,
+    },
+    proofChecklist: [
+      { item: 'Form 16 from your employer', when: 'June (after FY close)' },
+      { item: '80C proofs — ELSS / PPF / LIC / tuition receipts', when: 'Jan–Feb (to HR)' },
+      { item: '80D health-insurance premium receipts', when: 'Jan–Feb' },
+      { item: 'Rent receipts + landlord PAN (if HRA & rent > ₹1L/yr)', when: 'Jan–Feb' },
+      { item: 'Home-loan interest certificate (24b)', when: 'Jan–Feb' },
+      { item: 'Capital-gains statement from your broker/fund', when: 'April–June' },
+    ],
+    harvesting: {
+      ltcgFreeLimit: 125000_00,
+      note: 'Equity long-term gains up to ₹1.25 lakh a year are tax-free. Before March 31 you can sell and rebuy to “use up” this free limit and reset your cost — a legal way to reduce future tax. Booking losses can also offset other gains.',
+    },
+    readyPack: {
+      fy: currentFY(), generatedAt: new Date().toISOString(), recommendedRegime: cmp.recommended,
+      grossIncome: best.grossIncome, totalDeductions: best.totalDeductions, taxableIncome: best.taxableIncome,
+      estimatedTax: best.tax, effectiveRatePct: Math.round(best.effectiveRate * 1000) / 10,
+      deductionItems: items,
+      documentsNeeded: ['Form 16', 'Form 26AS / AIS', 'Interest certificates (home/education loan)', 'Investment proofs (80C/NPS/80D)', 'Capital-gains statement', 'Bank statements'],
+    },
+  };
+}
+
 export function taxCalendarEntries(): { month: string; message: string }[] {
   return [
     { month: 'April', message: 'New financial year. Set up tax-saving SIPs now to spread 80C investments across the year instead of panic-investing in March.' },

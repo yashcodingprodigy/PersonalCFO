@@ -13,6 +13,8 @@ import { billingRouter } from './routes/billing';
 import { complianceRouter } from './routes/compliance';
 import { aaRouter } from './routes/aa';
 import { reportsRouter } from './routes/reports';
+import { alertsRouter } from './routes/alerts';
+import { documentsRouter } from './routes/documents';
 import { rateLimit } from './middleware/rateLimit';
 
 const app = express();
@@ -38,6 +40,8 @@ app.use('/v1/billing', billingRouter);
 app.use('/v1', complianceRouter);     // /data/export /user/me(DELETE) /consents
 app.use('/v1/aa', aaRouter);
 app.use('/v1/reports', reportsRouter);
+app.use('/v1/alerts', alertsRouter);
+app.use('/v1/documents', documentsRouter);
 
 // 404
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));

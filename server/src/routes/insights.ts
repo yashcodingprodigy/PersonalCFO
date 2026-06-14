@@ -5,7 +5,7 @@ import { query } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { loadProfileData, recalculateAndStoreScore } from '../services/profile';
 import { computeNetWorth, projectMonthsToTarget, growthProjection } from '../services/networth';
-import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan } from '../services/tax';
+import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot } from '../services/tax';
 import { analyseInsurance } from '../services/insurance';
 import { buildInvestmentGuidance } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
@@ -38,6 +38,7 @@ insightsRouter.get('/tax', async (req: AuthedRequest, res) => {
     comparison,
     deductions,
     reductionPlan: taxReductionPlan(p),
+    copilot: taxCopilot(p),
     calendar: taxCalendarEntries(),
     disclaimer: 'Tax calculations are estimates for planning purposes based on FY2025-26 slabs. Verify with your CA or the Income Tax portal before filing.',
   });
