@@ -3,31 +3,28 @@
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr } from '@/lib/format';
+import { Ring, Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
 
-const SEV: Record<string, string> = {
-  high: 'bg-signal-red/10 text-signal-red',
-  medium: 'bg-signal-amber/10 text-signal-amber',
-  low: 'bg-paper-100 text-ink-soft',
-};
+const SEV_TONE: Record<string, any> = { high: 'red', medium: 'amber', low: 'gray' };
+const PRIORITY_LABEL: Record<string, string> = { high: 'Get this first', medium: 'Worth getting', low: 'Optional' };
 
-function GapCard({ title, current, recommended, gap, extra }: any) {
+function CoverageCard({ title, current, recommended, gap, extra }: any) {
   const covered = recommended > 0 ? Math.min(100, (current / recommended) * 100) : 100;
+  const color = covered >= 100 ? C.green : covered >= 50 ? C.amber : C.red;
   return (
-    <div className="card p-6">
-      <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">{title}</h2>
-      <div className="mt-4 flex items-baseline gap-2">
-        <span className="font-display text-3xl font-semibold tabular-nums">{inr(current)}</span>
-        <span className="text-sm text-ink-faint">of {inr(recommended)} recommended</span>
+    <div className="card p-6 flex items-center gap-5">
+      <Ring pct={covered} size={104} color={color}>
+        <p className="font-display text-lg font-semibold tabular-nums">{Math.round(covered)}%</p>
+        <p className="text-[9px] uppercase tracking-wider text-ink-faint">covered</p>
+      </Ring>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint">{title}</h3>
+        <p className="font-display text-2xl font-semibold mt-1 tabular-nums">{inr(current)}</p>
+        <p className="text-xs text-ink-faint">of {recommended > 0 ? inr(recommended) : '—'} recommended</p>
+        {recommended > 0 && gap > 0 ? <p className="mt-1 text-sm font-semibold text-signal-red">Gap: {inr(gap)}</p>
+          : <p className="mt-1 text-sm font-semibold text-signal-green">{recommended === 0 ? 'Not needed yet' : 'Fully covered'}</p>}
+        {extra}
       </div>
-      <div className="mt-3 h-2.5 bg-paper-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${covered >= 100 ? 'bg-signal-green' : covered >= 50 ? 'bg-signal-amber' : 'bg-signal-red'}`} style={{ width: `${covered}%` }} />
-      </div>
-      {gap > 0 ? (
-        <p className="mt-3 text-sm font-semibold text-signal-red">Gap: {inr(gap)}</p>
-      ) : (
-        <p className="mt-3 text-sm font-semibold text-signal-green">Fully covered</p>
-      )}
-      {extra}
     </div>
   );
 }
@@ -38,87 +35,70 @@ export default function InsurancePage() {
   if (!ins) return <div className="card h-96 animate-pulse mt-4" />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-display text-3xl font-medium">Insurance analyser</h1>
-        <p className="text-sm text-ink-soft mt-1">Coverage measured against standard planning benchmarks — category guidance only, never specific products.</p>
+        <h1 className="font-display text-3xl font-medium">Insurance</h1>
+        <p className="text-sm text-ink-soft mt-1">Measured against standard planning benchmarks — category guidance only, never specific products.</p>
       </div>
 
+      <SectionNav items={[{ id: 'coverage', label: 'Coverage' }, { id: 'get', label: 'What to get' }, { id: 'notes', label: 'Good to know' }]} />
+
       {ins.beginnerIntro && (
-        <div className="card p-5 border-l-4 border-l-mint-500">
-          <p className="text-sm text-ink-soft leading-relaxed">{ins.beginnerIntro}</p>
-        </div>
+        <div className="card p-5 border-l-4 border-l-mint-500"><p className="text-sm text-ink-soft leading-relaxed">{ins.beginnerIntro}</p></div>
       )}
 
       {ins.flags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {ins.flags.map((f: any, i: number) => (
-            <span key={i} className={`chip ${SEV[f.severity]} !py-1.5 !px-3`}>{f.message}</span>
-          ))}
+          {ins.flags.map((f: any, i: number) => <Pill key={i} tone={SEV_TONE[f.severity]}>{f.message}</Pill>)}
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <GapCard
-          title="Term life cover" current={ins.term.current} recommended={ins.term.recommended} gap={ins.term.gap}
-          extra={ins.term.premiumEstimateAnnual && (
-            <p className="mt-2 text-xs text-ink-soft">
-              Closing the gap costs roughly {inr(ins.term.premiumEstimateAnnual.low)}–{inr(ins.term.premiumEstimateAnnual.high)}/year at your age.
-            </p>
-          )}
-        />
-        <GapCard title="Health cover" current={ins.health.current} recommended={ins.health.recommended} gap={ins.health.gap} />
-      </div>
+      {/* Coverage rings */}
+      <Section id="coverage" title="Your coverage">
+        <div className="grid lg:grid-cols-2 gap-6">
+          <CoverageCard title="Term life cover" current={ins.term.current} recommended={ins.term.recommended} gap={ins.term.gap}
+            extra={ins.term.premiumEstimateAnnual && <p className="mt-2 text-xs text-ink-soft">Closing the gap: ~{inr(ins.term.premiumEstimateAnnual.low)}–{inr(ins.term.premiumEstimateAnnual.high)}/yr.</p>} />
+          <CoverageCard title="Health cover" current={ins.health.current} recommended={ins.health.recommended} gap={ins.health.gap} />
+        </div>
+      </Section>
 
-      {/* Personalised: what you should get */}
+      {/* What to get — collapsible recommendations */}
       {ins.recommendations?.length > 0 && (
-        <section>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">What you should get — in order</h2>
-          <div className="space-y-3">
+        <Section id="get" title="What you should get — in order">
+          <div className="space-y-2.5">
             {ins.recommendations.map((r: any, i: number) => (
-              <article key={i} className="card p-5">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="flex items-start gap-3">
-                    <span className={`chip ${SEV[r.priority]} shrink-0`}>{r.priority === 'high' ? 'Get this first' : r.priority === 'medium' ? 'Worth getting' : 'Optional'}</span>
-                    <div>
-                      <h3 className="text-sm font-bold">{r.title}</h3>
-                      <p className="text-xs text-ink-soft mt-1 leading-relaxed">{r.whatItIs}</p>
-                      <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>Why you:</strong> {r.whyForYou}</p>
-                      <p className="text-xs text-ink-soft mt-1.5 leading-relaxed"><strong>How:</strong> {r.howTo}</p>
-                    </div>
-                  </div>
-                  {r.estCostAnnual && (
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold tabular-nums">{inr(r.estCostAnnual.low)}–{inr(r.estCostAnnual.high)}</p>
-                      <p className="text-[11px] text-ink-faint">est. / year</p>
-                    </div>
-                  )}
-                </div>
-              </article>
+              <Disclosure key={i}
+                left={<Pill tone={SEV_TONE[r.priority]}>{PRIORITY_LABEL[r.priority]}</Pill>}
+                title={r.title}
+                right={r.estCostAnnual ? <span className="text-xs font-semibold tabular-nums whitespace-nowrap text-ink-soft">{inr(r.estCostAnnual.low)}–{inr(r.estCostAnnual.high)}/yr</span> : undefined}>
+                <p className="text-xs text-ink-soft leading-relaxed border-t border-paper-100 pt-3">{r.whatItIs}</p>
+                <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>Why you:</strong> {r.whyForYou}</p>
+                <p className="text-xs text-ink-soft mt-1.5 leading-relaxed"><strong>How:</strong> {r.howTo}</p>
+              </Disclosure>
             ))}
           </div>
-        </section>
+        </Section>
       )}
 
       {ins.avoid?.length > 0 && (
         <section className="card p-6 border-l-4 border-l-signal-amber">
           <h2 className="text-sm font-bold uppercase tracking-widest text-signal-amber mb-3">What to avoid</h2>
           <ul className="space-y-2.5 text-sm text-ink-soft leading-relaxed">
-            {ins.avoid.map((a: string, i: number) => (
-              <li key={i} className="flex gap-2"><span className="text-signal-amber font-bold shrink-0">✕</span>{a}</li>
-            ))}
+            {ins.avoid.map((a: string, i: number) => <li key={i} className="flex gap-2"><span className="text-signal-amber font-bold shrink-0">✕</span>{a}</li>)}
           </ul>
         </section>
       )}
 
-      <section className="card p-6">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">What to know</h2>
-        <ul className="space-y-3 text-sm text-ink-soft leading-relaxed">
-          {[...ins.term.notes, ...ins.health.notes].map((n: string, i: number) => (
-            <li key={i} className="flex gap-2"><span className="text-mint-500 font-bold shrink-0">·</span>{n}</li>
-          ))}
-        </ul>
-      </section>
+      {/* Notes */}
+      <Section id="notes" title="Good to know">
+        <div className="card p-6">
+          <ul className="space-y-3 text-sm text-ink-soft leading-relaxed">
+            {[...ins.term.notes, ...ins.health.notes].map((n: string, i: number) => (
+              <li key={i} className="flex gap-2"><span className="text-mint-500 font-bold shrink-0">·</span>{n}</li>
+            ))}
+          </ul>
+        </div>
+      </Section>
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{ins.disclaimer}</p>
     </div>

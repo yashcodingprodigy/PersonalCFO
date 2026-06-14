@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { get } from '@/lib/api';
+import { SectionNav, Section, C } from '@/components/kit';
 
 const RISK_STYLE: Record<string, string> = {
   Low: 'bg-mint-100 text-pine-800',
   Medium: 'bg-signal-amber/10 text-signal-amber',
   High: 'bg-signal-red/10 text-signal-red',
 };
+const RISK_BAR: Record<string, string> = { Low: C.mint500, Medium: C.amber, High: C.red };
 
 function timeAgo(d: string | null): string {
   if (!d) return '';
@@ -35,6 +37,8 @@ export default function MarketsPage() {
         <p className="text-sm text-ink-soft mt-1">What&apos;s worth knowing right now — investment themes explained simply, plus the latest financial news.</p>
       </div>
 
+      <SectionNav items={[{ id: 'themes', label: 'Themes' }, { id: 'news', label: 'News' }, { id: 'basics', label: 'Basics' }]} />
+
       <div className="card p-4 border-l-4 border-l-signal-amber">
         <p className="text-xs text-ink-soft leading-relaxed">
           <strong>Education, not tips.</strong> We don&apos;t list &ldquo;stocks to buy&rdquo; or predict prices — that needs a SEBI licence we don&apos;t hold. Instead we explain the <em>types</em> of investments and share news so you can learn and decide for yourself.
@@ -42,25 +46,27 @@ export default function MarketsPage() {
       </div>
 
       {/* Trending themes */}
-      <section>
-        <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Trending investment themes</h2>
+      <Section id="themes" title="Trending investment themes" hint="The building blocks, explained simply."
+        action={<Link href="/invest" className="text-sm font-semibold text-pine-700 hover:underline whitespace-nowrap">Fit to my profile →</Link>}>
         <div className="grid sm:grid-cols-2 gap-4">
           {m.themes.map((t: any, i: number) => (
-            <div key={i} className="card p-5">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-bold">{t.theme}</h3>
-                <span className={`chip shrink-0 ${RISK_STYLE[t.risk]}`}>{t.risk} risk</span>
+            <div key={i} className="card p-5 flex gap-4">
+              <span className="w-1.5 rounded-full shrink-0" style={{ background: RISK_BAR[t.risk] }} />
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-bold">{t.theme}</h3>
+                  <span className={`chip shrink-0 ${RISK_STYLE[t.risk]}`}>{t.risk} risk</span>
+                </div>
+                <p className="text-xs text-ink-soft mt-2 leading-relaxed">{t.whatItIs}</p>
+                <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>Who it suits:</strong> {t.whoItSuits}</p>
               </div>
-              <p className="text-xs text-ink-soft mt-2 leading-relaxed">{t.whatItIs}</p>
-              <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>Who it suits:</strong> {t.whoItSuits}</p>
             </div>
           ))}
         </div>
-        <Link href="/invest" className="inline-block mt-3 text-sm font-semibold text-pine-700 hover:underline">See which of these fit your profile →</Link>
-      </section>
+      </Section>
 
       {/* News */}
-      <section className="card p-6">
+      <section id="news" className="card p-6 scroll-mt-20">
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Latest financial news</h2>
         {m.news.length === 0 ? (
           <p className="text-sm text-ink-soft">{m.newsError ? 'News couldn’t be loaded right now — try again shortly.' : 'No recent headlines.'}</p>
@@ -81,7 +87,7 @@ export default function MarketsPage() {
       </section>
 
       {/* Basics */}
-      <section className="card p-6">
+      <section id="basics" className="card p-6 scroll-mt-20">
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Smart-investor basics</h2>
         <ul className="space-y-2.5 text-sm text-ink-soft leading-relaxed">
           {m.basics.map((b: string, i: number) => (
