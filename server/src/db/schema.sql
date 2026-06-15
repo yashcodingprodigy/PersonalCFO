@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Additive columns (idempotent) — safe to re-run on an existing database.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS state         VARCHAR(60);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email         VARCHAR(160);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS risk_appetite VARCHAR(20)
   CHECK (risk_appetite IN ('conservative','moderate','aggressive'));
 
@@ -225,6 +226,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_dedupe ON notifications(user_id, dedupe_key);
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, status, created_at DESC);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS emailed_at TIMESTAMPTZ;
 
 -- Document vault (organisational — metadata, status & expiry reminders).
 CREATE TABLE IF NOT EXISTS documents (

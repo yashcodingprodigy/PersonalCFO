@@ -11,7 +11,7 @@ userRouter.use(requireAuth);
 // GET /user/me
 userRouter.get('/me', async (req: AuthedRequest, res) => {
   const user = await one(
-    `SELECT user_id, mobile, name, city, state, age, employment_type, annual_gross_income, monthly_take_home,
+    `SELECT user_id, mobile, name, email, city, state, age, employment_type, annual_gross_income, monthly_take_home,
             dependents_count, risk_appetite, plan, plan_status, onboarding_status, created_at
        FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
     [req.userId]
@@ -22,6 +22,7 @@ userRouter.get('/me', async (req: AuthedRequest, res) => {
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  email: z.string().email().max(160).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(60).optional(),
   age: z.number().int().min(18).max(100).optional(),
@@ -48,7 +49,7 @@ userRouter.patch('/me', async (req: AuthedRequest, res) => {
   if (keys.some((k) => ['annual_gross_income', 'monthly_take_home', 'dependents_count', 'age'].includes(k))) {
     await recalculateAndStoreScore(req.userId!, 'manual_update');
   }
-  const user = await one(`SELECT user_id, name, city, state, age, employment_type, annual_gross_income, monthly_take_home, dependents_count, risk_appetite, plan, onboarding_status FROM users WHERE user_id = $1`, [req.userId]);
+  const user = await one(`SELECT user_id, name, email, city, state, age, employment_type, annual_gross_income, monthly_take_home, dependents_count, risk_appetite, plan, onboarding_status FROM users WHERE user_id = $1`, [req.userId]);
   res.json(user);
 });
 

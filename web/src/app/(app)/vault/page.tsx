@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { get, post, patch, del } from '@/lib/api';
+import { UpgradeBanner } from '@/components/UpgradeBanner';
 
 export default function VaultPage() {
   const [slots, setSlots] = useState<any[]>([]);
@@ -38,6 +39,8 @@ export default function VaultPage() {
         <h1 className="font-display text-3xl font-medium">Document vault</h1>
         <p className="text-sm text-ink-soft mt-1">Track the paperwork a CA would ask for — and get reminded before anything expires. {slots.length > 0 && <span className="font-semibold">{haveCount}/{slots.length} ready.</span>}</p>
       </div>
+
+      <UpgradeBanner feature="The document vault and renewal reminders" />
 
       <div className="card p-4 border-l-4 border-l-mint-500">
         <p className="text-xs text-ink-soft leading-relaxed">This is an organiser, not a locker — mark what you have and add renewal dates. PayWatch will remind you in Alerts before a policy lapses or a deadline hits. (We don&apos;t store the files themselves.)</p>

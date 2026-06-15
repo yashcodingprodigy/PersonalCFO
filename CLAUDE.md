@@ -99,7 +99,14 @@ PayWatch/
   - **CORS:** server reads `CORS_ORIGIN` (comma-separated). Must include `https://paywatch.in,https://www.paywatch.in`.
 - **Env vars to remember:** Railway → `DATABASE_URL`(auto), `JWT_SECRET`, `JWT_REFRESH_SECRET`,
   `CORS_ORIGIN`, `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`,
-  `ANTHROPIC_API_KEY` (optional). Vercel → `NEXT_PUBLIC_API_URL`.
+  `ANTHROPIC_API_KEY` (optional), `CRON_SECRET` (enables the monitor cron), `EMAIL_PROVIDER`
+  (`dev`/`resend`) + `RESEND_API_KEY` + `EMAIL_FROM`, `APP_URL=https://paywatch.in`. Vercel → `NEXT_PUBLIC_API_URL`.
+- **Proactive cron:** `POST /v1/cron/run` with header `x-cron-key: $CRON_SECRET` (no auth) regenerates
+  alerts for all users and emails digests to users who set an email (`users.email`). Wire a Railway
+  scheduled service / cron to call it daily or weekly. Disabled until `CRON_SECRET` is set.
+- **Plans/billing:** `/plans` page (pricing, current plan, subscribe/cancel, GST invoices) + a sidebar
+  Upgrade CTA + a soft (non-blocking) `UpgradeBanner` on premium pages. Billing via `routes/billing.ts`
+  (sandbox Razorpay until `BILLING_PROVIDER=razorpay`). Plan keys: `starter`/`cfo`/`family`.
 
 ### Common deploy gotchas
 - **"Failed to fetch" on login** = CORS or API URL, NOT DNS propagation. Fix: ensure `CORS_ORIGIN`

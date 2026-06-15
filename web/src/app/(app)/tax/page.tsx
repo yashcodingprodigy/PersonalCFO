@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
+import { UpgradeBanner } from '@/components/UpgradeBanner';
 
 const INST_STATUS: Record<string, { tone: any; label: string }> = {
   due_soon: { tone: 'red', label: 'Due now' },
@@ -155,6 +156,7 @@ export default function TaxPage() {
       </Section>
 
       {/* Tax Copilot — the year-round CA */}
+      <UpgradeBanner feature="The year-round Tax Copilot and CA-ready pack" />
       {tax.copilot && <TaxCopilot c={tax.copilot} />}
 
       {/* How to reduce */}

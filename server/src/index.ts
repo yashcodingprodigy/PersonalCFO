@@ -15,6 +15,7 @@ import { aaRouter } from './routes/aa';
 import { reportsRouter } from './routes/reports';
 import { alertsRouter } from './routes/alerts';
 import { documentsRouter } from './routes/documents';
+import { cronRouter } from './routes/cron';
 import { rateLimit } from './middleware/rateLimit';
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/v1/aa', aaRouter);
 app.use('/v1/reports', reportsRouter);
 app.use('/v1/alerts', alertsRouter);
 app.use('/v1/documents', documentsRouter);
+app.use('/v1/cron', cronRouter);   // secret-protected (x-cron-key), not requireAuth
 
 // 404
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { get, patch, post, del } from '@/lib/api';
+import { UpgradeBanner } from '@/components/UpgradeBanner';
 
 const SEV: Record<string, { dot: string; label: string; ring: string }> = {
   urgent: { dot: 'bg-signal-red', label: 'Urgent', ring: 'border-l-signal-red' },
@@ -44,6 +45,8 @@ export default function AlertsPage() {
         </div>
         {unread > 0 && <button onClick={readAll} className="btn-secondary !py-2 text-xs">Mark all read</button>}
       </div>
+
+      <UpgradeBanner feature="Proactive alerts and the monthly email briefing" />
 
       {alerts.length === 0 ? (
         <div className="card p-12 text-center">

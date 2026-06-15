@@ -59,13 +59,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-3">
+          {user && !((user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active') && (
+            <Link href="/plans" className="block rounded-lg bg-mint-500 text-pine-950 text-center text-xs font-bold py-2 hover:bg-mint-400 transition-colors">
+              ✦ Upgrade to PayWatch Plus
+            </Link>
+          )}
           {user && (
             <div className="flex items-center justify-between">
-              <div className="min-w-0">
+              <Link href="/plans" className="min-w-0">
                 <p className="text-sm font-semibold truncate">{user.name || user.mobile}</p>
-                <p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan</p>
-              </div>
+                <p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan ›</p>
+              </Link>
               <button onClick={logout} className="text-white/50 hover:text-white text-xs underline">Sign out</button>
             </div>
           )}

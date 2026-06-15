@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { post } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { parseStatementFile } from '@/lib/statementParse';
+import { UpgradeBanner } from '@/components/UpgradeBanner';
 
 const SEV: Record<string, string> = {
   high: 'bg-signal-red/10 text-signal-red',
@@ -50,6 +51,8 @@ export default function StatementPage() {
         <h1 className="font-display text-3xl font-medium">Statement scan</h1>
         <p className="text-sm text-ink-soft mt-1">Upload a bank statement and get a plain-English breakdown: where your money went, what you invested, and where to cut.</p>
       </div>
+
+      <UpgradeBanner feature="Unlimited statement scans and the spending watchdog" />
 
       {/* Upload box */}
       {stage !== 'done' && (

@@ -15,6 +15,11 @@ export const config = {
   aaProvider: process.env.AA_PROVIDER || 'mock',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+  emailProvider: process.env.EMAIL_PROVIDER || 'dev',
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  emailFrom: process.env.EMAIL_FROM || 'PayWatch <noreply@paywatch.in>',
+  appUrl: process.env.APP_URL || 'https://paywatch.in',
+  cronSecret: process.env.CRON_SECRET || '',
   isDev: (process.env.NODE_ENV || 'development') !== 'production',
 };
 

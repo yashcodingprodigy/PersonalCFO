@@ -22,11 +22,12 @@ export default function SettingsPage() {
   const [stateName, setStateName] = useState('');
   const [city, setCity] = useState('');
   const [risk, setRisk] = useState('');
+  const [email, setEmail] = useState('');
 
   async function load() {
     const [u, p, b, a] = await Promise.all([get('/user/me'), get('/user/profile'), get('/billing/subscription'), get('/aa/status')]);
     setUser(u); setProfile(p); setBilling(b); setAa(a);
-    setStateName(u.state || ''); setCity(u.city || ''); setRisk(u.risk_appetite || '');
+    setStateName(u.state || ''); setCity(u.city || ''); setRisk(u.risk_appetite || ''); setEmail(u.email || '');
     setFields({
       take_home: String(Math.round((u.monthly_take_home || 0) / 100)),
       expenses: String(Math.round((p.assets?.monthly_expenses || 0) / 100)),
@@ -57,6 +58,7 @@ export default function SettingsPage() {
       ...(stateName ? { state: stateName } : {}),
       ...(city ? { city } : {}),
       ...(risk ? { risk_appetite: risk } : {}),
+      ...(email ? { email } : {}),
     });
     await patch('/user/profile/assets', {
       monthly_expenses: rupeesToPaise(fields.expenses || '0'),
@@ -160,6 +162,11 @@ export default function SettingsPage() {
                 <option value="moderate">Balanced</option>
                 <option value="aggressive">Go for growth</option>
               </select>
+            </div>
+            <div className="sm:col-span-3">
+              <label className="label">Email (for your monthly briefing & alert emails)</label>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              <p className="text-[11px] text-ink-faint mt-1">Optional — add it to get PayWatch reminders by email, not just in-app.</p>
             </div>
           </div>
           <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint pt-2">Income, assets & cover (₹)</h2>
