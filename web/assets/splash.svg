@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <rect width="2732" height="2732" fill="#07211D"/>
+  <g transform="translate(1226,1130) scale(7)">
+    <rect x="9" y="22" width="5.5" height="9" rx="1.5" fill="#FFFFFF" opacity="0.55"/>
+    <rect x="17.25" y="16" width="5.5" height="15" rx="1.5" fill="#FFFFFF" opacity="0.78"/>
+    <rect x="25.5" y="9" width="5.5" height="22" rx="1.5" fill="#2FBC9B"/>
+  </g>
+  <text x="1366" y="1640" font-family="Georgia, 'Times New Roman', serif" font-size="130" fill="#FFFFFF" text-anchor="middle">Pay<tspan font-style="italic" fill="#83DEC7">Watch</tspan></text>
+</svg>

@@ -242,6 +242,16 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 CREATE INDEX IF NOT EXISTS idx_docs_user ON documents(user_id);
 
+-- Push notification device tokens (one user can have several devices).
+CREATE TABLE IF NOT EXISTS device_tokens (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  token      TEXT NOT NULL,
+  platform   VARCHAR(10),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_devicetok ON device_tokens(user_id, token);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id         BIGSERIAL PRIMARY KEY,
   user_id    UUID,

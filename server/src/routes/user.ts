@@ -53,6 +53,19 @@ userRouter.patch('/me', async (req: AuthedRequest, res) => {
   res.json(user);
 });
 
+// POST /user/push-token — register a device for push notifications
+userRouter.post('/push-token', async (req: AuthedRequest, res) => {
+  const schema = z.object({ token: z.string().min(10).max(400), platform: z.string().max(10).optional() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  await query(
+    `INSERT INTO device_tokens (user_id, token, platform) VALUES ($1,$2,$3)
+     ON CONFLICT (user_id, token) DO NOTHING`,
+    [req.userId, parsed.data.token, parsed.data.platform || null]
+  );
+  res.json({ ok: true });
+});
+
 // GET /profile
 userRouter.get('/profile', async (req: AuthedRequest, res) => {
   const profile = await one(`SELECT * FROM profiles WHERE user_id = $1`, [req.userId]);

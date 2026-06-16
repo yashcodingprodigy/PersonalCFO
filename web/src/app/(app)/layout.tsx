@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Wordmark } from '@/components/Logo';
-import { get, clearTokens, getTokens, del } from '@/lib/api';
+import { get, post, clearTokens, getTokens, del } from '@/lib/api';
+import { isNative, initNative, unlock, registerPush } from '@/lib/native';
 
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: 'M3 13h7V3H3v10Zm0 8h7v-6H3v6Zm11 0h7V11h-7v10Zm0-18v6h7V3h-7Z' },
@@ -28,12 +29,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [unread, setUnread] = useState(0);
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (!getTokens().access) { router.replace('/login'); return; }
     get('/user/me').then(setUser).catch(() => {});
     get('/alerts/count').then((r) => setUnread(r.unread || 0)).catch(() => {});
   }, [router, path]);
+
+  // Native app: biometric app-lock + push registration (no-ops on web)
+  useEffect(() => {
+    if (!isNative()) return;
+    setLocked(true);
+    initNative(() => setLocked(true));
+    registerPush((token, platform) => { post('/user/push-token', { token, platform }).catch(() => {}); });
+    unlock().then((ok) => { if (ok) setLocked(false); });
+  }, []);
 
   async function logout() {
     try { await del('/auth/logout'); } catch {}
@@ -43,6 +54,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex">
+      {/* Biometric lock screen (native only) */}
+      {locked && (
+        <div className="fixed inset-0 z-[100] bg-pine-950 text-white flex flex-col items-center justify-center gap-6 px-6">
+          <Wordmark dark size="lg" />
+          <p className="text-sm text-white/70">Locked for your security</p>
+          <button onClick={() => unlock().then((ok) => ok && setLocked(false))}
+            className="rounded-full bg-mint-500 text-pine-950 px-8 py-3 text-sm font-bold hover:bg-mint-400 transition-colors">
+            Unlock
+          </button>
+        </div>
+      )}
+
       {/* Sidebar — desktop */}
       <aside className="hidden md:flex w-60 flex-col bg-pine-950 text-white fixed inset-y-0 no-print">
         <div className="px-5 py-6"><Link href="/dashboard"><Wordmark dark size="sm" /></Link></div>

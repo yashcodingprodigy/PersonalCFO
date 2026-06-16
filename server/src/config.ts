@@ -20,6 +20,7 @@ export const config = {
   emailFrom: process.env.EMAIL_FROM || 'PayWatch <noreply@paywatch.in>',
   appUrl: process.env.APP_URL || 'https://paywatch.in',
   cronSecret: process.env.CRON_SECRET || '',
+  fcmServerKey: process.env.FCM_SERVER_KEY || '',
   isDev: (process.env.NODE_ENV || 'development') !== 'production',
 };
 

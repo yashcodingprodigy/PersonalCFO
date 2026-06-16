@@ -21,8 +21,20 @@ import { rateLimit } from './middleware/rateLimit';
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
-const corsOrigins = config.corsOrigin === '*' ? '*' : config.corsOrigin.split(',').map(o => o.trim());
-app.use(cors({ origin: corsOrigins, credentials: corsOrigins !== '*' }));
+// Allow the configured web origins, plus the Capacitor/native webview origins
+// (capacitor://localhost on iOS, http(s)://localhost on Android) and tokenless
+// native fetches (no Origin header).
+const configured = config.corsOrigin === '*' ? '*' : config.corsOrigin.split(',').map((o) => o.trim());
+const nativeOk = (origin?: string) =>
+  !origin || /^(capacitor|ionic):\/\/localhost$/.test(origin) || /^https?:\/\/localhost(:\d+)?$/.test(origin);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (configured === '*') return cb(null, true);
+    if (nativeOk(origin) || (origin && (configured as string[]).includes(origin))) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '2mb' }));
 
 // Global API rate limit (per SRS §23.3)

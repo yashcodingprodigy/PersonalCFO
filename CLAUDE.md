@@ -162,14 +162,21 @@ Verify types: `cd server && npx tsc --noEmit` · `cd web && npx tsc --noEmit`.
 
 ## 8. Roadmap
 
-### Goal A — Mobile apps (Android + iOS)
-Recommended path: **Capacitor** wrapping the existing web UI, plus native features to satisfy Apple's
-"minimum functionality" rule (biometric app-lock, push notifications, offline shell). Alternative:
-rebuild the UI in **React Native / Expo** (more durable, more work). See chat notes / section 9 for steps.
-Both stores need an **organisation developer account + D-U-N-S number** (financial category). Start the
-D-U-N-S request early (up to ~30 days). Apple: $99/yr, needs legal entity + matching-domain email +
-live website (paywatch.in ✓). Google: $25 one-time. PayWatch is NOT a lending app, so the RBI
-"digital lending app" allow-list rule does not apply, but expect extra scrutiny for the finance category.
+### Goal A — Mobile apps (Android + iOS) — SCAFFOLDED ✓
+**Capacitor** is set up (bundled static-export approach). App ID `in.paywatch.app`. See **`web/MOBILE.md`**
+for the full build/run/submit guide. Key pieces:
+- `web/capacitor.config.ts`, `web/next.config.mjs` (gates `output:'export'` when `BUILD_TARGET=mobile` → `web/out/`),
+  scripts `build:mobile` / `cap:sync` / `cap:ios` / `cap:android` / `cap:assets`.
+- `web/src/lib/native.ts` — biometric app-lock (on launch/resume), splash, status bar, haptics, push
+  registration → `POST /user/push-token`. All no-op on web (same codebase runs on Vercel + native).
+  Wired into `app/(app)/layout.tsx` with a lock overlay.
+- Server: CORS allows `capacitor://localhost` / `localhost`; `device_tokens` table; `adapters/push.ts`
+  (FCM integration point — currently log mode; finish with `firebase-admin`); the cron pushes urgent alerts.
+- Icon/splash source art in `web/assets/` → `npm run cap:assets`.
+- Run `npx cap add ios/android` locally (Mac for iOS). Build a signed `.aab`/archive, submit.
+Both stores need an **organisation developer account + D-U-N-S number** (finance category). Apple $99/yr
+(needs legal entity + matching-domain email + live website paywatch.in ✓); Google $25 one-time. NOT a
+lending app, so the RBI digital-lending allow-list rule doesn't apply.
 
 ### Goal B — Registrations & certifications (priority order)
 1. **Business entity** — incorporate a Pvt Ltd (or start as proprietorship/LLP for MVP), get PAN/TAN. (CA / company secretary.)
