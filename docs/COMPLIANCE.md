@@ -1,39 +1,71 @@
 # Compliance & Legal Checklist — PayWatch
 
-How the build implements SRS §23–24, and what must be done **before public launch**.
+Current compliance posture, split into **what's built**, **what we can do now (no authority licence
+needed)**, and **what's deferred to a later phase (needs a complex licence/registration from an
+authority)**. Not legal advice — have a CA and a fintech lawyer review before public launch.
 
-## Implemented in code
+Last updated: June 2026.
 
-| Requirement | Implementation |
+---
+
+## 1. Built / implemented in code
+
+| Area | Implementation |
 |---|---|
-| Not SEBI investment advice | Category-level guidance only. AI guardrails (`server/src/services/cfo-ai.ts`) block specific stock/scheme/crypto recommendations via pattern matching *and* system-prompt rules. Disclaimer on every AI answer, dashboard, report, and the public Disclosures page. |
-| Citations | Every KB document carries a source tag (`IT Act FY2025-26`, `IRDAI guideline`, `SEBI IA Regulations 2013`, `Standard planning rule`); answers surface them as chips. |
-| Human review layer (SRS §12.1) | Recommendation-shaped answers on CFO/Family plans are stored `pending_review` and labelled in the UI for advisor review. |
-| GST | 18% on all subscriptions, inclusive pricing, sequential invoice numbers (`PAYW/FY/NNNNN`), GST shown per invoice in Settings. |
-| DPDP Act 2023 | Plain-English privacy policy, full JSON export, hard delete with FK cascade, consent ledger (`consents` table), audit log, India data-residency commitment. |
-| AA framework (SRS §16) | Consent is explicit, granular, time-bound (12 months), revocable; revocation deletes AA-sourced data immediately. No credentials ever requested. Adapter pattern: `mock` → `finvu`. |
-| Security (SRS §23) | bcrypt-hashed OTPs, SHA-256-hashed rotating refresh tokens, parameterised SQL everywhere, zod input validation (whitelist), helmet headers, rate limiting on auth + API, no unauthenticated endpoints beyond login, errors never leak internals. |
-| Plan limits | Enforced server-side (Starter: 5 questions/month, 2 goals) — not just hidden in UI. |
-| Referral disclosure | `referral_link` on actions renders with an explicit "we may earn a disclosed commission" label. |
-| Grievance mechanism | grievance@paywatch.in on Disclosures page + footer (IT Rules 2021). |
+| **Not SEBI advice** | Category-level guidance only — never a named stock/fund. AI guardrails (`services/cfo-ai.ts`) block specific-security recommendations via prompt + pattern rules. Disclaimers on dashboard, Invest, Markets, reports, and the public Disclosures page. Finfluencer rule respected (no <3-month price data beside a named security — we name none). |
+| **Tax = prepare + self-file** | ITR wizard *prepares and computes* the return, picks ITR-1/2/3/4, and walks the user through filing on the official portal. Engine flags the rare audit-needs-a-CA case. Disclaimers on the File ITR flow + Disclosures page. Math covered by a test suite (`server: npm test`). |
+| **GST on subscriptions** | 18% GST, inclusive pricing, sequential invoices (`PAYW/FY/NNNNN`), shown per invoice in Plans/Settings. |
+| **DPDP data rights** | Consent ledger (`consents`), full JSON export, hard delete (FK cascade), AA-revocation deletion, audit log, India data-residency commitment. Privacy policy + grievance email in app. |
+| **Account Aggregator** | Consent explicit/granular/time-bound/revocable; revocation deletes AA data; never asks for credentials. Adapter `mock → finvu` (stays on `mock`). |
+| **Security** | bcrypt-hashed OTPs, SHA-256 rotating refresh tokens, parameterised SQL, zod validation, helmet, rate limits, secret-protected cron, errors never leak internals. |
+| **Disclosures** | Grievance Officer email on Disclosures + footer; referral links default to `null` (none live). |
 
-## Required before public launch (cannot be done in code)
+---
 
-1. **GST registration** — before the first paid subscriber (Day 1).
-2. **Legal opinion** on SEBI positioning from a fintech law firm (SRS §31 mitigation).
-3. **AMFI ARN** (NISM Series V-A exam, 4–8 weeks) — *before* enabling any mutual fund referral links.
-4. **IRDAI POSP-Life and POSP-General** (15-hour training + exam each) — *before* enabling insurance referral links. Until then keep `referral_link = null` (current default).
-5. **AA FIU registration** via Sahamati (~₹50,000, 2–3 months) — before switching `AA_PROVIDER=finvu`.
-6. **Razorpay live activation** (KYC, website checks) — Razorpay holds the PA licence so no RBI PA registration is needed.
-7. **CERT-IN empanelled penetration test** — annual, from Year 1.
-8. **Company formation & registered office** — invoice and policy pages reference PayWatch Technologies Pvt. Ltd.; update with real CIN/address.
-9. **Appoint a Grievance Officer** by name (IT Rules 2021) and a DPO contact (DPDP).
-10. **Annual tax-law update** — slabs/limits live only in `server/src/services/tax.ts`; update after each Finance Act and re-seed the knowledge base.
+## 2. Do now — no authority licence required (this phase)
 
-## Data handling rules encoded in the system
+These are drafting / policy / small-code tasks we can complete without waiting on any registration:
 
-- All money in **paise** (BIGINT) — no floating-point currency anywhere.
-- OTPs: 6-digit, 10-minute expiry, 3 attempts then 15-minute lockout, stored hashed.
-- Statement files (when PDF parsing is added): delete within 24 hours of parsing — mirror the AA-revocation deletion job.
-- Analytics/ML must use anonymised aggregates only; per-user RAG memories are scoped to the user and cascade-deleted with the account.
-- Employer (B2B2C) dashboards must aggregate with **minimum N=10** before exposure.
+1. **Refresh the legal pages** for current features + DPDP Rules 2025 — Privacy, Terms, Disclosures.
+   (Disclosures now covers the tax-filing positioning; review Privacy/Terms similarly.)
+2. **Name a Grievance Officer and a DPO** (real person + email) on the Disclosures/Privacy pages
+   (designation only — no authority approval needed).
+3. **Standalone consent notice** at onboarding (DPDP) — clear purpose, itemised; the consent ledger
+   already records it.
+4. **Under-18 handling** — collect age (we do) and add a verifiable-parental-consent path / block for minors.
+5. **Breach-response process** — a written runbook (notify the Data Protection Board + affected users);
+   the `audit_log` + `notifications` plumbing already exists.
+6. **Statement / Form-16 file handling** — files are parsed **on-device** and never uploaded (already true);
+   document this in the privacy policy.
+7. **Annual tax-law update** — slabs/limits live only in `services/tax.ts` + `services/taxFiling.ts`;
+   update after each Finance Act and re-run `npm test`.
+8. **Disclaimers on every new money surface** (filing, document generators) — keep adding as features grow.
+
+---
+
+## 3. Deferred — needs a complex licence / authority registration (next phase)
+
+Park these until the app has been live a few months and the entity exists. None are code problems.
+
+| Item | Authority / process | Gates |
+|---|---|---|
+| **Company incorporation** (Pvt Ltd) + PAN/TAN | MCA (via CA/CS) | Everything below; real CIN/address in legal copy. |
+| **GST registration** | GST portal | Charging real subscribers. |
+| **ERI registration** (e-Return Intermediary) | Income Tax Dept | True **one-click e-filing** from inside the app. Until then users self-file with our computation. |
+| **AA / FIU registration** | Sahamati + Finvu (~₹50k, 2–3 mo) | Switching `AA_PROVIDER=finvu` for live bank data. |
+| **Razorpay live KYC** | Razorpay (PA holds the licence) | Live paid subscriptions. |
+| **Trademark "PayWatch"** | IP India (classes 9/36/42) | Brand protection (optional but advised). |
+| **Developer org accounts + D-U-N-S** | Apple / Google / D&B | App Store + Play Store (finance category). Start D-U-N-S early. |
+| **CERT-IN empanelled pen-test** | CERT-In empanelled vendor | Annual, from Year 1. |
+| **SEBI RIA** | SEBI | *Only if* we ever give specific paid investment advice — current design avoids this. |
+| **AMFI ARN / IRDAI POSP** | AMFI / IRDAI | *Only if* we enable paid mutual-fund / insurance referral links (currently `null`). |
+| **Tax audit / 15CB certification** | Chartered Accountant (by law) | Cannot be removed by software — engine flags these cases. |
+
+---
+
+## 4. Data-handling rules encoded in the system
+- All money in **paise** (BIGINT) — no floating-point currency.
+- OTPs: 6-digit, 10-min expiry, 3 attempts → 15-min lockout, stored hashed, never returned to the client.
+- Uploaded statements / Form 16 are parsed **client-side**; only derived rows reach the server.
+- Per-user RAG memories scoped to the user, cascade-deleted with the account.
+- Analytics/ML must use anonymised aggregates only.
