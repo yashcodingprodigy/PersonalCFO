@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { rateLimit } from '../middleware/rateLimit';
 import { loadProfileData } from '../services/profile';
 import { answerQuestion, AI_DISCLAIMER } from '../services/cfo-ai';
 import { remember } from '../services/rag';
@@ -101,5 +102,6 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER });
 }
 
-qaRouter.post('/conversations', (req: AuthedRequest, res) => handleMessage(req, res, null));
-qaRouter.post('/conversations/:id/messages', (req: AuthedRequest, res) => handleMessage(req, res, req.params.id));
+const qaLimit = rateLimit({ windowMs: 60_000, max: 15, keyPrefix: 'qa' });
+qaRouter.post('/conversations', qaLimit, (req: AuthedRequest, res) => handleMessage(req, res, null));
+qaRouter.post('/conversations/:id/messages', qaLimit, (req: AuthedRequest, res) => handleMessage(req, res, req.params.id));

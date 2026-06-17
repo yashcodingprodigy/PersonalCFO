@@ -11,7 +11,7 @@
     "migrate": "tsx src/db/migrate.ts",
     "migrate:prod": "node dist/db/migrate.js",
     "seed": "tsx src/db/seed.ts",
-    "test": "tsx test/calc.test.ts"
+    "test": "tsx test/calc.test.ts && tsx test/services.test.ts"
   },
   "engines": { "node": ">=18" },
   "dependencies": {

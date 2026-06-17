@@ -128,5 +128,45 @@ check('Aggressive younger investor gets more equity than conservative', () => {
   assert(young.targetAllocation.equity > cons.targetAllocation.equity);
 });
 
+console.log('\nEDGE CASES');
+check('Zero income → score 0, no crash, dimensions locked', () => {
+  const s = computeScore(profile());
+  assert.strictEqual(s.score, 0);
+  assert.strictEqual(s.dimensions.savings_rate.available, false);
+});
+check('New-regime rebate boundary: taxable exactly ₹12L → ₹0', () => {
+  const r = computeRegime(profile({ user: { ...profile().user, annual_gross_income: 1275000_00 } }), 'new'); // -75k std = 12L
+  near(r.tax, 0);
+});
+check('Just over the rebate cap → tax becomes payable', () => {
+  const r = computeRegime(profile({ user: { ...profile().user, annual_gross_income: 1300000_00 } }), 'new'); // taxable 12.25L
+  assert(r.tax > 0, 'expected tax > 0 just above the rebate ceiling');
+});
+check('Surcharge kicks in above ₹50L (new regime)', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 60 * L }), '2025-26');
+  assert(f.new.surcharge > 0, 'expected surcharge for >₹50L income');
+});
+check('Capital loss never produces negative tax', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 12 * L, stcgEquity: -3 * L, ltcgEquity: -1 * L }), '2025-26');
+  assert(f.new.capitalGainsTax === 0, `CG tax should floor at 0, got ${f.new.capitalGainsTax}`);
+});
+check('Net worth can be negative (more debt than assets)', () => {
+  const nw = computeNetWorth(profile({ assets: { savings_balance: 0 }, liabilities: { personal_loans: [{ outstanding: 5 * L }] } }));
+  near(nw.netWorth, -5 * L, 100);
+});
+check('No income → investment guidance returns hasIncome=false (no crash)', () => {
+  const g = buildInvestmentGuidance(profile());
+  assert.strictEqual(g.hasIncome, false);
+});
+check('No take-home → growth projection unavailable (no divide-by-zero)', () => {
+  const p = profile();
+  const g = growthProjection(p, computeNetWorth(p));
+  assert.strictEqual(g.available, false);
+});
+check('Huge income surcharge capped sanely (₹6 Cr salary computes)', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 60000000_00 }), '2025-26'); // ₹6 Cr
+  assert(f.new.totalTax > 0 && isFinite(f.new.totalTax));
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed ? 1 : 0);

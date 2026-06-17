@@ -26,6 +26,18 @@ export const config = {
   isDev: (process.env.NODE_ENV || 'development') !== 'production',
 };
 
+// Fail fast in production if signing secrets were left at their dev defaults —
+// default JWT secrets would let anyone forge access tokens.
+if (config.env === 'production') {
+  const weak: string[] = [];
+  if (config.jwtSecret.startsWith('dev-only')) weak.push('JWT_SECRET');
+  if (config.jwtRefreshSecret.startsWith('dev-only')) weak.push('JWT_REFRESH_SECRET');
+  if (weak.length) {
+    throw new Error(`Refusing to start: set a strong ${weak.join(' and ')} env var in production (currently the insecure dev default).`);
+  }
+  if (config.corsOrigin === '*') console.warn('[security] CORS_ORIGIN is "*" in production — set explicit web origins.');
+}
+
 export const PLANS = {
   starter: { name: 'Starter', monthly: 29900, qaLimit: 5, goalLimit: 2, policyLimit: 5, actionsPerMonth: 3 },
   cfo: { name: 'CFO', monthly: 69900, qaLimit: Infinity, goalLimit: Infinity, policyLimit: Infinity, actionsPerMonth: Infinity },

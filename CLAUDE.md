@@ -244,3 +244,10 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
+- **Test suite:** `cd server && npm test` runs 54 assertions across two files — `test/calc.test.ts`
+  (tax/filing/score/networth/investment math + edge cases) and `test/services.test.ts`
+  (alerts, statement analyser, actions, insurance, tax copilot, investment guardrails). Run after any
+  logic change. Pure functions only (no DB needed).
+- **Security:** all SQL parameterised (the few interpolated bits use whitelisted column names); every
+  `/:id` route scopes by `user_id`; rate limits on OTP, AI Q&A, statement/transaction/filing endpoints;
+  server refuses to boot in production with default JWT secrets.

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { rateLimit } from '../middleware/rateLimit';
 import { loadProfileData, recalculateAndStoreScore } from '../services/profile';
 import { computeNetWorth, projectMonthsToTarget, growthProjection } from '../services/networth';
 import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot, computeHraExemption } from '../services/tax';
@@ -85,7 +86,7 @@ insightsRouter.get('/tax/filing/prefill', async (req: AuthedRequest, res) => {
 });
 
 // POST /tax/filing/compute — full ITR computation from (edited) inputs
-insightsRouter.post('/tax/filing/compute', async (req: AuthedRequest, res) => {
+insightsRouter.post('/tax/filing/compute', rateLimit({ windowMs: 60_000, max: 60, keyPrefix: 'filing' }), async (req: AuthedRequest, res) => {
   const num = z.number().int().min(0).max(1_000_000_000_00);
   const schema = z.object({
     grossSalary: num, interestIncome: num, housePropertyIncome: z.number().int(), otherIncome: num, businessIncome: num,
@@ -111,7 +112,7 @@ insightsRouter.get('/invest', async (req: AuthedRequest, res) => {
 // POST /statements/analyze — analyse client-parsed statement transactions.
 // Optionally persist them so the Money Score (which derives expenses from
 // transactions) updates too.
-insightsRouter.post('/statements/analyze', async (req: AuthedRequest, res) => {
+insightsRouter.post('/statements/analyze', rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'stmt' }), async (req: AuthedRequest, res) => {
   const txnSchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     description: z.string().min(1).max(300),
@@ -156,7 +157,7 @@ insightsRouter.get('/transactions', async (req: AuthedRequest, res) => {
 });
 
 // POST /transactions — manual entry or CSV-imported rows
-insightsRouter.post('/transactions', async (req: AuthedRequest, res) => {
+insightsRouter.post('/transactions', rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'txn' }), async (req: AuthedRequest, res) => {
   const rowSchema = z.object({
     txn_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     description: z.string().min(1).max(300),
