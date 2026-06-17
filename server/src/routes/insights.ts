@@ -5,7 +5,8 @@ import { query } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { loadProfileData, recalculateAndStoreScore } from '../services/profile';
 import { computeNetWorth, projectMonthsToTarget, growthProjection } from '../services/networth';
-import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot } from '../services/tax';
+import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot, computeHraExemption } from '../services/tax';
+import { prepareFiling, FilingInputs } from '../services/taxFiling';
 import { analyseInsurance } from '../services/insurance';
 import { buildInvestmentGuidance } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
@@ -57,6 +58,47 @@ insightsRouter.get('/insurance', async (req: AuthedRequest, res) => {
 // GET /market — educational themes + third-party financial news (no advice)
 insightsRouter.get('/market', async (_req: AuthedRequest, res) => {
   res.json(await getMarketData());
+});
+
+// GET /tax/filing/prefill — best-guess ITR inputs from the user's profile
+insightsRouter.get('/tax/filing/prefill', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  const t = p.tax_data || {};
+  const items = deductionUsage(p).items;
+  const used = (prefix: string) => items.filter((i) => i.section.startsWith(prefix)).reduce((s, i) => s + i.used, 0);
+  const inputs: FilingInputs = {
+    grossSalary: p.user.employment_type === 'salaried' ? (p.user.annual_gross_income || 0) : 0,
+    interestIncome: 0,
+    housePropertyIncome: 0,
+    otherIncome: 0,
+    businessIncome: p.user.employment_type && p.user.employment_type !== 'salaried' && p.user.employment_type !== 'student' ? (p.user.annual_gross_income || 0) : 0,
+    stcgEquity: 0, ltcgEquity: 0, otherCapitalGains: 0,
+    ded80C: used('80C'), ded80CCD1B: used('80CCD(1B)'), ded80D: used('80D'),
+    ded24b: used('24(b)'), ded80G: Number(t.donations_80g_annual) || 0, ded80TTA: 0,
+    ded80E: Number(t.education_loan_interest_annual) || 0, hraExempt: computeHraExemption(p),
+    employerNps: Number(t.employer_nps_annual) || 0,
+    tdsSalary: 0, tdsOther: 0, advanceTax: 0,
+    presumptiveBusiness: false, residentOrdinary: true, foreignAssets: false, isDirector: false, multipleHouseProperties: false,
+  };
+  res.json({ fy: currentFY(), inputs });
+});
+
+// POST /tax/filing/compute — full ITR computation from (edited) inputs
+insightsRouter.post('/tax/filing/compute', async (req: AuthedRequest, res) => {
+  const num = z.number().int().min(0).max(1_000_000_000_00);
+  const schema = z.object({
+    grossSalary: num, interestIncome: num, housePropertyIncome: z.number().int(), otherIncome: num, businessIncome: num,
+    stcgEquity: num, ltcgEquity: num, otherCapitalGains: num,
+    ded80C: num, ded80CCD1B: num, ded80D: num, ded24b: num, ded80G: num, ded80TTA: num, ded80E: num, hraExempt: num,
+    employerNps: num, tdsSalary: num, tdsOther: num, advanceTax: num,
+    presumptiveBusiness: z.boolean().optional(), residentOrdinary: z.boolean().optional(),
+    foreignAssets: z.boolean().optional(), isDirector: z.boolean().optional(), multipleHouseProperties: z.boolean().optional(),
+    totalIncomeOver50L: z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  res.json(prepareFiling(parsed.data as FilingInputs, currentFY()));
 });
 
 // GET /invest — personalised, SEBI-compliant investment guidance

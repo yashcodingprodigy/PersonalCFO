@@ -1,8 +1,7 @@
 # PayWatch — Project Context & Long-Term Memory
 
-> This file is the single source of truth for the PayWatch project. It is meant to be read first by
-> any AI assistant (and any new human collaborator) before working on the codebase. Keep it updated
-> when architecture, deployment, branding, or compliance decisions change.
+> Single source of truth for the PayWatch project. Read this first before working on the codebase.
+> Keep it updated when architecture, features, deployment, branding, or compliance decisions change.
 
 Last updated: June 2026.
 
@@ -11,15 +10,20 @@ Last updated: June 2026.
 ## 1. What PayWatch is
 
 PayWatch (formerly "Personal CFO") is **India's personal-finance operating system** — one app that
-knows a user's full financial picture (income, savings, investments, loans, insurance, taxes) and
-tells them exactly what to do next, in beginner-friendly language.
+knows a user's full financial picture (income, spending, savings, investments, loans, insurance, taxes)
+and tells them exactly what to do next, in beginner-friendly language. The ambition: **replace the work
+of a CA + a personal CFO for individual taxpayers.**
 
-**Regulatory positioning (critical — never drift from this):** PayWatch is a **financial education
-and organisation** tool. It is **NOT** a SEBI-registered Investment Adviser. It must never recommend
-a specific stock, mutual-fund scheme, AMC, or product. It gives only asset-class / fund-**category**
-guidance ("a large-cap index fund", "ELSS", "a liquid fund"), gap analysis vs published planning
-standards, and tax/insurance education. The owner holds **no advisory licence**, so every
-money-related feature is built to stay inside this education lane, with disclaimers throughout.
+**Positioning / value ladder:**
+- One-time hook (free/cheap): Money Health Score + "what to invest in" plan.
+- Subscription (the recurring value): proactive Alerts, monthly briefing, year-round Tax Copilot,
+  guided ITR filing, spending watchdog, goal autopilot, document vault.
+
+**Regulatory lane (critical — never drift):** PayWatch is a **financial education, organisation and
+tax-preparation** tool. It is **NOT** a SEBI-registered Investment Adviser and never recommends a
+specific stock, mutual-fund scheme or product — only asset-class / fund-**category** guidance. For tax
+it *prepares and computes* returns and guides self-filing; it is not a CA. See §8 for the legal limits
+(ERI for one-click e-filing; audits/certifications legally need a CA).
 
 ---
 
@@ -28,172 +32,211 @@ money-related feature is built to stay inside this education lane, with disclaim
 ```
 PayWatch/
 ├── server/   Express + TypeScript API · PostgreSQL · port 4000
-└── web/      Next.js 14 (App Router) PWA · Tailwind · port 3000
+└── web/      Next.js 14 (App Router) PWA + Capacitor (Android/iOS) · Tailwind · port 3000
 ```
 
-- **Money values are stored in paise everywhere** (₹1 = 100 paise) to avoid float errors. The web
-  `inr()` helper formats paise → ₹.
-- **Auth:** mobile OTP (+91), JWT 15-min access + 90-day rotating refresh token, lockout after 3
-  failed attempts. Tokens stored in `localStorage` under `paywatch_access` / `paywatch_refresh`.
-- **Audiences:** supports both working professionals and **students (age ~19-23)**. `employment_type`
-  includes `'student'` (DB CHECK constraint swapped idempotently in schema.sql). Onboarding adapts for
-  students (money-you-get framing instead of salary bands, skippable loans/insurance, reassurance copy).
-  Students see no life-insurance pressure, no tax pressure below the threshold, and a "start investing
-  small / index funds before individual stocks" action (ACT-013) — all still SEBI-compliant (no named products).
-
-### Server (`server/src`)
-- `index.ts` — Express app, route mounting, `/v1/health`.
-- `config.ts` — all env config (DATABASE_URL, JWT secrets, SMS/billing/AA providers, ANTHROPIC key).
-- `db/schema.sql` — full schema, **idempotent** (`CREATE TABLE IF NOT EXISTS`, `ALTER … ADD COLUMN IF NOT EXISTS`).
-- `db/migrate.ts` (dev, via tsx) and the compiled `dist/db/migrate.js` (prod) run this schema.
-- `routes/` — auth, user, score, actions, insights (networth/tax/insurance/invest/statements/spend), goals, qa, billing, compliance, aa, reports.
-- `services/`:
-  - `score.ts` — Money Health Score: 6 weighted dimensions (savings 25%, insurance 20%, diversification 20%, emergency fund 15%, debt 10%, tax 10%); unavailable dimensions are excluded and weights renormalised. **Student/young-user aware:** insurance dimension is excluded for students and life-cover is not required when `dependents_count === 0` (health-only); tax-efficiency is excluded below ~₹12.75L income (no tax under the new-regime rebate).
-  - `tax.ts` — FY2025-26 old vs new regime, deduction tracker, **`taxReductionPlan()`** (beginner steps + rupee impact + capital-gains explainer + checklist + glossary), `marginalRate()`.
-  - `insurance.ts` — 25× income term rule, health floater sizing, **personalised "what to get" recommendations + "what to avoid"**.
-  - `investment.ts` — **SEBI-compliant investment guidance**: risk profile, target allocation, fund-category recommendations, model portfolios, monthly SIP plan. Never names a product.
-  - `statement.ts` — **bank-statement analyser**: takes parsed transactions, returns category breakdown, invested total, recurring subs, reduce suggestions, watch-outs.
-  - `networth.ts` — asset/liability breakdown, allocation, `growthProjection()` ("grow net worth from X to Y").
-  - `actions.ts` — rule engine ACT-001…ACT-021, quantified actions, each with a computed `priority` (high/medium/low from impact + deadline). Route adds `POST /actions/:id/complete` (confirm done + optional invested amount/type → writes the delta into the profile and recalcs score). `actions.priority` column added idempotently.
-  - `market.ts` — **Markets & Learn**: educational investment *themes* (category-level, never named securities) + live financial news via keyless Google News RSS (`fetchMarketNews`, fails soft). Strictly education/news, no stock tips.
-  - `alerts.ts` — **proactive monitor engine** (the recurring-value spine). `generateAlerts(profile, signals)` emits dedup'd alerts: advance-tax deadlines, unused 80C, proof season, harvesting, spend spikes & new subscriptions (watchdog), portfolio drift, goal off-track (autopilot), emergency fund, insurance gaps, nomination & document-expiry reminders, score-up wins. Persisted in `notifications` (unique on `user_id,dedupe_key`). Route `routes/alerts.ts`: `GET /alerts` (regenerate+list), `/alerts/count`, `/alerts/run` (cron), read/dismiss, and `GET /alerts/briefing` (monthly "your money this month" digest).
-  - `tax.ts` also exposes **`taxCopilot()`** — advance-tax instalment schedule, seasonal proof checklist, capital-gains harvesting, and a downloadable **CA-ready pack** (handoff). Surfaced on the Tax page.
-  - **Document vault** — `routes/documents.ts` + `documents` table: organisational metadata + expiry dates that feed renewal alerts (no file hosting).
-- **Recurring-value / subscription story:** the one-time hook is the score + "what to invest in"; the subscription value is the *active* layer — proactive Alerts, the monthly briefing, the year-round Tax Copilot, spending watchdog, goal autopilot, and the document vault. To make alerts truly proactive (push, not just on-visit), wire a Railway cron to `POST /alerts/run` per user; alerts also regenerate on `GET /alerts` so they appear on visit regardless.
-  - `goals.ts`, `cfo-ai.ts` (RAG-grounded "Ask your CFO"), `rag.ts` (local Postgres FTS RAG store), `profile.ts` (loads ProfileData + recalc score).
-- `adapters/` — `sms.ts` (dev logs OTP / msg91 real), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox / Razorpay).
-
-### Web (`web/src`)
-- `app/onboarding/page.tsx` — 3-session progressive onboarding. State→City dependent dropdowns (`lib/india.ts`), risk-comfort question, "current value" clarifications.
-- `app/(app)/` — dashboard, actions (priority badges + filters + done-confirmation flow that updates the profile), networth, **invest**, **markets** (themes + news), tax, insurance, **statement**, goals, ask, reports, settings (all behind auth layout with sidebar nav).
-- `lib/india.ts` — Indian states/UTs → cities, `isMetro()` for HRA.
-- `lib/statementParse.ts` — **client-side** CSV/Excel/PDF parsing (loads PapaParse/SheetJS/pdf.js from cdnjs at runtime; the file never leaves the browser, only parsed rows are POSTed).
-- `lib/api.ts` — fetch wrapper with auto token refresh. `lib/format.ts` — `inr()`, labels.
-- `components/Logo.tsx` — `LogoMark` (three ascending bars icon) + `Wordmark` (renders "Pay*Watch*").
+- **Money stored in paise everywhere** (₹1 = 100 paise). Web `inr()` formats paise → ₹.
+- **Auth:** mobile OTP (+91), JWT 15-min access + 90-day rotating refresh. Tokens in `localStorage`
+  (`paywatch_access` / `paywatch_refresh`). OTP is **never** returned to the client — read from Railway
+  logs in dev (`424242` when `NODE_ENV!=production`; random in prod), or SMS via msg91.
+- **Audiences:** working professionals AND **students (~19–23)**. `employment_type` includes `'student'`.
+  Onboarding, score, insurance, tax and actions all adapt for students (no life-insurance pressure, no
+  tax pressure below threshold, "start investing small / index funds before stocks").
 
 ---
 
-## 3. Branding decisions
+## 3. Feature map (every tab)
 
-- App name: **PayWatch** (was "Personal CFO"). Wordmark renders `Pay` + italic `Watch`.
-- **Kept intentionally:** the "**Ask your CFO**" feature name and the "**CFO**" plan tier (the `cfo`
-  plan key is used in DB + billing). "CFO" there is an advisor-role metaphor / tier name, not the brand.
-- Company name in legal copy: "PayWatch Technologies Pvt. Ltd." (placeholder — update with real CIN/address).
-- Emails: `support@paywatch.in`, `grievance@paywatch.in`. GST invoice prefix: `PAYW/FY/NNNNN`.
-- The `PersonalCFO_SRS_v2.docx` spec file and the repo folder name were left unchanged on purpose.
+Web app tabs live in `web/src/app/(app)/<tab>/page.tsx`, behind the auth layout (sidebar + mobile nav,
+unread-alerts badge, native biometric lock overlay).
+
+- **Overview** (`dashboard`) — Money Health Score gauge + 6 dimensions, monthly **briefing** card,
+  **net-worth growth** comparison (do-nothing vs with-PayWatch, 5/10/20yr toggle, step-up SIP), net
+  worth summary, top actions, AA connect.
+- **Alerts** (`alerts`) — proactive inbox (urgent/warning/info/good), mark read/dismiss.
+- **Actions** (`actions`) — quantified action plan; **priority** badges + filters (status/priority/sort);
+  "Mark done" → confirmation → optional "how much / into what" → writes to profile + recalcs score.
+- **Net worth** (`networth`) — allocation **donut**, assets/liabilities, growth projection w/ horizon
+  toggle, spending breakdown.
+- **Invest** (`invest`) — SEBI-compliant: risk profile, target-mix donut, collapsible fund-category
+  recommendations, model portfolios, start steps. Section nav.
+- **Markets & news** (`markets`) — educational investment themes + live financial news (keyless RSS).
+- **Tax** (`tax`) — regime comparison, "how to reduce your tax" (collapsible steps), **Tax Copilot**
+  (advance-tax timeline, proof calendar, harvesting, CA-ready pack), deduction tracker, calendar,
+  docs + glossary. Section nav.
+- **File ITR** (`file`) — guided wizard (Income → Deductions → Tax paid → Result): computes the full
+  return, picks the ITR form, refund/payable, full computation, "how to file yourself" portal steps,
+  downloadable computation pack. Links to rent receipts.
+- **Insurance** (`insurance`) — coverage **rings**, collapsible "what to get" recommendations, avoid list.
+- **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → detailed spending report.
+- **Document vault** (`vault`) — track CA paperwork + expiry reminders (feeds alerts).
+- **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
+- **Goals**, **Ask your CFO** (RAG Q&A), **Reports**, **Plans** (pricing/subscribe), **Settings**.
+- Public: `onboarding` (3-session, state→city dropdowns, risk question), `login`, landing `/`, `legal/*`.
 
 ---
 
-## 4. Deployment
+## 4. Server (`server/src`)
 
+- `index.ts` — app, CORS (web origins + `capacitor://localhost` / `localhost` for the native app),
+  route mounting, `/v1/health`.
+- `config.ts` — env config (DB, JWT, SMS/billing/AA, ANTHROPIC, EMAIL, CRON_SECRET, FCM, APP_URL).
+- `db/schema.sql` — **idempotent** schema (CREATE IF NOT EXISTS, ALTER ADD COLUMN IF NOT EXISTS,
+  constraint drop+re-add). `db/migrate.ts` (dev/tsx) and compiled `dist/db/migrate.js` (prod) run it.
+
+### Services
+- `score.ts` — Money Health Score: 6 weighted dimensions (savings 25 / insurance 20 / diversification 20
+  / emergency 15 / debt 10 / tax 10); unavailable dims excluded + renormalised. Student/young-aware:
+  insurance excluded for students & no life-cover needed when `dependents===0`; tax-efficiency excluded
+  below ~₹12.75L income.
+- `tax.ts` — FY2025-26 old vs new regime, deductions, HRA, `taxReductionPlan()` (beginner steps + rupee
+  impact + capital-gains explainer + checklist + glossary), `taxCopilot()` (advance-tax schedule, proof
+  checklist, harvesting, CA-ready pack), `marginalRate()`, `computeHraExemption()`.
+- `taxFiling.ts` — **ITR engine**: `prepareFiling()` picks ITR-1/2/3/4, computes full return across all
+  heads (salary, interest, house property, equity STCG 20% / LTCG 12.5% over ₹1.25L, other, business),
+  both regimes incl. rebate/surcharge/cess, reconciles TDS + advance tax → refund/payable, flags rare
+  audit-needs-CA case, outputs checklist + portal walkthrough.
+- `insurance.ts` — 25× term rule (no life cover without dependents), health sizing, personalised
+  "what to get" + "what to avoid". Student-aware.
+- `investment.ts` — SEBI-compliant guidance: risk profile, target allocation, fund-**category**
+  recommendations, model portfolios, monthly SIP plan. Never names a product.
+- `statement.ts` — bank-statement analyser (category breakdown, invested total, recurring subs, reduce
+  suggestions, watch-outs).
+- `networth.ts` — asset/liability breakdown, allocation, `growthProjection()` (5/10/20yr, step-up SIP).
+- `actions.ts` — rule engine ACT-001…ACT-021, each with computed `priority`.
+- `market.ts` — educational themes + live news via keyless Google News RSS (fails soft).
+- `alerts.ts` — alert generators; `monitor.ts` — shared regenerate/gatherSignals (used by route + cron).
+- `goals.ts`, `cfo-ai.ts` (RAG Q&A), `rag.ts` (Postgres FTS), `profile.ts` (load ProfileData + recalc).
+
+### Adapters
+`sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
+Razorpay), `email.ts` (dev logs / Resend + digest template), `push.ts` (FCM integration point — log
+mode until firebase-admin wired).
+
+### Routes
+`auth`, `user` (+ `/push-token`), `score`, `actions` (+ `/:id/complete`), `insights` (mounts `/networth`
+`/tax` `/tax/filing/prefill` `/tax/filing/compute` `/insurance` `/invest` `/market` `/statements/analyze`
+`/transactions` `/spend`), `goals`, `qa`, `billing`, `compliance`, `aa`, `reports`, `alerts`
+(`/` `/count` `/run` `/:id/read` `/read-all` `/:id`(dismiss) `/briefing`), `documents`, `cron` (`/run`,
+secret-protected — NOT requireAuth).
+
+### DB tables
+`users`(+state,risk_appetite,email), `otp_codes`, `refresh_tokens`, `profiles`, `score_history`,
+`actions`(+priority), `goals`, `transactions`, `conversations`, `messages`, `rag_documents`,
+`subscriptions`, `invoices`, `consents`, `notifications`(+emailed_at, unique on user_id+dedupe_key),
+`documents`, `device_tokens`, `audit_log`.
+
+---
+
+## 5. Web (`web/src`)
+- `lib/api.ts` (fetch + token refresh), `lib/format.ts` (`inr()`), `lib/india.ts` (states→cities, metro),
+  `lib/statementParse.ts` (client CSV/XLSX/PDF parse via cdnjs), `lib/native.ts` (Capacitor bridge).
+- `components/kit.tsx` — shared UI: `Donut`, `Ring`, `StackedBar`, `Disclosure`, `SectionNav`, `Section`,
+  `StatTile`, `Pill`, `TopicIcon`, colours. `Logo.tsx` (Wordmark "Pay*Watch*"), `ScoreGauge`,
+  `UpgradeBanner` (soft paywall), `AuthRedirect` (resume session on app open).
+
+---
+
+## 6. Mobile apps (Capacitor) — see `web/MOBILE.md`
+- Bundled **static export** (`BUILD_TARGET=mobile next build` → `web/out/`), `capacitor.config.ts`
+  (appId `in.paywatch.app`). Scripts: `build:mobile` / `cap:sync` / `cap:ios` / `cap:android` / `cap:assets`.
+- `lib/native.ts`: biometric app-lock (launch/resume), splash, status bar, haptics, push registration →
+  `POST /user/push-token`. All no-op on web (same codebase on Vercel + native).
+- **Push is gated off by `NEXT_PUBLIC_PUSH_ENABLED=1`** (build-time) — without Firebase set up it crashes
+  Android, so it stays off until `firebase-admin` + google-services.json/APNs are done.
+- Icons/splash source in `web/assets/` → `npm run cap:assets`. Run `npx cap add ios/android` locally
+  (Mac + CocoaPods for iOS). Both stores need an **org account + D-U-N-S** (finance category).
+
+---
+
+## 7. Deployment
 - **Source:** GitHub `yashcodingprodigy/PersonalCFO`, branch `main`. Push → auto-deploys.
-- **API:** Railway service "PersonalCFO" (Node/Express, built from `server/`). Start = `node dist/index.js`.
-  - **Pre-Deploy Command = `npm run migrate:prod`** → runs the compiled, idempotent migration before
-    every deploy (no dev deps needed; `build` copies `schema.sql` into `dist/db/`). This is why we
-    no longer migrate by hand for additive changes.
-- **DB:** Railway Postgres service. `DATABASE_URL` is injected into the API service.
-- **Web:** Vercel (Next.js from `web/`). Env `NEXT_PUBLIC_API_URL` (baked at build → must redeploy on change).
-- **Domain:** `paywatch.in` (registrar: **GoDaddy**, nameservers `ns05/ns06.domaincontrol.com`).
-  - Apex `A @ → 76.76.21.21` (Vercel). `CNAME www → cname.vercel-dns.com`. `CNAME api → <Railway target>`.
-  - GoDaddy email records (MX secureserver.net, SPF, DKIM `*._domainkey`, DMARC, autodiscover) must be left intact.
-  - **CORS:** server reads `CORS_ORIGIN` (comma-separated). Must include `https://paywatch.in,https://www.paywatch.in`.
-- **Env vars to remember:** Railway → `DATABASE_URL`(auto), `JWT_SECRET`, `JWT_REFRESH_SECRET`,
-  `CORS_ORIGIN`, `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`,
-  `ANTHROPIC_API_KEY` (optional), `CRON_SECRET` (enables the monitor cron), `EMAIL_PROVIDER`
-  (`dev`/`resend`) + `RESEND_API_KEY` + `EMAIL_FROM`, `APP_URL=https://paywatch.in`. Vercel → `NEXT_PUBLIC_API_URL`.
-- **Proactive cron:** `POST /v1/cron/run` with header `x-cron-key: $CRON_SECRET` (no auth) regenerates
-  alerts for all users and emails digests to users who set an email (`users.email`). Wire a Railway
-  scheduled service / cron to call it daily or weekly. Disabled until `CRON_SECRET` is set.
-- **Plans/billing:** `/plans` page (pricing, current plan, subscribe/cancel, GST invoices) + a sidebar
-  Upgrade CTA + a soft (non-blocking) `UpgradeBanner` on premium pages. Billing via `routes/billing.ts`
-  (sandbox Razorpay until `BILLING_PROVIDER=razorpay`). Plan keys: `starter`/`cfo`/`family`.
+- **API:** Railway service "PersonalCFO" (built from `server/`). **Pre-Deploy = `npm run migrate:prod`**
+  (compiled, idempotent; `build` copies `schema.sql` into `dist/db/`) → no manual migrations for additive
+  changes. Start = `node dist/index.js`.
+- **DB:** Railway Postgres (`DATABASE_URL` injected).
+- **Web:** Vercel (from `web/`). `NEXT_PUBLIC_API_URL` baked at build → redeploy on change.
+- **Domain:** `paywatch.in` (GoDaddy). Apex `A @ → 76.76.21.21` (Vercel), `CNAME www → cname.vercel-dns.com`.
+  **`api.paywatch.in`** = Railway custom domain (`CNAME api → <railway target>` + `TXT _railway-verify.api`).
+  Leave GoDaddy email records (MX/SPF/DKIM/DMARC) intact. `NEXT_PUBLIC_API_URL = https://api.paywatch.in/v1`.
+- **CORS:** server allows `CORS_ORIGIN` (comma list: `https://paywatch.in,https://www.paywatch.in`) +
+  native origins (`capacitor://localhost`, `http(s)://localhost`) automatically.
+- **Proactive cron:** `POST /v1/cron/run` header `x-cron-key: $CRON_SECRET` → regenerates alerts for all
+  users, emails (Resend) + pushes digests; each alert sent once (`emailed_at`). Wire a Railway cron.
+  Disabled until `CRON_SECRET` set.
+- **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
+  `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
+  `CRON_SECRET`, `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`, `FCM_SERVER_KEY`(opt).
+  Vercel → `NEXT_PUBLIC_API_URL` (+ `NEXT_PUBLIC_PUSH_ENABLED=1` only for mobile builds once Firebase ready).
 
-### Common deploy gotchas
-- **"Failed to fetch" on login** = CORS or API URL, NOT DNS propagation. Fix: ensure `CORS_ORIGIN`
-  includes the visited origin, and `NEXT_PUBLIC_API_URL` points to a reachable API (`/v1/health` returns ok),
-  then **redeploy Vercel** (the URL is build-time baked).
-- Changing `NEXT_PUBLIC_API_URL` requires a Vercel **redeploy** to take effect.
-- Non-additive DB changes (drop/rename/type change) are NOT handled by the idempotent re-run —
-  **pause deploys and run the specific SQL by hand**, or adopt a real migration tool.
-
-### Reset the database (fresh start)
-Run in Railway Postgres query editor (keeps the seeded knowledge base):
+### Reset DB (keeps seeded knowledge base)
 ```sql
-DELETE FROM users;       -- cascades to all per-user tables
-DELETE FROM otp_codes;
-DELETE FROM audit_log;
+DELETE FROM users; DELETE FROM otp_codes; DELETE FROM audit_log;
 ```
-For a total wipe also `DELETE FROM rag_documents;` then re-seed with `DATABASE_URL=… npm run seed`.
+Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run seed`.
+
+### Common gotchas
+- "Failed to fetch" on login = CORS or `NEXT_PUBLIC_API_URL` (NOT DNS). Fix env + redeploy Vercel.
+- Native app "failed to fetch" = API unreachable (use the working HTTPS URL) or CORS change not deployed.
+- Non-additive DB changes (drop/rename/type) aren't handled by the idempotent re-run — run SQL by hand.
 
 ---
 
-## 5. OTP behaviour
-- OTP is **never returned to the client** — it's read from **server logs** (Railway logs) in dev mode,
-  or sent via SMS when `SMS_PROVIDER=msg91`.
-- Value: fixed `424242` when `NODE_ENV !== production`; random 6-digit when `NODE_ENV=production`.
+## 8. Compliance posture (India) & legal limits
+- **SEBI:** education/organisation only; never name a security; no real-time tips (finfluencer rule:
+  no <3-month price data beside a named security — PayWatch names none). Paid specific advice → SEBI RIA.
+- **Tax / ITR — the CA-replacement boundary:**
+  - PayWatch can legally **prepare, compute and guide self-filing** of ITRs for individuals — no licence
+    needed. This already removes the CA for most salaried/individual taxpayers.
+  - **One-click e-filing from inside the app needs ERI (e-Return Intermediary) registration** with the
+    Income Tax Dept (like ClearTax/Quicko). Until then users self-file on the portal using our computation.
+  - **Tax audits (44AB) + certain certifications (e.g. 15CB)** legally require a CA's signature/UDIN —
+    software cannot remove these (affects larger businesses, not regular individuals). Engine flags this.
+- **DPDP Act 2023 + Rules 2025** (notified 13 Nov 2025, ~18-month phased): PayWatch is a Data Fiduciary.
+  Built: consent ledger, JSON export, hard delete, AA revocation, audit log. To formalise: standalone
+  consent notice, breach process, grievance officer, under-18 parental consent, security docs.
+- **RBI Account Aggregator:** live bank data needs **FIU** registration (Sahamati + Finvu). Keep
+  `AA_PROVIDER=mock` + statement-upload until then.
+- **Payments:** Razorpay is the PA; PayWatch is a merchant (needs Razorpay KYC, not a PA licence).
 
 ---
 
-## 6. Local dev
-```bash
-createdb paywatch
-cd server && cp .env.example .env && npm install && npm run migrate && npm run seed && npm run dev
-cd ../web && npm install && npm run dev
-```
-Verify types: `cd server && npx tsc --noEmit` · `cd web && npx tsc --noEmit`.
+## 9. Roadmap / long-term goals
+
+### Done ✓
+- Full app feature set (§3), recurring-value engine (alerts/briefing/copilot/watchdog/autopilot/vault),
+  plans/soft-paywall, email+cron delivery, **mobile (Capacitor) scaffolded**, **guided ITR filing wizard**,
+  **rent-receipt generator**, `api.paywatch.in` custom domain.
+
+### Software still to build (legal now, no registration needed)
+1. **Form 16 / 26AS / AIS auto-import & reconciliation** — upload Form 16 PDF / AIS JSON → auto-fill the
+   filing wizard instead of typing (best-effort PDF parse exists for statements; extend for Form 16).
+2. **Capital-gains statement importer** — broker P&L CSV → auto STCG/LTCG into the wizard.
+3. **More CA document generators** — printable computation sheet (PDF), 80G/donation receipts,
+   net-worth statement. (Rent receipts done.)
+4. **GST suite** for business users — GSTR-1/3B preparation/summaries.
+5. **Firebase push delivery** — finish `adapters/push.ts` with `firebase-admin`; flip `NEXT_PUBLIC_PUSH_ENABLED=1`.
+6. **Hard paywall enforcement** — gate premium endpoints/features server-side for non-CFO plans (currently soft banners).
+
+### Business / legal / registrations (Goal B — needs professionals)
+1. **Company** — incorporate Pvt Ltd, PAN/TAN (CA/CS). Update legal copy CIN/address.
+2. **Trademark** "PayWatch" with IP India (classes 9 / 36 / 42).
+3. **GST registration** (billing already issues 18% GST invoices).
+4. **DPDP baseline** — consent notice, grievance officer, breach plan, under-18, security docs (lawyer).
+5. **Developer accounts + D-U-N-S** — Apple ($99/yr) + Google ($25) org accounts; start D-U-N-S early.
+6. **ERI registration** (Income Tax Dept) — unlocks true one-click e-filing from the app.
+7. **Razorpay live KYC** — for live subscriptions.
+8. **AA / FIU** (Sahamati + Finvu) — only when moving off mock bank data.
+9. **Legal review** — Terms / Privacy / Disclosures + the SEBI & tax boundaries.
+
+> NONE of §8–9 is legal advice. Engage a CA (entity, GST, audit, ERI) and a lawyer (DPDP, SEBI/tax
+> boundary, terms). Verify every rule against the current official source before acting.
 
 ---
 
-## 7. Compliance posture (India)
-- **SEBI:** education/organisation only; never name a security; no real-time stock tips. (Finfluencer
-  rule: a pure-education entity must not use the last 3 months' price data alongside a security name —
-  PayWatch names no securities, so it stays clear.) Specific paid advice would require SEBI RIA registration.
-- **DPDP Act 2023 + DPDP Rules 2025** (Rules notified 13 Nov 2025; ~18-month phased compliance):
-  PayWatch is a Data Fiduciary. Built: consent ledger, JSON export, hard delete, AA revocation, audit log.
-  Still to formalise: standalone consent notice, breach-reporting process (to Data Protection Board +
-  users), grievance officer, verifiable parental consent for under-18 users, documented security safeguards.
-- **RBI Account Aggregator:** pulling live bank data in production requires becoming an **FIU**
-  (register via Sahamati + an AA/TSP gateway like Finvu). Until then keep `AA_PROVIDER=mock` and rely on
-  the statement-upload feature.
-- **IT Rules 2021:** grievance officer + mechanism (referenced on the Disclosures page).
-- **Payments:** Razorpay is the payment aggregator; PayWatch is just a merchant (needs Razorpay KYC, not a PA licence).
-
----
-
-## 8. Roadmap
-
-### Goal A — Mobile apps (Android + iOS) — SCAFFOLDED ✓
-**Capacitor** is set up (bundled static-export approach). App ID `in.paywatch.app`. See **`web/MOBILE.md`**
-for the full build/run/submit guide. Key pieces:
-- `web/capacitor.config.ts`, `web/next.config.mjs` (gates `output:'export'` when `BUILD_TARGET=mobile` → `web/out/`),
-  scripts `build:mobile` / `cap:sync` / `cap:ios` / `cap:android` / `cap:assets`.
-- `web/src/lib/native.ts` — biometric app-lock (on launch/resume), splash, status bar, haptics, push
-  registration → `POST /user/push-token`. All no-op on web (same codebase runs on Vercel + native).
-  Wired into `app/(app)/layout.tsx` with a lock overlay.
-- Server: CORS allows `capacitor://localhost` / `localhost`; `device_tokens` table; `adapters/push.ts`
-  (FCM integration point — currently log mode; finish with `firebase-admin`); the cron pushes urgent alerts.
-- Icon/splash source art in `web/assets/` → `npm run cap:assets`.
-- Run `npx cap add ios/android` locally (Mac for iOS). Build a signed `.aab`/archive, submit.
-Both stores need an **organisation developer account + D-U-N-S number** (finance category). Apple $99/yr
-(needs legal entity + matching-domain email + live website paywatch.in ✓); Google $25 one-time. NOT a
-lending app, so the RBI digital-lending allow-list rule doesn't apply.
-
-### Goal B — Registrations & certifications (priority order)
-1. **Business entity** — incorporate a Pvt Ltd (or start as proprietorship/LLP for MVP), get PAN/TAN. (CA / company secretary.)
-2. **Trademark** — file "PayWatch" wordmark with IP India (classes 9 / 36 / 42).
-3. **GST registration** — required once charging subscriptions over the threshold or selling across states; the billing code already issues 18% GST invoices.
-4. **DPDP baseline** — finalise privacy notice, grievance officer, breach plan, under-18 handling, security documentation.
-5. **Developer accounts + D-U-N-S** — Apple & Google org accounts (start D-U-N-S now).
-6. **Razorpay live KYC** — business docs + bank account for live subscriptions.
-7. **AA / FIU** — only when moving off mock bank data.
-8. **Legal review** — have a lawyer review Terms / Privacy / Disclosures and the SEBI education boundary.
-
-> NOTE: The owner is new to this. None of section 7–8 is legal advice — engage a CA (entity, GST) and a
-> lawyer (DPDP, SEBI boundary, terms). Verify every rule against the current official source before acting.
-
----
-
-## 9. Working agreements / preferences
-- Owner prefers concise, direct answers.
+## 10. Working agreements
+- Owner prefers concise, direct answers; owner is new to dev/ops — explain "where to run" things.
 - For deployed changes, always call out DB-migration and env-var implications before they go live.
-- Keep every money feature inside the education/organisation lane; add disclaimers on new surfaces.
+- Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
+  self-file"; add disclaimers on new surfaces.
+- Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
