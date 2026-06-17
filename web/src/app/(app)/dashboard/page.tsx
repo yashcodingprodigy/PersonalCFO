@@ -103,17 +103,34 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-            <p className="mt-3 text-xs text-white/60">Your net worth today is <strong className="text-white">{inr(g.current)}</strong>.</p>
-            <p className="mt-1 text-lg sm:text-xl font-display leading-snug">
-              In {h.years} years it&apos;s on track to reach <span className="font-semibold text-mint-300">{inr(h.baseline)}</span> — or <span className="font-semibold text-mint-300">{inr(h.improved)}</span> if you build a few habits.
+            <p className="mt-2 text-xs text-white/55">Starting from your net worth today, <strong className="text-white/80">{inr(g.current)}</strong>, here&apos;s where {h.years} years takes you:</p>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 items-stretch">
+              {/* If nothing changes */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">If nothing changes</p>
+                <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-white/70">{inr(h.baseline)}</p>
+                <p className="text-[11px] text-white/35 mt-1">going it alone</p>
+              </div>
+              {/* With PayWatch */}
+              <div className="rounded-2xl border-2 border-mint-500 bg-mint-500/10 p-5 relative shadow-[0_0_30px_-8px_rgba(47,188,155,0.6)]">
+                <span className="absolute -top-2.5 right-3 rounded-full bg-mint-500 text-pine-950 text-[11px] font-extrabold px-2.5 py-0.5">+{inr(h.uplift)}</span>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-mint-300">With PayWatch</p>
+                <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-mint-300">{inr(h.improved)}</p>
+                <p className="text-[11px] text-white/55 mt-1">following your plan</p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm text-white/85 leading-snug">
+              Same income, same starting point — <strong className="text-mint-300">{inr(h.uplift)} more</strong> in {h.years} years, just from better habits. And the gap widens every single year after.
             </p>
-            <p className="text-xs text-white/70 mt-1.5">That&apos;s about <strong className="text-mint-300">{inr(h.uplift)} more</strong>, just from the steps below — and the gap keeps widening every year after.</p>
-            <ul className="mt-4 space-y-1.5">
+
+            <ul className="mt-3 space-y-1.5">
               {g.levers.map((l: string, i: number) => (
                 <li key={i} className="flex gap-2 text-sm text-white/90"><span className="text-mint-300 font-bold shrink-0">→</span>{l}</li>
               ))}
             </ul>
-            <Link href="/actions" className="mt-4 inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2 text-sm font-bold hover:bg-mint-400 transition-colors">
+            <Link href="/actions" className="mt-4 inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2.5 text-sm font-bold hover:bg-mint-400 transition-colors">
               Show me how — go to my actions
             </Link>
           </section>

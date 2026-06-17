@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { Wordmark, LogoMark } from '@/components/Logo';
+import { AuthRedirect } from '@/components/AuthRedirect';
 
 export default function Landing() {
   return (
     <main className="min-h-screen bg-pine-950 text-white">
+      <AuthRedirect />
       {/* Nav */}
       <header className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
         <Wordmark dark />

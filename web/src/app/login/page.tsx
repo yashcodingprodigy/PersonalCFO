@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
-import { api, setTokens } from '@/lib/api';
+import { api, setTokens, getTokens } from '@/lib/api';
 
 export default function Login() {
   const router = useRouter();
@@ -13,6 +13,9 @@ export default function Login() {
   const [otp, setOtp] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Already signed in (e.g. app re-opened) → resume the session.
+  useEffect(() => { if (getTokens().access) router.replace('/dashboard'); }, [router]);
 
   const fullMobile = `+91${mobile}`;
 

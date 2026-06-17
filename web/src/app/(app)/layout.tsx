@@ -42,7 +42,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isNative()) return;
     setLocked(true);
     initNative(() => setLocked(true));
-    registerPush((token, platform) => { post('/user/push-token', { token, platform }).catch(() => {}); });
+    // Push needs Firebase (google-services.json / APNs) set up first, or it
+    // crashes the app. Stays off until NEXT_PUBLIC_PUSH_ENABLED=1 at build time.
+    if (process.env.NEXT_PUBLIC_PUSH_ENABLED === '1') {
+      registerPush((token, platform) => { post('/user/push-token', { token, platform }).catch(() => {}); });
+    }
     unlock().then((ok) => { if (ok) setLocked(false); });
   }, []);
 
