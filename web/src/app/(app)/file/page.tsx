@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { get, post } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
-import { readPdfText, parseForm16 } from '@/lib/statementParse';
+import { readPdfText, parseForm16, parseCapitalGainsCsv } from '@/lib/statementParse';
 import Link from 'next/link';
 import { Disclosure, Pill } from '@/components/kit';
 import { UpgradeBanner } from '@/components/UpgradeBanner';
@@ -59,6 +59,17 @@ export default function FilePage() {
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [form16Note, setForm16Note] = useState('');
+  const [cgNote, setCgNote] = useState('');
+
+  async function onCgCsv(file: File) {
+    setCgNote('Reading your statement…');
+    try {
+      const { stcg, ltcg, rows } = await parseCapitalGainsCsv(file);
+      if (rows === 0) { setCgNote("Couldn't read that CSV — enter the amounts manually below."); return; }
+      setInputs((p) => ({ ...p, stcgEquity: String(Math.max(0, Math.round(stcg / 100))), ltcgEquity: String(Math.max(0, Math.round(ltcg / 100))) }));
+      setCgNote(`Read ${rows} rows → short-term ${inr(Math.max(0, stcg))}, long-term ${inr(Math.max(0, ltcg))}. Please verify below.`);
+    } catch { setCgNote('Could not read that file — enter the amounts manually.'); }
+  }
 
   async function onForm16(file: File) {
     setForm16Note('Reading your Form 16…');
@@ -153,7 +164,18 @@ export default function FilePage() {
             <input type="checkbox" checked={hasCG} onChange={(e) => setHasCG(e.target.checked)} />
             I sold stocks/mutual funds or have rental income this year
           </label>
-          {hasCG && <div className="space-y-4 border-t border-paper-100 pt-4">{FIELDS_CG.map((f) => <MoneyRow key={f.k} f={f} value={v(f.k)} onChange={set(f.k)} />)}</div>}
+          {hasCG && (
+            <div className="space-y-4 border-t border-paper-100 pt-4">
+              <div className="rounded-lg bg-mint-100 px-4 py-3">
+                <label className="text-sm font-semibold cursor-pointer text-pine-800 inline-flex items-center gap-2">
+                  📈 Upload your broker capital-gains CSV to auto-fill
+                  <input type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onCgCsv(f); }} />
+                </label>
+                <p className="text-[11px] text-ink-soft mt-1">{cgNote || 'Zerodha / Groww / etc. tax P&L export — read on your device.'}</p>
+              </div>
+              {FIELDS_CG.map((f) => <MoneyRow key={f.k} f={f} value={v(f.k)} onChange={set(f.k)} />)}
+            </div>
+          )}
           <button onClick={() => setStep(1)} className="btn-primary w-full">Next — deductions</button>
         </section>
       )}

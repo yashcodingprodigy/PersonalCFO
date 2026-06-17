@@ -21,6 +21,8 @@ export const config = {
   appUrl: process.env.APP_URL || 'https://paywatch.in',
   cronSecret: process.env.CRON_SECRET || '',
   fcmServerKey: process.env.FCM_SERVER_KEY || '',
+  // Firebase service-account JSON (string) for FCM HTTP v1 push delivery.
+  firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT || '',
   isDev: (process.env.NODE_ENV || 'development') !== 'production',
 };
 

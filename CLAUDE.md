@@ -166,7 +166,8 @@ secret-protected — NOT requireAuth).
   Disabled until `CRON_SECRET` set.
 - **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
   `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
-  `CRON_SECRET`, `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`, `FCM_SERVER_KEY`(opt).
+  `CRON_SECRET`, `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
+  `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery).
   Vercel → `NEXT_PUBLIC_API_URL` (+ `NEXT_PUBLIC_PUSH_ENABLED=1` only for mobile builds once Firebase ready).
 
 ### Reset DB (keeps seeded knowledge base)
@@ -209,14 +210,17 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
   **rent-receipt generator**, `api.paywatch.in` custom domain.
 
 ### Software still to build (legal now, no registration needed)
-1. **Form 16 / 26AS / AIS auto-import & reconciliation** — upload Form 16 PDF / AIS JSON → auto-fill the
-   filing wizard instead of typing (best-effort PDF parse exists for statements; extend for Form 16).
-2. **Capital-gains statement importer** — broker P&L CSV → auto STCG/LTCG into the wizard.
-3. **More CA document generators** — printable computation sheet (PDF), 80G/donation receipts,
-   net-worth statement. (Rent receipts done.)
+1. **Form 16 auto-fill** ✓ (best-effort PDF parse on the wizard). **26AS / AIS JSON import & reconciliation** still to do.
+2. **Capital-gains statement importer** ✓ — broker P&L CSV → STCG/LTCG into the wizard (`parseCapitalGainsCsv`).
+3. **CA document generators** — rent receipts ✓, 80G receipts ✓, net-worth statement ✓. Still: printable
+   computation-sheet PDF (wizard currently downloads a .txt), salary/income certificate.
 4. **GST suite** for business users — GSTR-1/3B preparation/summaries.
-5. **Firebase push delivery** — finish `adapters/push.ts` with `firebase-admin`; flip `NEXT_PUBLIC_PUSH_ENABLED=1`.
-6. **Hard paywall enforcement** — gate premium endpoints/features server-side for non-CFO plans (currently soft banners).
+5. **Firebase push** — server delivery DONE via FCM HTTP v1 (`adapters/push.ts`, uses `jsonwebtoken`, no
+   firebase-admin). Activates when `FIREBASE_SERVICE_ACCOUNT` env is set; still needs the native Firebase
+   config (google-services.json / APNs) and `NEXT_PUBLIC_PUSH_ENABLED=1` for the apps.
+6. **Onboarding DPDP consent notice + under-18 (guardian) consent** ✓ — recorded in `consents`.
+7. **Hard paywall enforcement** — gate premium endpoints server-side for non-CFO plans (currently soft banners).
+8. **AIS reconciliation, audit/notice helpers** — later.
 
 ### Business / legal / registrations (Goal B — needs professionals)
 1. **Company** — incorporate Pvt Ltd, PAN/TAN (CA/CS). Update legal copy CIN/address.

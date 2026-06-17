@@ -195,6 +195,42 @@ export function parseForm16(text: string): { grossSalary: number | null; tds: nu
   return { grossSalary, tds };
 }
 
+// Best-effort capital-gains CSV parser (broker P&L export → STCG/LTCG totals).
+// Handles (a) explicit short/long-term columns, or (b) a P&L column classified
+// by holding period from buy/sell dates. Returns paise (can be negative).
+export async function parseCapitalGainsCsv(file: File): Promise<{ stcg: number; ltcg: number; rows: number }> {
+  await loadScript(CDN.papa);
+  const Papa = (window as any).Papa;
+  const text = await file.text();
+  const rows = (Papa.parse(text, { header: true, skipEmptyLines: true }).data as any[]).filter((r) => r && Object.keys(r).length);
+  if (!rows.length) return { stcg: 0, ltcg: 0, rows: 0 };
+  const keys = Object.keys(rows[0]);
+  const findCol = (re: RegExp) => keys.find((h) => re.test(h.toLowerCase()));
+  const num = (val: any) => { const n = parseFloat(String(val ?? '').replace(/[₹,\s]/g, '')); return isNaN(n) ? 0 : n; };
+
+  const stCol = findCol(/short.?term|stcg/);
+  const ltCol = findCol(/long.?term|ltcg/);
+  let stcg = 0, ltcg = 0;
+
+  if (stCol || ltCol) {
+    for (const r of rows) { stcg += stCol ? num(r[stCol]) : 0; ltcg += ltCol ? num(r[ltCol]) : 0; }
+  } else {
+    const plCol = findCol(/realized|realised|p&l|pnl|profit|net gain|gain\/loss|gain/);
+    const buyCol = findCol(/buy.*date|purchase.*date|acquisi/);
+    const sellCol = findCol(/sell.*date|sale.*date|sold/);
+    if (plCol) {
+      for (const r of rows) {
+        const p = num(r[plCol]);
+        if (buyCol && sellCol) {
+          const days = (new Date(r[sellCol]).getTime() - new Date(r[buyCol]).getTime()) / 86400000;
+          if (!isNaN(days) && days > 365) ltcg += p; else stcg += p;
+        } else stcg += p;
+      }
+    }
+  }
+  return { stcg: Math.round(stcg * 100), ltcg: Math.round(ltcg * 100), rows: rows.length };
+}
+
 // ── public entry ─────────────────────────────────────────────────────
 export async function parseStatementFile(file: File): Promise<ParseResult> {
   const name = file.name.toLowerCase();

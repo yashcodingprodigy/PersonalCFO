@@ -60,6 +60,12 @@ export default function Onboarding() {
   const bandToGross: Record<string, number> = { '5-10': 75000000, '10-20': 150000000, '20-35': 275000000, '35+': 450000000 };
   const isStudent = employment === 'student';
 
+  // DPDP consent + under-18 handling
+  const [consent, setConsent] = useState(false);
+  const [guardian, setGuardian] = useState('');
+  const [guardianConsent, setGuardianConsent] = useState(false);
+  const isMinor = age !== '' && Number(age) < 18;
+
   async function submit1(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr('');
     try {
@@ -75,6 +81,9 @@ export default function Onboarding() {
         dependents_count: Number(dependents),
         onboarding_status: { session_1: 'complete', session_2: 'pending', session_3: 'pending' },
       });
+      // Record DPDP consent (and parental consent for minors).
+      await post('/consents', { consent_type: 'data_processing', granted: true, meta: { at: 'onboarding' } }).catch(() => {});
+      if (isMinor) await post('/consents', { consent_type: 'parental_consent', granted: true, meta: { guardian } }).catch(() => {});
       if (expenses) await patch('/user/profile/assets', { monthly_expenses: rupeesToPaise(expenses) });
       const save = expenses ? Math.round(((Number(takeHome) - Number(expenses)) / Number(takeHome)) * 100) : null;
       setLearned(save != null
@@ -222,8 +231,26 @@ export default function Onboarding() {
               </select>
               <p className="text-[11px] text-ink-faint mt-1">We use this to check if your insurance cover is adequate.</p>
             </div>
+            {/* Under-18 → guardian consent (DPDP) */}
+            {isMinor && (
+              <div className="rounded-lg bg-signal-amber/10 px-4 py-3 space-y-2">
+                <p className="text-[12px] text-ink-soft leading-relaxed">You&apos;re under 18, so a parent or guardian needs to set up and consent to this account on your behalf.</p>
+                <input className="input" value={guardian} onChange={(e) => setGuardian(e.target.value)} placeholder="Parent / guardian full name" />
+                <label className="flex items-start gap-2 text-[12px] text-ink-soft">
+                  <input type="checkbox" checked={guardianConsent} onChange={(e) => setGuardianConsent(e.target.checked)} className="mt-0.5" />
+                  I am the parent/guardian and I consent to PayWatch processing this minor&apos;s data.
+                </label>
+              </div>
+            )}
+
+            {/* DPDP consent notice */}
+            <label className="flex items-start gap-2 text-[12px] text-ink-soft">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
+              <span>I consent to PayWatch securely processing the financial details I provide to calculate my Money Health Score, generate guidance, and prepare my tax documents. I can export or delete my data anytime. See the <a href="/legal/privacy" className="underline" target="_blank">Privacy Policy</a>.</span>
+            </label>
+
             {err && <p className="text-sm text-signal-red">{err}</p>}
-            <button className="btn-primary w-full" disabled={busy || !takeHome}>{busy ? 'Saving…' : 'Continue — unlock my savings score'}</button>
+            <button className="btn-primary w-full" disabled={busy || !takeHome || !consent || (isMinor && (!guardian || !guardianConsent))}>{busy ? 'Saving…' : 'Continue — unlock my savings score'}</button>
           </form>
         )}
 
