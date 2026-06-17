@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { get, post } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
+import { readPdfText, parseForm16 } from '@/lib/statementParse';
 import Link from 'next/link';
 import { Disclosure, Pill } from '@/components/kit';
 import { UpgradeBanner } from '@/components/UpgradeBanner';
@@ -57,6 +58,24 @@ export default function FilePage() {
   const [fy, setFy] = useState('');
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [form16Note, setForm16Note] = useState('');
+
+  async function onForm16(file: File) {
+    setForm16Note('Reading your Form 16…');
+    try {
+      const text = await readPdfText(file);
+      const { grossSalary, tds } = parseForm16(text);
+      if (grossSalary || tds) {
+        setInputs((p) => ({ ...p,
+          ...(grossSalary ? { grossSalary: String(Math.round(grossSalary / 100)) } : {}),
+          ...(tds ? { tdsSalary: String(Math.round(tds / 100)) } : {}),
+        }));
+        setForm16Note(`Read ${[grossSalary && `salary ${inr(grossSalary)}`, tds && `TDS ${inr(tds)}`].filter(Boolean).join(', ')} — please double-check the figures below.`);
+      } else {
+        setForm16Note("Couldn't read this Form 16 automatically (employer formats vary) — just enter the numbers below.");
+      }
+    } catch { setForm16Note('Could not read that PDF — please enter the numbers manually.'); }
+  }
 
   useEffect(() => {
     get('/tax/filing/prefill').then((r) => {
@@ -122,6 +141,13 @@ export default function FilePage() {
       {step === 0 && (
         <section className="card p-6 space-y-4">
           <h2 className="font-display text-xl font-medium">What did you earn?</h2>
+          <div className="rounded-lg bg-mint-100 px-4 py-3">
+            <label className="text-sm font-semibold cursor-pointer text-pine-800 inline-flex items-center gap-2">
+              📄 Have your Form 16? Upload it to auto-fill
+              <input type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onForm16(f); }} />
+            </label>
+            <p className="text-[11px] text-ink-soft mt-1">{form16Note || 'We read it on your device — the file is never uploaded.'}</p>
+          </div>
           {FIELDS_INCOME.map((f) => <MoneyRow key={f.k} f={f} value={v(f.k)} onChange={set(f.k)} />)}
           <label className="flex items-center gap-2 text-sm text-ink-soft pt-1">
             <input type="checkbox" checked={hasCG} onChange={(e) => setHasCG(e.target.checked)} />

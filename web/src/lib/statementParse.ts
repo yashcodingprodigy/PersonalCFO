@@ -160,6 +160,41 @@ function parsePdfLines(lines: string[]): ParsedTxn[] {
   return out;
 }
 
+// Extract all text from a PDF (used for best-effort Form 16 reading).
+export async function readPdfText(file: File): Promise<string> {
+  await loadScript(CDN.pdf);
+  const pdfjsLib = (window as any).pdfjsLib;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = CDN.pdfWorker;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += ' ' + content.items.map((it: any) => it.str).join(' ');
+  }
+  return text.replace(/\s+/g, ' ');
+}
+
+// Best-effort Form 16 parse → gross salary + total TDS (paise). Returns nulls
+// when it can't find them; the user always confirms the numbers.
+export function parseForm16(text: string): { grossSalary: number | null; tds: number | null } {
+  const money = (re: RegExp): number | null => {
+    const m = text.match(re);
+    if (!m) return null;
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    return isNaN(n) ? null : Math.round(n * 100);
+  };
+  const grossSalary =
+    money(/gross\s*salary[^0-9]{0,40}([\d,]+\.\d{2})/i) ||
+    money(/total\s*amount\s*of\s*salary[^0-9]{0,40}([\d,]+\.\d{2})/i) ||
+    money(/17\s*\(1\)[^0-9]{0,40}([\d,]+\.\d{2})/i);
+  const tds =
+    money(/total\s*(?:amount\s*of\s*)?tax\s*deducted[^0-9]{0,40}([\d,]+\.\d{2})/i) ||
+    money(/amount\s*of\s*tax\s*deducted\s*and\s*deposited[^0-9]{0,40}([\d,]+\.\d{2})/i);
+  return { grossSalary, tds };
+}
+
 // ── public entry ─────────────────────────────────────────────────────
 export async function parseStatementFile(file: File): Promise<ParseResult> {
   const name = file.name.toLowerCase();

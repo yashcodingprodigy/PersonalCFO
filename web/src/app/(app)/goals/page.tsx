@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { get, post, del } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
+import { Ring, C } from '@/components/kit';
 
 const HEALTH: Record<string, { label: string; cls: string }> = {
   on_track: { label: 'On track', cls: 'bg-mint-100 text-pine-800' },
@@ -93,12 +94,14 @@ export default function GoalsPage() {
                 </div>
                 <span className={`chip ${h.cls}`}>{h.label}</span>
               </div>
-              <div className="mt-4 flex items-baseline gap-2">
-                <span className="font-display text-2xl font-semibold tabular-nums">{inr(g.current_amount)}</span>
-                <span className="text-sm text-ink-faint">of {inr(m.inflationAdjustedTarget)} (inflation-adjusted)</span>
-              </div>
-              <div className="mt-2 h-2.5 bg-paper-100 rounded-full overflow-hidden">
-                <div className="h-full bg-pine-600 rounded-full" style={{ width: `${progress}%` }} />
+              <div className="mt-4 flex items-center gap-4">
+                <Ring pct={progress} size={88} color={m.health === 'off_track' ? C.red : m.health === 'at_risk' ? C.amber : m.health === 'achieved' ? C.green : C.pine700}>
+                  <span className="font-display text-base font-semibold tabular-nums">{Math.round(progress)}%</span>
+                </Ring>
+                <div>
+                  <p className="font-display text-2xl font-semibold tabular-nums">{inr(g.current_amount)}</p>
+                  <p className="text-xs text-ink-faint">of {inr(m.inflationAdjustedTarget)} target<br />(inflation-adjusted)</p>
+                </div>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div><dt className="text-xs text-ink-faint">Needed per month</dt><dd className="font-bold tabular-nums">{inr(m.requiredMonthly)}</dd></div>

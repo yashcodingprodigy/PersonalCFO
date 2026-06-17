@@ -114,7 +114,8 @@ export default function NetWorthPage() {
       )}
 
       {/* Holdings */}
-      <Section id="holdings" title="Holdings" hint="Everything you own and owe.">
+      <Section id="holdings" title="Holdings" hint="Everything you own and owe."
+        action={<Link href="/networth-statement" className="text-sm font-semibold text-pine-700 hover:underline whitespace-nowrap">Printable statement →</Link>}>
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="card p-6">
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-2">Assets</p>

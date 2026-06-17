@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr } from '@/lib/format';
+import Link from 'next/link';
 import { Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
 import { UpgradeBanner } from '@/components/UpgradeBanner';
 
@@ -229,6 +230,14 @@ export default function TaxPage() {
       {/* Docs + glossary */}
       {rp && (
         <Section id="docs" title="Filing toolkit">
+          <div className="grid sm:grid-cols-3 gap-3 mb-4">
+            {[['/file', 'File your ITR', 'Guided wizard'], ['/rent-receipts', 'Rent receipts', 'For HRA'], ['/donation-receipts', '80G receipt', 'For donations']].map(([href, t, s]) => (
+              <Link key={href} href={href} className="rounded-xl border border-paper-200 p-4 hover:border-pine-600 hover:shadow-card transition-all">
+                <p className="text-sm font-bold">{t} →</p>
+                <p className="text-[11px] text-ink-faint mt-0.5">{s}</p>
+              </Link>
+            ))}
+          </div>
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="card p-6">
               <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Documents to keep ready</h3>
