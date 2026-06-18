@@ -14,11 +14,15 @@ export default function SettingsPage() {
   const [billing, setBilling] = useState<any>(null);
   const [aa, setAa] = useState<any>(null);
   const [msg, setMsg] = useState('');
-  const [tab, setTab] = useState<'profile' | 'data' | 'plan' | 'privacy'>('profile');
+  const [tab, setTab] = useState<'personal' | 'profile' | 'data' | 'plan' | 'privacy'>('personal');
 
   // editable money fields (rupees)
   const [fields, setFields] = useState<Record<string, string>>({});
-  // profile basics (non-money)
+  // personal details (non-money)
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [employment, setEmployment] = useState('salaried');
+  const [dependents, setDependents] = useState('0');
   const [stateName, setStateName] = useState('');
   const [city, setCity] = useState('');
   const [risk, setRisk] = useState('');
@@ -27,6 +31,8 @@ export default function SettingsPage() {
   async function load() {
     const [u, p, b, a] = await Promise.all([get('/user/me'), get('/user/profile'), get('/billing/subscription'), get('/aa/status')]);
     setUser(u); setProfile(p); setBilling(b); setAa(a);
+    setName(u.name || ''); setAge(u.age ? String(u.age) : ''); setEmployment(u.employment_type || 'salaried');
+    setDependents(u.dependents_count != null ? String(u.dependents_count) : '0');
     setStateName(u.state || ''); setCity(u.city || ''); setRisk(u.risk_appetite || ''); setEmail(u.email || '');
     setFields({
       take_home: String(Math.round((u.monthly_take_home || 0) / 100)),
@@ -52,13 +58,24 @@ export default function SettingsPage() {
   function flash(m: string) { setMsg(m); setTimeout(() => setMsg(''), 3500); }
   const F = (k: string) => ({ value: fields[k] ?? '', onChange: (e: any) => setFields((f) => ({ ...f, [k]: e.target.value.replace(/[^\d]/g, '') })) });
 
-  async function saveProfile() {
+  async function savePersonal() {
     await patch('/user/me', {
-      monthly_take_home: rupeesToPaise(fields.take_home || '0'),
+      ...(name ? { name } : {}),
+      ...(email ? { email } : {}),
+      ...(age ? { age: Number(age) } : {}),
+      employment_type: employment,
+      dependents_count: Number(dependents) || 0,
       ...(stateName ? { state: stateName } : {}),
       ...(city ? { city } : {}),
       ...(risk ? { risk_appetite: risk } : {}),
-      ...(email ? { email } : {}),
+    });
+    flash('Personal details saved — your score has been recalculated.');
+    load();
+  }
+
+  async function saveProfile() {
+    await patch('/user/me', {
+      monthly_take_home: rupeesToPaise(fields.take_home || '0'),
     });
     await patch('/user/profile/assets', {
       monthly_expenses: rupeesToPaise(fields.expenses || '0'),
@@ -126,7 +143,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {([['profile', 'Financial data'], ['data', 'Tax data'], ['plan', 'Plan & billing'], ['privacy', 'Privacy & legal']] as const).map(([k, label]) => (
+        {([['personal', 'Personal details'], ['profile', 'Financial data'], ['data', 'Tax data'], ['plan', 'Subscription'], ['privacy', 'Privacy & legal']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${tab === k ? 'bg-pine-900 text-white' : 'bg-white border border-paper-200 text-ink-soft hover:border-pine-600'}`}>
             {label}
@@ -136,10 +153,40 @@ export default function SettingsPage() {
 
       {msg && <div className="rounded-xl bg-mint-100 text-pine-800 text-sm font-semibold px-4 py-3">{msg}</div>}
 
-      {tab === 'profile' && (
+      {tab === 'personal' && (
         <section className="card p-6 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Profile basics</h2>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Your details</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div><label className="label">Full name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></div>
+            <div><label className="label">Mobile</label><input className="input bg-paper-100 text-ink-faint" value={user.mobile} disabled /></div>
+            <div className="sm:col-span-2">
+              <label className="label">Email (for your monthly briefing & alert emails)</label>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              <p className="text-[11px] text-ink-faint mt-1">Optional — add it to get PayWatch reminders by email, not just in-app.</p>
+            </div>
+            <div><label className="label">Age</label><input className="input" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="29" /></div>
+            <div>
+              <label className="label">Employment</label>
+              <select className="input" value={employment} onChange={(e) => setEmployment(e.target.value)}>
+                <option value="student">Student</option><option value="salaried">Salaried</option>
+                <option value="self_employed">Self-employed</option><option value="freelancer">Freelancer</option><option value="business">Business owner</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Financial dependents</label>
+              <select className="input" value={dependents} onChange={(e) => setDependents(e.target.value)}>
+                {[0, 1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Risk comfort</label>
+              <select className="input" value={risk} onChange={(e) => setRisk(e.target.value)}>
+                <option value="">Auto (from profile)</option>
+                <option value="conservative">Play it safe</option>
+                <option value="moderate">Balanced</option>
+                <option value="aggressive">Go for growth</option>
+              </select>
+            </div>
             <div>
               <label className="label">State</label>
               <select className="input" value={stateName} onChange={(e) => { setStateName(e.target.value); setCity(''); }}>
@@ -154,22 +201,14 @@ export default function SettingsPage() {
                 {citiesForState(stateName).map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div>
-              <label className="label">Risk comfort</label>
-              <select className="input" value={risk} onChange={(e) => setRisk(e.target.value)}>
-                <option value="">Auto (from profile)</option>
-                <option value="conservative">Play it safe</option>
-                <option value="moderate">Balanced</option>
-                <option value="aggressive">Go for growth</option>
-              </select>
-            </div>
-            <div className="sm:col-span-3">
-              <label className="label">Email (for your monthly briefing & alert emails)</label>
-              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-              <p className="text-[11px] text-ink-faint mt-1">Optional — add it to get PayWatch reminders by email, not just in-app.</p>
-            </div>
           </div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint pt-2">Income, assets & cover (₹)</h2>
+          <button onClick={savePersonal} className="btn-primary">Save details</button>
+        </section>
+      )}
+
+      {tab === 'profile' && (
+        <section className="card p-6 space-y-4">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Income, assets & cover (₹)</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div><label className="label">Monthly take-home</label><input className="input" inputMode="numeric" {...F('take_home')} /></div>
             <div><label className="label">Monthly expenses</label><input className="input" inputMode="numeric" {...F('expenses')} /></div>
@@ -204,7 +243,10 @@ export default function SettingsPage() {
       {tab === 'plan' && (
         <>
           <section className="card p-6">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Current plan</h2>
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Current plan</h2>
+              <Link href="/plans" className="text-sm font-semibold text-pine-700 hover:underline">Compare all plans →</Link>
+            </div>
             <p className="text-lg font-bold capitalize">{user.plan} <span className={`chip ml-2 ${user.plan_status === 'active' ? 'bg-mint-100 text-pine-800' : 'bg-paper-100 text-ink-soft'}`}>{user.plan_status}</span></p>
             <div className="mt-5 grid sm:grid-cols-3 gap-3">
               {[['starter', '₹299'], ['cfo', '₹699'], ['family', '₹1,199']].map(([p, price]) => (

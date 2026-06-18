@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Wordmark } from '@/components/Logo';
 import { get, post, clearTokens, getTokens, del } from '@/lib/api';
 import { isNative, initNative, unlock, registerPush } from '@/lib/native';
+import { Walkthrough } from '@/components/Walkthrough';
 
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: 'M3 13h7V3H3v10Zm0 8h7v-6H3v6Zm11 0h7V11h-7v10Zm0-18v6h7V3h-7Z' },
@@ -176,6 +177,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <main className="flex-1 md:ml-60 px-4 sm:px-8 pt-16 md:pt-8 pb-24 md:pb-12 max-w-6xl">{children}</main>
+
+      {/* Guided first-run tour (persists across navigation) */}
+      {!locked && <Walkthrough />}
     </div>
   );
 }

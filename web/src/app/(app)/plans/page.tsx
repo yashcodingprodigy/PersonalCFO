@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { get, post } from '@/lib/api';
 import { inr } from '@/lib/format';
 
@@ -39,6 +40,7 @@ const FEATURES: Record<string, { tag: string; highlight?: boolean; feats: string
 };
 
 export default function PlansPage() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [sub, setSub] = useState<any>(null);
@@ -156,7 +158,7 @@ export default function PlansPage() {
                   <li key={i} className="flex gap-2 text-sm text-ink-soft"><span className="text-mint-500 font-bold shrink-0">✓</span>{x}</li>
                 ))}
               </ul>
-              <button onClick={() => setWelcomePlan(null)} className="btn-primary w-full mt-6">Start exploring →</button>
+              <button onClick={() => { setWelcomePlan(null); router.push('/dashboard'); }} className="btn-primary w-full mt-6">Start exploring →</button>
             </div>
           </div>
         );
