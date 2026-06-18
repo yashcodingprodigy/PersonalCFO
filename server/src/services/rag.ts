@@ -58,14 +58,27 @@ export async function remember(userId: string, kind: string, title: string, cont
   );
 }
 
+// Idempotent + incremental: inserts any global doc whose title isn't already
+// present, and refreshes the content/tag of ones that are. Safe to re-run, so
+// adding new knowledge is just "edit the seed list and run npm run seed again".
 export async function seedGlobalKnowledge(docs: { kind: string; title: string; content: string; source_tag: string }[]) {
-  const existing = await query(`SELECT COUNT(*)::int AS c FROM rag_documents WHERE user_id IS NULL`);
-  if (existing[0].c > 0) return false;
+  const existing = await query<{ title: string }>(`SELECT title FROM rag_documents WHERE user_id IS NULL`);
+  const have = new Set(existing.map((r) => r.title));
+  let added = 0;
   for (const d of docs) {
-    await query(
-      `INSERT INTO rag_documents (user_id, kind, title, content, source_tag) VALUES (NULL,$1,$2,$3,$4)`,
-      [d.kind, d.title, d.content, d.source_tag]
-    );
+    if (have.has(d.title)) {
+      // keep existing content fresh if it changed
+      await query(
+        `UPDATE rag_documents SET kind=$1, content=$2, source_tag=$3 WHERE user_id IS NULL AND title=$4`,
+        [d.kind, d.content, d.source_tag, d.title]
+      );
+    } else {
+      await query(
+        `INSERT INTO rag_documents (user_id, kind, title, content, source_tag) VALUES (NULL,$1,$2,$3,$4)`,
+        [d.kind, d.title, d.content, d.source_tag]
+      );
+      added++;
+    }
   }
-  return true;
+  return added; // number of new docs inserted (0 if all already present)
 }

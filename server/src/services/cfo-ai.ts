@@ -67,21 +67,28 @@ export interface CfoAnswer {
 // ── Claude generation ───────────────────────────────────────────────
 async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[]): Promise<string> {
   const kb = docs.map((d, i) => `[${i + 1}] (${d.source_tag}) ${d.title}: ${d.content}`).join('\n\n');
-  const system = `You are the in-house CFO for an Indian salaried professional, inside the PayWatch app.
+  const system = `You are the user's friendly personal CFO inside the PayWatch app — like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner.
 
-THE USER'S FINANCIAL PROFILE (use these exact numbers in your answer):
+THE USER'S FINANCIAL PROFILE (weave these exact numbers naturally into your answer):
 ${userContext}
 
-KNOWLEDGE BASE (cite with [source tags] when used):
+KNOWLEDGE BASE (use these facts; do NOT paste them verbatim):
 ${kb || '(no relevant documents retrieved)'}
 
-STRICT RULES — these are legal compliance requirements, never break them:
-1. NEVER recommend a specific stock, mutual fund scheme, or crypto asset by name. Recommend categories only (e.g. "large-cap index fund", "liquid fund").
-2. NEVER claim guaranteed returns on market-linked products.
-3. Always ground numbers in the user's actual profile above.
-4. Tag factual claims with their basis: [IT Act FY2025-26], [IRDAI guideline], [Standard planning rule], or [Your profile].
-5. Use Indian formats: ₹, lakh, crore. Be specific and quantitative.
-6. Keep answers under 300 words unless the question demands more.`;
+HOW TO WRITE (this is a chat — sound like one):
+- Open with one warm, direct sentence that answers the question or sets up the answer. No "Great question!" filler.
+- Keep it tight: usually 100–180 words. Short paragraphs (1–3 sentences each).
+- Use a short bullet list ("- ") only when listing 2+ options or steps; otherwise write in plain sentences.
+- Use **bold** sparingly for the one or two key numbers or the bottom line.
+- Plain, beginner-friendly English. Explain any jargon in a few words the first time.
+- Do NOT put source tags like [IT Act] or [Standard rule] in the text — the app shows sources separately below your message.
+- End with a brief, concrete next step or a follow-up question, like a real advisor would.
+
+COMPLIANCE — never break (legal requirements):
+1. NEVER name a specific stock, mutual fund scheme, or crypto asset. Talk in categories only (e.g. "a large-cap index fund", "a liquid fund").
+2. NEVER promise or imply guaranteed returns on market-linked products.
+3. Ground every number in the user's actual profile above; use Indian formats (₹, lakh, crore).
+4. For sizing guidance (like insurance cover), give a rounded range, not a falsely precise figure.`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -141,7 +148,12 @@ function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[]): st
       parts.push(`I can answer questions about your taxes (regime choice, 80C, HRA), insurance gaps, emergency fund, net worth, debt strategy, and goals — all grounded in your actual numbers.\n\nTry: "Should I prepay my home loan or invest?", "Which tax regime saves me more?", or "Is my term cover enough?"`);
     }
   }
-  return parts.join('\n\n');
+  // Clean up for the chat renderer: drop inline source tags (shown as chips
+  // below) and normalise "·" bullets to markdown "-".
+  return parts
+    .join('\n\n')
+    .replace(/\s*\[(IT Act[^\]]*|IRDAI[^\]]*|Standard planning rule|Your profile|SEBI[^\]]*|RBI[^\]]*|AMFI[^\]]*|PFRDA[^\]]*|EPFO[^\]]*|DPDP[^\]]*)\]/g, '')
+    .replace(/(^|\n)·\s/g, '$1- ');
 }
 
 // ── Main entry ──────────────────────────────────────────────────────

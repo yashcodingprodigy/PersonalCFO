@@ -11,6 +11,8 @@
     "migrate": "tsx src/db/migrate.ts",
     "migrate:prod": "node dist/db/migrate.js",
     "seed": "tsx src/db/seed.ts",
+    "seed:personas": "tsx src/db/seedPersonas.ts",
+    "check:personas": "tsx src/db/checkPersonas.ts",
     "test": "for f in test/*.test.ts; do echo \"▶ $f\"; tsx \"$f\" || exit 1; done"
   },
   "engines": { "node": ">=18" },

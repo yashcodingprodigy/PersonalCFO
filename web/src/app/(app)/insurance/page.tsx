@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
-import { inr } from '@/lib/format';
+import { inr, inrRange } from '@/lib/format';
 import { Ring, Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
 
 const SEV_TONE: Record<string, any> = { high: 'red', medium: 'amber', low: 'gray' };
@@ -20,8 +20,8 @@ function CoverageCard({ title, current, recommended, gap, extra }: any) {
       <div className="min-w-0">
         <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint">{title}</h3>
         <p className="font-display text-2xl font-semibold mt-1 tabular-nums">{inr(current)}</p>
-        <p className="text-xs text-ink-faint">of {recommended > 0 ? inr(recommended) : '—'} recommended</p>
-        {recommended > 0 && gap > 0 ? <p className="mt-1 text-sm font-semibold text-signal-red">Gap: {inr(gap)}</p>
+        <p className="text-xs text-ink-faint">target {recommended > 0 ? inrRange(recommended) : '—'}</p>
+        {recommended > 0 && gap > 0 ? <p className="mt-1 text-sm font-semibold text-signal-red">Gap: {inrRange(gap)}</p>
           : <p className="mt-1 text-sm font-semibold text-signal-green">{recommended === 0 ? 'Not needed yet' : 'Fully covered'}</p>}
         {extra}
       </div>

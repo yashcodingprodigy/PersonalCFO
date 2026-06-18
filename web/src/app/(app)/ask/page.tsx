@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { get, post } from '@/lib/api';
 
 const SUGGESTIONS = [
@@ -88,9 +88,9 @@ export default function AskPage() {
           )}
           {messages.map((m) => (
             <div key={m.message_id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                m.role === 'user' ? 'bg-pine-900 text-white rounded-br-md' : 'bg-paper-50 border border-paper-200 rounded-bl-md'}`}>
-                <FormattedText text={m.content} />
+              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                m.role === 'user' ? 'bg-pine-900 text-white rounded-br-md whitespace-pre-wrap' : 'bg-paper-50 border border-paper-200 rounded-bl-md'}`}>
+                {m.role === 'user' ? m.content : <Markdown text={m.content} />}
                 {m.role === 'assistant' && Array.isArray(m.citations) && m.citations.length > 0 && (
                   <div className="mt-3 pt-2 border-t border-paper-200 flex flex-wrap gap-1.5">
                     {m.citations.map((c: any, i: number) => (
@@ -125,14 +125,45 @@ export default function AskPage() {
   );
 }
 
-// Lightweight markdown-ish renderer for **bold** segments
-function FormattedText({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return (
-    <>
-      {parts.map((p, i) =>
-        p.startsWith('**') && p.endsWith('**') ? <strong key={i}>{p.slice(2, -2)}</strong> : <span key={i}>{p}</span>
-      )}
-    </>
-  );
+// Inline formatting: **bold** and *italic*.
+function inline(text: string): ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean);
+  return parts.map((p, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{p.slice(2, -2)}</strong>;
+    if (/^\*[^*]+\*$/.test(p)) return <em key={i}>{p.slice(1, -1)}</em>;
+    return <span key={i}>{p}</span>;
+  });
+}
+
+// Lightweight markdown renderer: headings, bullet & numbered lists, dividers,
+// paragraphs and inline bold/italic — enough to make answers read like a chat.
+function Markdown({ text }: { text: string }) {
+  const lines = (text || '').replace(/\r/g, '').split('\n');
+  const blocks: ReactNode[] = [];
+  let i = 0, key = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    if (/^\s*---+\s*$/.test(line)) { blocks.push(<hr key={key++} className="my-3 border-paper-200" />); i++; continue; }
+    const h = line.match(/^\s*(#{1,3})\s+(.*)$/);
+    if (h) { blocks.push(<p key={key++} className={`font-semibold ${h[1].length === 1 ? 'text-base' : 'text-sm'} mt-2 mb-1`}>{inline(h[2])}</p>); i++; continue; }
+    if (/^\s*[-*•]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*•]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*[-*•]\s+/, '')); i++; }
+      blocks.push(<ul key={key++} className="list-disc pl-5 my-1.5 space-y-1">{items.map((it, j) => <li key={j}>{inline(it)}</li>)}</ul>);
+      continue;
+    }
+    if (/^\s*\d+[.)]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*\d+[.)]\s+/, '')); i++; }
+      blocks.push(<ol key={key++} className="list-decimal pl-5 my-1.5 space-y-1">{items.map((it, j) => <li key={j}>{inline(it)}</li>)}</ol>);
+      continue;
+    }
+    const para: string[] = [];
+    while (i < lines.length && lines[i].trim() && !/^\s*([-*•]|\d+[.)])\s+/.test(lines[i]) && !/^\s*---+\s*$/.test(lines[i]) && !/^\s*#{1,3}\s+/.test(lines[i])) {
+      para.push(lines[i]); i++;
+    }
+    blocks.push(<p key={key++} className="my-1.5 first:mt-0 last:mb-0">{inline(para.join(' '))}</p>);
+  }
+  return <div>{blocks}</div>;
 }

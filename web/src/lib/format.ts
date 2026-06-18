@@ -12,6 +12,18 @@ export function inr(paise: number | string | null | undefined, opts: { compact?:
   return `${sign}₹${abs.toLocaleString('en-IN')}`;
 }
 
+// Friendly rounded RANGE for guidance figures (e.g. insurance sizing), so we
+// don't imply false precision: ₹10.85 Cr → "₹10–11 Cr", ₹18.5 L → "₹18–19 L".
+export function inrRange(paise: number | string | null | undefined): string {
+  if (paise == null) return '—';
+  const r = Math.round(Number(paise) / 100);
+  if (r <= 0) return '₹0';
+  if (r >= 1e7) { const lo = Math.floor(r / 1e7), hi = Math.ceil(r / 1e7); return lo === hi ? `₹${lo} Cr` : `₹${lo}–${hi} Cr`; }
+  if (r >= 1e5) { const lo = Math.floor(r / 1e5), hi = Math.ceil(r / 1e5); return lo === hi ? `₹${lo} L` : `₹${lo}–${hi} L`; }
+  const k = r / 1000; const lo = Math.floor(k / 5) * 5, hi = Math.ceil(k / 5) * 5;
+  return lo === hi ? `₹${(lo * 1000).toLocaleString('en-IN')}` : `₹${lo}k–${hi}k`;
+}
+
 export function inrFull(paise: number | string | null | undefined): string {
   if (paise == null) return '—';
   const r = Math.round(Number(paise) / 100);

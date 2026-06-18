@@ -27,6 +27,17 @@ const inr = (paise: number) => {
   return `₹${r.toLocaleString('en-IN')}`;
 };
 
+// Rounded range for sizing GUIDANCE (insurance cover etc.), to avoid implying
+// false precision. ₹10.85 Cr → "around ₹10–11 Cr".
+const inrRange = (paise: number) => {
+  const r = Math.round(paise / 100);
+  if (r <= 0) return '₹0';
+  if (r >= 1e7) { const lo = Math.floor(r / 1e7), hi = Math.ceil(r / 1e7); return lo === hi ? `around ₹${lo} Cr` : `around ₹${lo}–${hi} Cr`; }
+  if (r >= 1e5) { const lo = Math.floor(r / 1e5), hi = Math.ceil(r / 1e5); return lo === hi ? `around ₹${lo} L` : `around ₹${lo}–${hi} L`; }
+  const k = r / 1000; const lo = Math.floor(k / 5) * 5, hi = Math.ceil(k / 5) * 5;
+  return lo === hi ? `around ₹${(lo * 1000).toLocaleString('en-IN')}` : `around ₹${lo}k–${hi}k`;
+};
+
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 
 function fyEndDeadline(): string {
@@ -56,8 +67,8 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
     const gap = recommended - termCover;
     out.push({
       rule_id: 'ACT-001',
-      title: `Increase term cover by ${inr(gap)}`,
-      body: `Your current term life cover is ${termCover > 0 ? inr(termCover) : 'zero'}. The standard guideline is 25× annual income — ${inr(recommended)} for you${p.user.dependents_count ? `, especially with ${p.user.dependents_count} dependent${p.user.dependents_count > 1 ? 's' : ''}` : ''}. Get a pure term plan (not endowment or ULIP) for the ${inr(gap)} gap. Compare premiums across at least 3 insurers before buying. Expected premium for a healthy ${p.user.age || 30}-year-old: roughly ₹${Math.round((gap / 1e9) * (p.user.age && p.user.age > 38 ? 1400 : 900)).toLocaleString('en-IN')}–₹${Math.round((gap / 1e9) * (p.user.age && p.user.age > 38 ? 2000 : 1300)).toLocaleString('en-IN')}/year.`,
+      title: `Increase your term life cover`,
+      body: `Your current term life cover is ${termCover > 0 ? inr(termCover) : 'zero'}. A common guideline is roughly 25× annual income — for your profile that works out to ${inrRange(recommended)}${p.user.dependents_count ? `, especially with ${p.user.dependents_count} dependent${p.user.dependents_count > 1 ? 's' : ''}` : ''}. Treat that as a target band, not an exact figure. Get a pure term plan (not endowment or ULIP) and compare premiums across at least 3 insurers before buying. Expected premium for a healthy ${p.user.age || 30}-year-old: roughly ₹${Math.round((gap / 1e9) * (p.user.age && p.user.age > 38 ? 1400 : 900)).toLocaleString('en-IN')}–₹${Math.round((gap / 1e9) * (p.user.age && p.user.age > 38 ? 2000 : 1300)).toLocaleString('en-IN')}/year.`,
       impact_text: `Protects your family's full financial needs if the unexpected happens. Term insurance is the cheapest pure protection available.`,
       impact_score: termCover === 0 ? 15 : 8,
       dimension: 'insurance_adequacy',
@@ -76,8 +87,8 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
     const gap = recommendedHealth - healthCover;
     out.push({
       rule_id: 'ACT-002',
-      title: `Raise family health cover by ${inr(gap)}`,
-      body: `Your health cover is ${healthCover > 0 ? inr(healthCover) : 'zero'} against a recommended minimum of ${inr(recommendedHealth)} for a family of ${familySize}. ${healthCover > 0 ? 'The most cost-effective route is a super top-up policy over your existing base cover rather than a new standalone policy.' : 'Start with a family floater policy.'} A single hospitalisation in a Tier-1 metro can exceed ₹5L.`,
+      title: `Raise your family health cover`,
+      body: `Your health cover is ${healthCover > 0 ? inr(healthCover) : 'zero'} against a sensible floor of ${inrRange(recommendedHealth)} for a family of ${familySize}. ${healthCover > 0 ? 'The most cost-effective route is a super top-up policy over your existing base cover rather than a new standalone policy.' : 'Start with a family floater policy.'} A single hospitalisation in a Tier-1 metro can exceed ₹5L.`,
       impact_text: `One serious hospitalisation without cover can erase years of savings. Premium for the gap: typically ₹${Math.round(gap / 100 / 100000 * 800).toLocaleString('en-IN')}–₹${Math.round(gap / 100 / 100000 * 1500).toLocaleString('en-IN')}/year.`,
       impact_score: healthCover === 0 ? 12 : 6,
       dimension: 'insurance_adequacy',

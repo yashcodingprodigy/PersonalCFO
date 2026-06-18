@@ -11,6 +11,18 @@ const inr = (paise: number) => {
   return `₹${r.toLocaleString('en-IN')}`;
 };
 
+// Insurance cover is a guideline, not an exact number — present sizing as a
+// friendly rounded range so we don't imply false precision.
+// ₹10.85 Cr → "around ₹10–11 Cr", ₹18.5 L → "around ₹18–19 L".
+const inrRange = (paise: number) => {
+  const r = Math.round(paise / 100);
+  if (r <= 0) return '₹0';
+  if (r >= 1e7) { const lo = Math.floor(r / 1e7), hi = Math.ceil(r / 1e7); return lo === hi ? `around ₹${lo} Cr` : `around ₹${lo}–${hi} Cr`; }
+  if (r >= 1e5) { const lo = Math.floor(r / 1e5), hi = Math.ceil(r / 1e5); return lo === hi ? `around ₹${lo} L` : `around ₹${lo}–${hi} L`; }
+  const k = r / 1000; const lo = Math.floor(k / 5) * 5, hi = Math.ceil(k / 5) * 5;
+  return lo === hi ? `around ₹${(lo * 1000).toLocaleString('en-IN')}` : `around ₹${lo}k–${hi}k`;
+};
+
 export interface InsuranceAnalysis {
   term: {
     current: number;
@@ -100,10 +112,10 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   if (termGap > 0 && (dependents > 0 || income > 0)) {
     recommendations.push({
       priority: dependents > 0 ? 'high' : 'medium',
-      title: termCover > 0 ? `Top up your term life cover by ${inr(termGap)}` : `Buy term life insurance (about ${inr(recommendedTerm)})`,
+      title: termCover > 0 ? `Top up your term life cover` : `Buy term life insurance`,
       whatItIs: 'Term insurance pays your family a large lump sum if you pass away during the policy period. It is pure protection — no maturity payout — which is exactly why it is so cheap.',
       whyForYou: dependents > 0
-        ? `${dependents} ${dependents === 1 ? 'person depends' : 'people depend'} on your income. The 25× income rule (${inr(recommendedTerm)}) is enough to replace your earnings and clear debts so they aren't left struggling.`
+        ? `${dependents} ${dependents === 1 ? 'person depends' : 'people depend'} on your income. A common guideline is roughly 25× your annual income — for you that's ${inrRange(recommendedTerm)} — enough to replace your earnings and clear debts so they aren't left struggling.`
         : 'Even without dependents now, locking in cover while young and healthy keeps premiums very low for life.',
       howTo: 'Buy online directly from a few insurers, choose cover till age 60–65, disclose health honestly, and pick a “pure term” plan — nothing fancier.',
       estCostAnnual: termGap > 0 ? { low: Math.round(lakhs * perLakhLow), high: Math.round(lakhs * perLakhHigh) } : null,
@@ -114,11 +126,11 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
     const ghLakhs = healthGap / 100 / 100000;
     recommendations.push({
       priority: healthCover === 0 ? (isStudent ? 'medium' : 'high') : 'medium',
-      title: healthCover > 0 ? `Raise your health cover by ${inr(healthGap)}` : `Get health insurance (about ${inr(recommendedHealth)})`,
+      title: healthCover > 0 ? `Raise your health cover` : `Get health insurance`,
       whatItIs: 'Health insurance pays your hospital bills. A “family floater” covers everyone under one shared amount; a “super top-up” cheaply extends cover above a threshold.',
       whyForYou: isStudent
         ? `First, check whether you're already covered under your parents' family floater — many students are, and that's enough for now. If not, even a basic ₹5L policy protects your savings from a single hospital bill.`
-        : `For a family of ${familySize}, ${inr(Math.round(recommendedHealth))} is a sensible floor — a single ICU stay in a metro can cross ₹5L.${healthCover > 0 ? ' A super top-up over your existing policy is the cheapest way to close the gap.' : ''}`,
+        : `For a family of ${familySize}, ${inrRange(Math.round(recommendedHealth))} is a sensible floor — a single ICU stay in a metro can cross ₹5L.${healthCover > 0 ? ' A super top-up over your existing policy is the cheapest way to close the gap.' : ''}`,
       howTo: 'Pick a floater with no room-rent cap and a high claim-settlement ratio; add parents on a separate policy. Don’t rely only on employer cover — it ends with the job.',
       estCostAnnual: { low: Math.round(ghLakhs * 800 * 100), high: Math.round(ghLakhs * 1500 * 100) },
     });
