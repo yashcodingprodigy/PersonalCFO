@@ -244,10 +244,14 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs 54 assertions across two files — `test/calc.test.ts`
-  (tax/filing/score/networth/investment math + edge cases) and `test/services.test.ts`
-  (alerts, statement analyser, actions, insurance, tax copilot, investment guardrails). Run after any
-  logic change. Pure functions only (no DB needed).
+- **Test suite:** `cd server && npm test` runs **136 assertions** across `test/*.ts` (the script loops
+  every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
+  form branches, surcharge, investment risk logic, goals), `services` (alerts, statement analyser,
+  actions, insurance, tax copilot, investment guardrails), `branches` (recurring/reduce, growth levers,
+  edge bands), `guardrails` (SEBI block/allow patterns + AI context), `middleware` (rate-limit + JWT auth
+  with mocked req/res), `webparsers` (date/money/Form-16 extraction from `web/src/lib/statementParse`).
+  Pure functions only — no DB. Run after any logic change. Untested without infra: DB-backed routes
+  (need Postgres) and React components (need a frontend test runner).
 - **Security:** all SQL parameterised (the few interpolated bits use whitelisted column names); every
   `/:id` route scopes by `user_id`; rate limits on OTP, AI Q&A, statement/transaction/filing endpoints;
   server refuses to boot in production with default JWT secrets.
