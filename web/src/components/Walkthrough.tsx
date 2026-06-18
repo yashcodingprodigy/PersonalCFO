@@ -22,7 +22,17 @@ export function Walkthrough() {
   const [i, setI] = useState(0);
 
   useEffect(() => {
-    try { if (!localStorage.getItem('paywatch_toured')) setVisible(true); } catch {}
+    // Show for a fresh signup (onboarding redirects to /dashboard?welcome=1)
+    // even on a device that's been toured before; otherwise show once per device.
+    let isWelcome = false;
+    try { isWelcome = new URLSearchParams(window.location.search).get('welcome') === '1'; } catch {}
+    let toured = false;
+    try { toured = !!localStorage.getItem('paywatch_toured'); } catch {}
+    if (isWelcome || !toured) {
+      setVisible(true);
+      // strip the ?welcome flag so a refresh doesn't re-trigger
+      if (isWelcome) { try { window.history.replaceState({}, '', '/dashboard'); } catch {} }
+    }
   }, []);
 
   function done() {
