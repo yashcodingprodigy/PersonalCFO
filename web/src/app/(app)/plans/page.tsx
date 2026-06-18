@@ -45,6 +45,7 @@ export default function PlansPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('monthly');
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
+  const [welcomePlan, setWelcomePlan] = useState<string | null>(null);
 
   async function load() {
     const [u, p, s] = await Promise.all([get('/user/me'), get('/billing/plans'), get('/billing/subscription')]);
@@ -57,9 +58,9 @@ export default function PlansPage() {
   async function subscribe(plan: string) {
     setBusy(plan);
     try {
-      const res = await post('/billing/subscribe', { plan, cycle });
-      flash(`You're on ${plan.toUpperCase()} — invoice ${res.invoice_number} issued.`);
+      await post('/billing/subscribe', { plan, cycle });
       await load();
+      setWelcomePlan(plan);
     } catch (e: any) { flash(e.message); } finally { setBusy(''); }
   }
   async function cancel() {
@@ -138,6 +139,28 @@ export default function PlansPage() {
       )}
 
       <p className="text-[11px] text-ink-faint leading-relaxed">Billing is processed via Razorpay (sandbox in this environment). Cancel anytime — access continues to the end of your paid period. PayWatch provides financial education and organisation, not SEBI-registered investment advice.</p>
+
+      {/* Welcome-to-Plus modal after a successful subscribe */}
+      {welcomePlan && (() => {
+        const f = FEATURES[welcomePlan] || { feats: [] as string[] };
+        const isPlus = welcomePlan === 'cfo' || welcomePlan === 'family';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-pine-950/70">
+            <div className="card bg-white p-7 max-w-md w-full text-center relative overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-mint-500" />
+              <div className="text-4xl mb-2">🎉</div>
+              <h2 className="font-display text-2xl font-semibold">Welcome to PayWatch{isPlus ? ' Plus' : ''}!</h2>
+              <p className="text-sm text-ink-soft mt-1.5">You&apos;re on the <span className="font-semibold capitalize">{welcomePlan}</span> plan. Here&apos;s everything you&apos;ve just unlocked:</p>
+              <ul className="mt-5 space-y-2 text-left">
+                {f.feats.map((x, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-ink-soft"><span className="text-mint-500 font-bold shrink-0">✓</span>{x}</li>
+                ))}
+              </ul>
+              <button onClick={() => setWelcomePlan(null)} className="btn-primary w-full mt-6">Start exploring →</button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

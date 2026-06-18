@@ -12,13 +12,14 @@ export function LogoMark({ size = 32, dark = false }: { size?: number; dark?: bo
   );
 }
 
-export function Wordmark({ dark = false, size = 'md' }: { dark?: boolean; size?: 'sm' | 'md' | 'lg' }) {
+export function Wordmark({ dark = false, size = 'md', plus = false }: { dark?: boolean; size?: 'sm' | 'md' | 'lg'; plus?: boolean }) {
   const cls = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-base' : 'text-lg';
   return (
     <span className={`inline-flex items-center gap-2.5 ${cls} font-bold tracking-tight ${dark ? 'text-white' : 'text-pine-900'}`}>
       <LogoMark size={size === 'lg' ? 36 : size === 'sm' ? 24 : 28} dark={dark} />
-      <span>
+      <span className="inline-flex items-center">
         Pay<span className="font-display italic font-medium">Watch</span>
+        {plus && <span className="ml-1.5 rounded bg-mint-500 text-pine-950 text-[10px] font-extrabold leading-none px-1.5 py-0.5 tracking-normal">PLUS</span>}
       </span>
     </span>
   );

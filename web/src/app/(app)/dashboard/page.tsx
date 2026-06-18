@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { get, post } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
 import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
+import { Walkthrough } from '@/components/Walkthrough';
 
 export default function Dashboard() {
   const [score, setScore] = useState<any>(null);
@@ -42,6 +43,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <Walkthrough />
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display text-3xl font-medium">Overview</h1>

@@ -79,7 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar — desktop */}
       <aside className="hidden md:flex w-60 flex-col bg-pine-950 text-white fixed inset-y-0 no-print">
-        <div className="px-5 py-6"><Link href="/dashboard"><Wordmark dark size="sm" /></Link></div>
+        <div className="px-5 py-6"><Link href="/dashboard"><Wordmark dark size="sm" plus={!!isPaid} /></Link></div>
         <nav className="flex-1 px-3 space-y-0.5">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href}
@@ -116,7 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <button onClick={() => setMenuOpen(true)} aria-label="Menu" className="p-1.5 -ml-1">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z" /></svg>
         </button>
-        <Link href="/dashboard"><Wordmark dark size="sm" /></Link>
+        <Link href="/dashboard"><Wordmark dark size="sm" plus={!!isPaid} /></Link>
         <Link href="/alerts" aria-label="Alerts" className="relative p-1.5 -mr-1">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z" /></svg>
           {unread > 0 && <span className="absolute top-0 right-0 min-w-[16px] h-[16px] px-0.5 rounded-full bg-mint-500 text-pine-950 text-[9px] font-bold flex items-center justify-center">{unread}</span>}
@@ -129,7 +129,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 bg-pine-950/60" onClick={() => setMenuOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 max-w-[82%] bg-pine-950 text-white flex flex-col shadow-lift">
             <div className="px-5 py-5 flex items-center justify-between border-b border-white/10">
-              <Wordmark dark size="sm" />
+              <Wordmark dark size="sm" plus={!!isPaid} />
               <button onClick={() => setMenuOpen(false)} aria-label="Close" className="text-white/60 p-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z" /></svg></button>
             </div>
             <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
