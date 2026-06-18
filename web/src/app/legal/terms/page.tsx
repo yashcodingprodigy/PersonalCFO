@@ -8,10 +8,11 @@ export default function Terms() {
 
       <h2>1. The service</h2>
       <p>
-        PayWatch (operated by PayWatch Technologies Pvt. Ltd., Bengaluru) provides financial education,
+        PayWatch (&ldquo;we&rdquo;, operated from Bengaluru, India) provides financial education,
         organisation and planning tools: a Money Health Score, action suggestions, tax estimates, insurance gap
         analysis, goal tracking and an AI question-answering assistant. The service is available on subscription
-        plans described in the app, with prices inclusive of 18% GST.
+        plans described in the app; once we are GST-registered, prices are inclusive of 18% GST and an invoice is
+        issued for every charge.
       </p>
 
       <h2>2. Not investment advice</h2>

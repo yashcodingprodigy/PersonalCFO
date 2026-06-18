@@ -293,8 +293,8 @@ export default function SettingsPage() {
           <section className="card p-6">
             <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Your data rights</h2>
             <p className="text-sm text-ink-soft leading-relaxed mb-4">
-              Aligned with the Digital Personal Data Protection Act, 2023: your data is stored encrypted in India,
-              never sold, never shared without per-action consent. Export or erase everything, any time.
+              Aligned with the Digital Personal Data Protection Act, 2023: your data is encrypted in transit and
+              at rest, never sold, and never shared without your consent. Export or erase everything, any time.
             </p>
             <div className="flex flex-wrap gap-3">
               <button onClick={exportData} className="btn-secondary !py-2.5 text-xs">Download my data (JSON)</button>

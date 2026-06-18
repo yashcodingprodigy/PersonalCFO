@@ -132,10 +132,9 @@ export default function Landing() {
           <div>
             <LogoMark size={28} />
             <p className="mt-4 max-w-md leading-relaxed">
-              PayWatch Technologies Pvt. Ltd. · Bengaluru, India. Financial education and organisation
-              platform. Not a SEBI-registered Investment Adviser — we do not recommend specific securities.
-              Data secured with AES-256 encryption, stored in India (AWS ap-south-1), never sold or shared
-              without your explicit consent.
+              PayWatch · Bengaluru, India. Financial education and organisation platform. Not a
+              SEBI-registered Investment Adviser — we do not recommend specific securities. Your data is
+              encrypted in transit and at rest and is never sold or shared without your explicit consent.
             </p>
           </div>
           <div className="flex gap-12 md:justify-end">
