@@ -23,6 +23,12 @@ export default function AskPage() {
   useEffect(() => {
     get('/qa/conversations').then(setConversations).catch(() => {});
     get('/qa/disclaimer').then((d) => setDisclaimer(d.disclaimer)).catch(() => {});
+    // Deep-link: /ask?q=... (from the dashboard spotlight) auto-asks the question.
+    try {
+      const q = new URLSearchParams(window.location.search).get('q');
+      if (q) { window.history.replaceState({}, '', '/ask'); send(q); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);

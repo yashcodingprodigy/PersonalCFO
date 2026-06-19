@@ -10,7 +10,7 @@ const STEPS = [
   { href: '/dashboard', emoji: '📊', title: 'Your Overview', body: 'Your Money Health Score, net worth, and your single most important move this month — all on one screen.' },
   { href: '/actions', emoji: '✅', title: 'Actions', body: 'A prioritised to-do list with exact rupee amounts. Tick one off and watch your score move.' },
   { href: '/tax', emoji: '🧾', title: 'Tax', body: 'See exactly how to cut your tax — regime choice, deductions and advance tax, all in plain English.' },
-  { href: '/file', emoji: '📄', title: 'File your ITR', body: 'A guided wizard computes your whole return and walks you through filing it yourself — no CA needed for most people.' },
+  { href: '/file', emoji: '📄', title: 'File your ITR', body: 'A guided wizard computes your whole return, then either walks you through filing it yourself or hands your CA a ready-to-file pack.' },
   { href: '/invest', emoji: '📈', title: 'Invest', body: 'A personalised plan for where to put your money, matched to your age and risk. Categories, never specific tips.' },
   { href: '/alerts', emoji: '🔔', title: 'Alerts', body: 'PayWatch keeps watching your money and pings you before deadlines, spending spikes and gaps bite.' },
   { href: '/dashboard', emoji: '🎉', title: "You're all set!", body: 'Every feature lives in the menu — the ☰ button (top-left) on mobile, the sidebar on desktop. Enjoy!' },

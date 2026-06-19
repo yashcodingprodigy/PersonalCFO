@@ -11,8 +11,15 @@ Last updated: June 2026.
 
 PayWatch (formerly "Personal CFO") is **India's personal-finance operating system** — one app that
 knows a user's full financial picture (income, spending, savings, investments, loans, insurance, taxes)
-and tells them exactly what to do next, in beginner-friendly language. The ambition: **replace the work
-of a CA + a personal CFO for individual taxpayers.**
+and tells them exactly what to do next, in beginner-friendly language. The hero feature is **Ask your
+CFO** — an AI advisor grounded in the user's own numbers (surfaced front-and-centre in nav + dashboard +
+landing).
+
+**Positioning on CAs (important — do NOT drift back to "replace your CA"):** PayWatch is an always-on
+financial **CFO** that **works alongside** the user's Chartered Accountant and advisor — it never claims
+to replace them. We give individuals a private CFO for everyday money decisions AND make a CA's job faster
+(CA-ready packs, computed returns, organised documents). Audits/certifications still legally need a CA
+(see §8). Framing: "helps your CA now, may reduce the need over time" — never "no CA needed".
 
 **Positioning / value ladder:**
 - One-time hook (free/cheap): Money Health Score + "what to invest in" plan.

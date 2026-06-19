@@ -98,6 +98,36 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Ask your CFO — spotlight */}
+      <section className="bg-pine-950 text-white py-24">
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <p className="text-mint-400 text-sm font-semibold tracking-[0.2em] uppercase mb-4">Ask your CFO · AI</p>
+            <h2 className="font-display text-4xl font-medium leading-tight">A finance expert in your pocket — that actually knows your money.</h2>
+            <p className="mt-5 text-white/70 leading-relaxed">
+              Most finance apps give you charts and leave you to figure it out. PayWatch gives you someone to ask.
+              Your CFO sees your income, net worth, score and gaps, and answers in plain English with your own numbers —
+              available any time, for the price of a coffee.
+            </p>
+            <ul className="mt-6 space-y-2 text-sm text-white/80">
+              <li className="flex gap-2"><span className="text-mint-400">✓</span> Grounded in your real numbers, not generic tips</li>
+              <li className="flex gap-2"><span className="text-mint-400">✓</span> Plain-English answers a beginner can act on</li>
+              <li className="flex gap-2"><span className="text-mint-400">✓</span> Education &amp; organisation — it works alongside your CA and advisor, never replaces accountable advice</li>
+            </ul>
+            <a href="/login" className="inline-flex mt-8 rounded-full bg-mint-500 text-pine-950 px-7 py-3 text-sm font-bold hover:bg-mint-400 transition-colors">Ask your first question →</a>
+          </div>
+          {/* Chat mockup */}
+          <div className="card bg-pine-900/60 border border-white/10 p-5 space-y-3">
+            <div className="flex justify-end"><div className="max-w-[80%] rounded-2xl rounded-br-md bg-mint-500 text-pine-950 px-4 py-2.5 text-sm font-medium">Should I prepay my home loan or invest the surplus?</div></div>
+            <div className="flex justify-start"><div className="max-w-[88%] rounded-2xl rounded-bl-md bg-white/10 px-4 py-2.5 text-sm leading-relaxed text-white/90">
+              Good question. Your loan is at <strong>8.5%</strong>; after the 24(b) deduction your effective cost is about <strong>6%</strong>. Long-run index returns have averaged 11–12% (not guaranteed), so investing usually wins on maths — but prepaying is a guaranteed, risk-free return.
+              <br /><br />A common split: 50% prepay, 50% into a broad index fund until your EMI is under 30% of take-home. Want me to size that for your numbers?
+            </div></div>
+            <p className="text-[10px] text-white/40 text-center pt-1">Example — your answers use your actual figures.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="bg-paper text-ink pb-24">
         <div className="max-w-6xl mx-auto px-6">

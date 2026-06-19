@@ -17,7 +17,7 @@ const FEATURES: Record<string, { tag: string; highlight?: boolean; feats: string
     ],
   },
   cfo: {
-    tag: 'Your always-on CFO + CA',
+    tag: 'Your always-on financial CFO',
     highlight: true,
     feats: [
       'Everything in Starter, unlimited',
@@ -77,7 +77,7 @@ export default function PlansPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-medium">Plans</h1>
-        <p className="text-sm text-ink-soft mt-1">A private CFO and a year-round CA — for less than a single CA visit.</p>
+        <p className="text-sm text-ink-soft mt-1">A private CFO in your pocket — plus everything your CA needs, organised and ready to hand over.</p>
       </div>
 
       {/* Current plan */}

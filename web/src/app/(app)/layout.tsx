@@ -8,8 +8,11 @@ import { get, post, clearTokens, getTokens, del } from '@/lib/api';
 import { isNative, initNative, unlock, registerPush } from '@/lib/native';
 import { Walkthrough } from '@/components/Walkthrough';
 
+const ASK_ICON = 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z';
+
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: 'M3 13h7V3H3v10Zm0 8h7v-6H3v6Zm11 0h7V11h-7v10Zm0-18v6h7V3h-7Z' },
+  { href: '/ask', label: 'Ask your CFO', icon: ASK_ICON, accent: true },
   { href: '/alerts', label: 'Alerts', icon: 'M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z' },
   { href: '/actions', label: 'Actions', icon: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
@@ -21,10 +24,12 @@ const NAV = [
   { href: '/statement', label: 'Statement scan', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z' },
   { href: '/vault', label: 'Document vault', icon: 'M3 5h6l2 2h10v12H3V5Zm2 2v10h14V9h-8.8l-2-2H5Z' },
   { href: '/goals', label: 'Goals', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
-  { href: '/ask', label: 'Ask your CFO', icon: 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z' },
   { href: '/reports', label: 'Reports', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z' },
   { href: '/settings', label: 'Settings', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 4a7.8 7.8 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2-1.2L16 3h-4l-.4 2.6a8 8 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2 1.2L8 21h4l.4-2.6a8 8 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.2-.8.2-1.2Z' },
 ];
+
+// Mobile bottom bar — Ask your CFO sits in the centre as the hero action.
+const BOTTOM = ['/dashboard', '/actions', '/ask', '/invest'];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -43,7 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setMenuOpen(false); }, [path]);
   const isPaid = user && (user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active';
-  const primary = ['/dashboard', '/actions', '/tax', '/invest'];
+  const bottomItems = BOTTOM.map((href) => NAV.find((n) => n.href === href)!);
 
   // Native app: biometric app-lock + push registration (no-ops on web)
   useEffect(() => {
@@ -85,9 +90,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {NAV.map((n) => (
             <Link key={n.href} href={n.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-                ${path?.startsWith(n.href) ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
+                ${path?.startsWith(n.href)
+                  ? ((n as any).accent ? 'bg-mint-500 text-pine-950' : 'bg-white/10 text-white')
+                  : ((n as any).accent ? 'bg-mint-500/15 text-mint-200 ring-1 ring-mint-500/40 hover:bg-mint-500/25' : 'text-white/60 hover:text-white hover:bg-white/5')}`}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
               <span className="flex-1">{n.label}</span>
+              {(n as any).accent && <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">AI</span>}
               {n.href === '/alerts' && unread > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-mint-500 text-pine-950 text-[10px] font-bold">{unread}</span>
               )}
@@ -137,9 +145,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {NAV.map((n) => (
                 <Link key={n.href} href={n.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-                    ${path?.startsWith(n.href) ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
+                    ${path?.startsWith(n.href)
+                      ? ((n as any).accent ? 'bg-mint-500 text-pine-950' : 'bg-white/10 text-white')
+                      : ((n as any).accent ? 'bg-mint-500/15 text-mint-200 ring-1 ring-mint-500/40 hover:bg-mint-500/25' : 'text-white/70 hover:text-white hover:bg-white/5')}`}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
                   <span className="flex-1">{n.label}</span>
+                  {(n as any).accent && <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">AI</span>}
                   {n.href === '/alerts' && unread > 0 && (
                     <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-mint-500 text-pine-950 text-[10px] font-bold">{unread}</span>
                   )}
@@ -161,15 +172,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Mobile bottom nav — 4 primary + More */}
+      {/* Mobile bottom nav — Ask your CFO is the raised centre action */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-paper-200 grid grid-cols-5 no-print">
-        {NAV.filter((n) => primary.includes(n.href)).map((n) => (
-          <Link key={n.href} href={n.href}
-            className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-ink-faint'}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
-            {n.label.split(' ')[0]}
-          </Link>
-        ))}
+        {bottomItems.map((n) =>
+          (n as any).accent ? (
+            <Link key={n.href} href={n.href} className="flex flex-col items-center justify-end -mt-4">
+              <span className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lift border-4 border-white ${path?.startsWith(n.href) ? 'bg-pine-900 text-white' : 'bg-mint-500 text-pine-950'}`}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
+              </span>
+              <span className={`text-[10px] font-bold mt-0.5 ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-pine-700'}`}>Ask CFO</span>
+            </Link>
+          ) : (
+            <Link key={n.href} href={n.href}
+              className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-ink-faint'}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
+              {n.label.split(' ')[0]}
+            </Link>
+          )
+        )}
         <button onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-ink-faint">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" /></svg>
           More
@@ -177,6 +197,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <main className="flex-1 md:ml-60 px-4 sm:px-8 pt-16 md:pt-8 pb-24 md:pb-12 max-w-6xl">{children}</main>
+
+      {/* Floating "Ask your CFO" button — ask in context from any page */}
+      {!locked && !path?.startsWith('/ask') && (
+        <Link href="/ask" aria-label="Ask your CFO"
+          className="fixed z-30 right-4 bottom-20 md:right-6 md:bottom-6 no-print flex items-center gap-2 rounded-full bg-mint-500 text-pine-950 shadow-lift px-4 py-3 text-sm font-bold hover:bg-mint-400 transition-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={ASK_ICON} /></svg>
+          <span className="hidden sm:inline">Ask CFO</span>
+        </Link>
+      )}
 
       {/* Guided first-run tour (persists across navigation) */}
       {!locked && <Walkthrough />}

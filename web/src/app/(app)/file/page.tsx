@@ -134,7 +134,7 @@ export default function FilePage() {
     <div className="space-y-5 max-w-2xl">
       <div>
         <h1 className="font-display text-3xl font-medium">File your taxes</h1>
-        <p className="text-sm text-ink-soft mt-1">A guided walk-through — answer a few questions and we&apos;ll compute your return and show you exactly how to file it. {fy && <>FY {fy}.</>}</p>
+        <p className="text-sm text-ink-soft mt-1">A guided walk-through — answer a few questions and we&apos;ll compute your return. Then file it yourself with our step-by-step, or hand your CA a ready-to-file pack. {fy && <>FY {fy}.</>}</p>
       </div>
 
       <UpgradeBanner feature="Guided ITR preparation and filing" />
@@ -255,6 +255,12 @@ export default function FilePage() {
                 {result.checklist.map((c: string, i: number) => <li key={i} className="flex gap-2"><span className="text-pine-700 font-bold shrink-0">✓</span>{c}</li>)}
               </ul>
               <Link href="/rent-receipts" className="inline-block mt-3 text-sm font-semibold text-pine-700 hover:underline">Need HRA rent receipts? Generate them →</Link>
+            </section>
+
+            <section className="card p-6 bg-pine-950 text-white">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-mint-300 mb-1">Prefer to use a CA?</h2>
+              <p className="text-sm text-white/80 leading-relaxed">Many people still want a Chartered Accountant to file and sign off — and for audits or certifications, that&apos;s legally required. We make their job faster: your whole return is computed, the right ITR form is picked, and the documents are checklisted. Download the pack and hand it over — your CA gets a head start instead of starting from scratch.</p>
+              <button onClick={downloadPack} className="mt-3 rounded-full bg-mint-500 text-pine-950 px-5 py-2 text-sm font-bold hover:bg-mint-400 transition-colors">Download CA-ready pack</button>
             </section>
 
             <div className="flex flex-wrap gap-2">

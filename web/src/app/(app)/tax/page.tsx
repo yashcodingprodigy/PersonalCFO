@@ -156,7 +156,7 @@ export default function TaxPage() {
         <div className="card p-5 border-l-4 border-l-mint-500 mt-4"><p className="text-sm leading-relaxed">{c.reasoning}</p></div>
       </Section>
 
-      {/* Tax Copilot — the year-round CA */}
+      {/* Tax Copilot — year-round tracking that works alongside your CA */}
       <UpgradeBanner feature="The year-round Tax Copilot and CA-ready pack" />
       {tax.copilot && <TaxCopilot c={tax.copilot} />}
 

@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { get, post } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
 import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [score, setScore] = useState<any>(null);
   const [networth, setNetworth] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);
@@ -55,6 +57,33 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* Ask your CFO — spotlight */}
+      <Link href="/ask" className="block group">
+        <div className="card bg-pine-950 text-white p-5 sm:p-6 overflow-hidden relative hover:ring-2 hover:ring-mint-500/50 transition-all">
+          <div className="flex items-start gap-4">
+            <span className="hidden sm:flex shrink-0 items-center justify-center w-12 h-12 rounded-full bg-mint-500 text-pine-950">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z" /></svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-mint-300">Ask your CFO · AI</span>
+              </div>
+              <h2 className="font-display text-xl font-semibold mt-1">Have a money question? Just ask.</h2>
+              <p className="text-sm text-white/70 mt-1 leading-relaxed">Your private CFO knows your income, net worth, score and gaps — and answers in plain English, with your own numbers.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {['Which tax regime saves me more?', 'Is my term cover enough?', 'Should I prepay my loan or invest?'].map((q) => (
+                  <span key={q} onClick={(e) => { e.preventDefault(); router.push(`/ask?q=${encodeURIComponent(q)}`); }}
+                    className="rounded-full bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 text-xs text-white/90 transition-colors">
+                    {q}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <span className="hidden sm:inline self-center text-mint-300 group-hover:translate-x-0.5 transition-transform">→</span>
+          </div>
+        </div>
+      </Link>
 
       {/* Monthly briefing */}
       {briefing && (
