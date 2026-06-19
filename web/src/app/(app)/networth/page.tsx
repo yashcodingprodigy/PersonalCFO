@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get } from '@/lib/api';
+import { get, patch } from '@/lib/api';
 import { inr, pct, CATEGORY_LABELS } from '@/lib/format';
 import { Donut, StackedBar, StatTile, Dot, Section, ALLOC_COLORS, C } from '@/components/kit';
 
@@ -15,10 +15,18 @@ export default function NetWorthPage() {
   const [spend, setSpend] = useState<any>(null);
   const [hi, setHi] = useState(0); // horizon index 0/1/2 → 5/10/20yr
 
+  const [savingRisk, setSavingRisk] = useState(false);
+  function loadNw() { get('/networth').then(setNw).catch(() => {}); }
   useEffect(() => {
-    get('/networth').then(setNw).catch(() => {});
+    loadNw();
     get('/spend/summary').then(setSpend).catch(() => {});
   }, []);
+
+  async function changeRisk(r: string) {
+    setSavingRisk(true);
+    try { await patch('/user/me', { risk_appetite: r }); loadNw(); }
+    finally { setSavingRisk(false); }
+  }
 
   if (!nw) return <div className="card h-96 animate-pulse mt-4" />;
 
@@ -109,6 +117,24 @@ export default function NetWorthPage() {
               ))}
             </ul>
             <Link href="/actions" className="mt-4 inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2 text-sm font-bold hover:bg-mint-400 transition-colors">Show me how — go to my actions</Link>
+
+            {/* Risk-based return assumption + change control */}
+            <div className="mt-5 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs text-white/60">Based on your <strong className="text-white/85 capitalize">{g.riskAppetite}</strong> risk level — assumes <strong className="text-white/85">~{g.assumedReturnPct}% a year</strong>.</p>
+                <div className="inline-flex rounded-full bg-white/10 p-0.5">
+                  {['conservative', 'moderate', 'aggressive'].map((r) => (
+                    <button key={r} onClick={() => changeRisk(r)} disabled={savingRisk}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize transition-colors disabled:opacity-50 ${g.riskAppetite === r ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>
+                      {r === 'conservative' ? 'Cautious' : r === 'aggressive' ? 'Aggressive' : 'Balanced'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] text-white/40 leading-relaxed">
+                Change your risk level to see how the projection shifts (cautious ~7% · balanced ~9% · aggressive ~11% a year). Illustration, not a guarantee — markets fluctuate and returns aren&apos;t guaranteed. &ldquo;If nothing changes&rdquo; continues your current investing; the plan assumes you invest ~25% of take-home. Figures are nominal, before ~6% inflation.
+              </p>
+            </div>
           </div>
         </Section>
       )}

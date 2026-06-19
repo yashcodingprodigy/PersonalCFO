@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { get } from '@/lib/api';
+import { get, patch } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
 import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
 
@@ -25,6 +25,13 @@ export default function Dashboard() {
     get('/alerts/briefing').then(setBriefing).catch(() => {});
   }
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
+
+  const [savingRisk, setSavingRisk] = useState(false);
+  async function changeRisk(r: string) {
+    setSavingRisk(true);
+    try { await patch('/user/me', { risk_appetite: r }); await load(); }
+    catch (e: any) { setErr(e.message); } finally { setSavingRisk(false); }
+  }
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
   if (!score) return <DashSkeleton />;
@@ -142,7 +149,7 @@ export default function Dashboard() {
             </div>
 
             <p className="mt-4 text-sm text-white/85 leading-snug">
-              Same income, same starting point — <strong className="text-mint-300">{inr(h.uplift)} more</strong> in {h.years} years, just from better habits. And the gap widens every single year after.
+              Same starting point — about <strong className="text-mint-300">{inr(h.uplift)} more</strong> in {h.years} years by investing more of what you earn, instead of letting it sit. And the gap widens every year after.
             </p>
 
             <ul className="mt-3 space-y-1.5">
@@ -153,6 +160,24 @@ export default function Dashboard() {
             <Link href="/actions" className="mt-4 inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2.5 text-sm font-bold hover:bg-mint-400 transition-colors">
               Show me how — go to my actions
             </Link>
+
+            {/* Risk-based return assumption + change control */}
+            <div className="mt-5 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs text-white/60">Based on your <strong className="text-white/85 capitalize">{g.riskAppetite}</strong> risk level — assumes <strong className="text-white/85">~{g.assumedReturnPct}% a year</strong>.</p>
+                <div className="inline-flex rounded-full bg-white/10 p-0.5">
+                  {['conservative', 'moderate', 'aggressive'].map((r) => (
+                    <button key={r} onClick={() => changeRisk(r)} disabled={savingRisk}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize transition-colors disabled:opacity-50 ${g.riskAppetite === r ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>
+                      {r === 'conservative' ? 'Cautious' : r === 'aggressive' ? 'Aggressive' : 'Balanced'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] text-white/40 leading-relaxed">
+                Change your risk level to see how the projection shifts (cautious ~7% · balanced ~9% · aggressive ~11% a year). Illustration, not a guarantee — markets fluctuate and returns aren&apos;t guaranteed. &ldquo;If nothing changes&rdquo; continues your current investing; the plan assumes you invest ~25% of take-home. Figures are nominal, before ~6% inflation.
+              </p>
+            </div>
           </section>
         );
       })()}
