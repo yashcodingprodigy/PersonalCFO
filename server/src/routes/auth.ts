@@ -27,6 +27,20 @@ async function storeRefresh(userId: string, refreshToken: string) {
   await query(`INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1,$2,$3)`, [userId, hash, expires]);
 }
 
+// Shared OTP verification (used by both user and CA login). Consumes the OTP
+// on success; increments the attempt counter on a wrong code.
+export async function verifyOtp(mobile: string, otp: string): Promise<boolean> {
+  const row = await one(
+    `SELECT * FROM otp_codes WHERE mobile = $1 AND consumed = false AND expires_at > now() ORDER BY created_at DESC LIMIT 1`,
+    [mobile]
+  );
+  if (!row || row.attempts >= 3) return false;
+  const ok = await bcrypt.compare(otp, row.code_hash);
+  if (!ok) { await query(`UPDATE otp_codes SET attempts = attempts + 1 WHERE id = $1`, [row.id]); return false; }
+  await query(`UPDATE otp_codes SET consumed = true WHERE id = $1`, [row.id]);
+  return true;
+}
+
 // POST /auth/otp/send — 100 req/min/IP per SRS §23.3 (tighter here: 5/min)
 authRouter.post('/otp/send', rateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'otp' }), async (req, res) => {
   const parsed = mobileSchema.safeParse(req.body);

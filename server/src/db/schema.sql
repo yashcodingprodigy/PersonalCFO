@@ -28,6 +28,62 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS state         VARCHAR(60);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email         VARCHAR(160);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS risk_appetite VARCHAR(20)
   CHECK (risk_appetite IN ('conservative','moderate','aggressive'));
+-- Shareable connect-code so a CA can link to this user (and vice-versa).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS connect_code VARCHAR(12);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_connect_code ON users(connect_code) WHERE connect_code IS NOT NULL;
+
+-- ── CA (Chartered Accountant) portal ────────────────────────────────
+CREATE TABLE IF NOT EXISTS cas (
+  ca_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  mobile         VARCHAR(13) UNIQUE NOT NULL,
+  name           VARCHAR(120) NOT NULL,
+  email          VARCHAR(160),
+  firm_name      VARCHAR(160),
+  icai_number    VARCHAR(40),
+  city           VARCHAR(100),
+  connect_code   VARCHAR(12) UNIQUE NOT NULL,
+  verified       BOOLEAN NOT NULL DEFAULT false,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_active_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at     TIMESTAMPTZ
+);
+
+-- The connection handshake: a CA and a user are linked once both sides agree.
+CREATE TABLE IF NOT EXISTS ca_client_links (
+  link_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ca_id        UUID NOT NULL REFERENCES cas(ca_id) ON DELETE CASCADE,
+  user_id      UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  status       VARCHAR(12) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','rejected','revoked')),
+  initiated_by VARCHAR(4) NOT NULL CHECK (initiated_by IN ('ca','user')),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (ca_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_links_ca ON ca_client_links(ca_id, status);
+CREATE INDEX IF NOT EXISTS idx_links_user ON ca_client_links(user_id, status);
+
+CREATE TABLE IF NOT EXISTS ca_messages (
+  message_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  link_id    UUID NOT NULL REFERENCES ca_client_links(link_id) ON DELETE CASCADE,
+  sender     VARCHAR(4) NOT NULL CHECK (sender IN ('ca','user')),
+  body       TEXT NOT NULL,
+  read_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_camsg_link ON ca_messages(link_id, created_at);
+
+-- Shared documents: metadata here, the file itself in Supabase Storage.
+CREATE TABLE IF NOT EXISTS ca_documents (
+  document_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  link_id      UUID NOT NULL REFERENCES ca_client_links(link_id) ON DELETE CASCADE,
+  uploaded_by  VARCHAR(4) NOT NULL CHECK (uploaded_by IN ('ca','user')),
+  file_name    VARCHAR(200) NOT NULL,
+  mime_type    VARCHAR(100),
+  size_bytes   BIGINT,
+  storage_path VARCHAR(300) NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cadoc_link ON ca_documents(link_id, created_at);
 
 -- Allow 'student' as an employment type (idempotent: drop + re-add the CHECK).
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_employment_type_check;

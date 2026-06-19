@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
 import { authRouter } from './routes/auth';
+import { caRouter } from './routes/ca';
 import { userRouter } from './routes/user';
 import { scoreRouter } from './routes/score';
 import { actionsRouter } from './routes/actions';
@@ -43,6 +44,7 @@ app.use(rateLimit({ windowMs: 60_000, max: 1000, keyPrefix: 'api' }));
 app.get('/v1/health', (_req, res) => res.json({ status: 'ok', service: 'paywatch-api', ts: new Date().toISOString() }));
 
 app.use('/v1/auth', authRouter);
+app.use('/v1/ca', caRouter);
 app.use('/v1/user', userRouter);
 app.use('/v1/score', scoreRouter);
 app.use('/v1/actions', actionsRouter);
