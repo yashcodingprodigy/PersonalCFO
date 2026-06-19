@@ -279,11 +279,16 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
     startSteps.push('Curious about individual stocks? Start with an index fund first — it spreads your risk across the whole market while you learn how the market actually behaves.');
   }
 
+  // Hide categories the user has already told us they've started (recorded via
+  // "I've started this" on the invest page) so the plan reflects what's left.
+  const started: string[] = Array.isArray((p.assets as any)?.invest_started) ? (p.assets as any).invest_started : [];
+  const visibleRecs = recs.filter((r) => !started.includes(r.category));
+
   return {
     hasIncome: true, riskProfile: risk, riskReason: reason, riskWasExplicit,
     emergencyFirst, emergencyMessage, highCostDebtFirst, debtMessage,
     monthlyInvestable, investableExplanation,
     targetAllocation, currentAllocation, allocationGap,
-    recommendations: recs, modelPortfolios, rebalanceNotes, startSteps, disclaimer,
+    recommendations: visibleRecs, modelPortfolios, rebalanceNotes, startSteps, disclaimer,
   };
 }

@@ -38,6 +38,7 @@ export default function SettingsPage() {
       take_home: String(Math.round((u.monthly_take_home || 0) / 100)),
       expenses: String(Math.round((p.assets?.monthly_expenses || 0) / 100)),
       savings: String(Math.round((p.assets?.savings_balance || 0) / 100)),
+      vehicle: String(Math.round((p.assets?.vehicle || 0) / 100)),
       epf: String(Math.round((p.assets?.epf || 0) / 100)),
       mf: String(Math.round((p.assets?.mutual_funds?.value || 0) / 100)),
       sip: String(Math.round((p.assets?.mutual_funds?.monthly_sip || 0) / 100)),
@@ -80,6 +81,7 @@ export default function SettingsPage() {
     await patch('/user/profile/assets', {
       monthly_expenses: rupeesToPaise(fields.expenses || '0'),
       savings_balance: rupeesToPaise(fields.savings || '0'),
+      vehicle: rupeesToPaise(fields.vehicle || '0'),
       epf: rupeesToPaise(fields.epf || '0'),
       mutual_funds: { value: rupeesToPaise(fields.mf || '0'), monthly_sip: rupeesToPaise(fields.sip || '0') },
     });
@@ -213,6 +215,7 @@ export default function SettingsPage() {
             <div><label className="label">Monthly take-home</label><input className="input" inputMode="numeric" {...F('take_home')} /></div>
             <div><label className="label">Monthly expenses</label><input className="input" inputMode="numeric" {...F('expenses')} /></div>
             <div><label className="label">Savings balance</label><input className="input" inputMode="numeric" {...F('savings')} /></div>
+            <div><label className="label">Vehicle (current value)</label><input className="input" inputMode="numeric" placeholder="0" {...F('vehicle')} /></div>
             <div><label className="label">EPF balance</label><input className="input" inputMode="numeric" {...F('epf')} /></div>
             <div><label className="label">Mutual funds value</label><input className="input" inputMode="numeric" {...F('mf')} /></div>
             <div><label className="label">Monthly SIP</label><input className="input" inputMode="numeric" {...F('sip')} /></div>

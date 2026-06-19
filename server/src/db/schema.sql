@@ -130,6 +130,10 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_txn_user ON transactions(user_id, txn_date DESC);
+-- De-duplication: a content hash per transaction. Partial unique index allows
+-- existing NULL-fingerprint rows (AA/legacy) but blocks duplicate re-imports.
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS fingerprint VARCHAR(64);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_txn_user_fp ON transactions(user_id, fingerprint) WHERE fingerprint IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS conversations (
   conversation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

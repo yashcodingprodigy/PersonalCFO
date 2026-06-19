@@ -1,7 +1,12 @@
 // Net worth, tax, insurance, transactions & spend analytics routes.
 import { Router } from 'express';
 import { z } from 'zod';
-import { query } from '../db';
+import crypto from 'crypto';
+import { query, one, withTransaction } from '../db';
+
+// Content hash of a transaction, used to skip duplicate re-imports.
+const txnFingerprint = (userId: string, t: { date: string; description: string; amount: number; direction: string }) =>
+  crypto.createHash('sha256').update(`${userId}|${t.date}|${t.amount}|${t.direction}|${t.description.trim().toLowerCase()}`).digest('hex');
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { loadProfileData, recalculateAndStoreScore } from '../services/profile';
@@ -109,6 +114,30 @@ insightsRouter.get('/invest', async (req: AuthedRequest, res) => {
   res.json(buildInvestmentGuidance(p));
 });
 
+// POST /invest/started — user records they've acted on a recommendation:
+// hide it from the plan and add the monthly amount into their SIP data.
+insightsRouter.post('/invest/started', async (req: AuthedRequest, res) => {
+  const schema = z.object({ category: z.string().min(1).max(160), monthlyAmount: z.number().int().nonnegative().max(100000000_00).optional(), undo: z.boolean().optional() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  const prof = await one(`SELECT assets FROM profiles WHERE user_id = $1`, [req.userId]);
+  const assets: any = prof?.assets || {};
+  const started: string[] = Array.isArray(assets.invest_started) ? assets.invest_started : [];
+  const mf = assets.mutual_funds || {};
+  if (parsed.data.undo) {
+    assets.invest_started = started.filter((c) => c !== parsed.data.category);
+    if (parsed.data.monthlyAmount) mf.monthly_sip = Math.max(0, (Number(mf.monthly_sip) || 0) - parsed.data.monthlyAmount);
+  } else {
+    if (!started.includes(parsed.data.category)) started.push(parsed.data.category);
+    assets.invest_started = started;
+    if (parsed.data.monthlyAmount) mf.monthly_sip = (Number(mf.monthly_sip) || 0) + parsed.data.monthlyAmount;
+  }
+  assets.mutual_funds = mf;
+  await query(`UPDATE profiles SET assets = $2::jsonb, version = version + 1, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(assets)]);
+  await recalculateAndStoreScore(req.userId!, 'invest_started');
+  res.json({ ok: true });
+});
+
 // POST /statements/analyze — analyse client-parsed statement transactions.
 // Optionally persist them so the Money Score (which derives expenses from
 // transactions) updates too.
@@ -130,20 +159,34 @@ insightsRouter.post('/statements/analyze', rateLimit({ windowMs: 60_000, max: 20
   const report = analyzeStatement(parsed.data.transactions, p);
 
   let imported = 0;
+  let duplicates = 0;
   if (parsed.data.persist) {
-    for (const t of parsed.data.transactions) {
-      await query(
-        `INSERT INTO transactions (user_id, txn_date, description, amount, direction, category, source)
-         VALUES ($1,$2,$3,$4,$5,$6,'statement')`,
-        [req.userId, t.date, t.description, t.amount, t.direction, categorise(t.description)]
-      );
-      imported++;
+    // Atomic import: either every (non-duplicate) row lands, or none do.
+    const counts = await withTransaction(async (q) => {
+      let ins = 0, dup = 0;
+      for (const t of parsed.data.transactions) {
+        const fp = txnFingerprint(req.userId!, t);
+        // ON CONFLICT DO NOTHING against the partial unique index → re-uploading
+        // the same statement silently skips rows already stored.
+        const inserted = await q(
+          `INSERT INTO transactions (user_id, txn_date, description, amount, direction, category, source, fingerprint)
+           VALUES ($1,$2,$3,$4,$5,$6,'statement',$7)
+           ON CONFLICT (user_id, fingerprint) WHERE fingerprint IS NOT NULL DO NOTHING
+           RETURNING txn_id`,
+          [req.userId, t.date, t.description, t.amount, t.direction, categorise(t.description), fp]
+        );
+        if (inserted.length > 0) ins++; else dup++;
+      }
+      return { ins, dup };
+    });
+    imported = counts.ins; duplicates = counts.dup;
+    if (imported > 0) {
+      await recalculateAndStoreScore(req.userId!, 'statement_import');
+      await remember(req.userId!, 'statement_upload', 'Uploaded a bank statement', `User imported ${imported} new transactions from a bank statement on ${new Date().toISOString().slice(0, 10)}.`);
     }
-    await recalculateAndStoreScore(req.userId!, 'statement_import');
-    await remember(req.userId!, 'statement_upload', 'Uploaded a bank statement', `User imported ${imported} transactions from a bank statement on ${new Date().toISOString().slice(0, 10)}.`);
   }
 
-  res.json({ report, imported });
+  res.json({ report, imported, duplicates });
 });
 
 // GET /transactions

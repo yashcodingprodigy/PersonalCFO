@@ -77,8 +77,30 @@ export default function GoalsPage() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {goals.length === 0 && !showForm && (
-          <div className="card p-10 text-center text-sm text-ink-soft lg:col-span-2">
-            No goals yet. Start with an emergency fund — it&apos;s the foundation everything else builds on.
+          <div className="lg:col-span-2 space-y-3">
+            <p className="text-sm text-ink-soft">No goals yet — here&apos;s an <strong>example</strong> of how a goal looks. Add your first real one to start tracking.</p>
+            {/* Dummy example goal (not saved — illustration only) */}
+            <article className="card p-6 border-2 border-dashed border-paper-200 relative max-w-md">
+              <span className="absolute top-3 right-3 chip bg-paper-100 text-ink-faint">Example</span>
+              <div>
+                <h2 className="font-bold">Emergency fund</h2>
+                <p className="text-xs text-ink-faint capitalize">emergency fund</p>
+              </div>
+              <div className="mt-4 flex items-center gap-4">
+                <Ring pct={45} size={88} color={C.amber}><span className="font-display text-base font-semibold tabular-nums">45%</span></Ring>
+                <div>
+                  <p className="font-display text-2xl font-semibold tabular-nums">{inr(135000_00)}</p>
+                  <p className="text-xs text-ink-faint">of {inr(300000_00)} target<br />(6 months of expenses)</p>
+                </div>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div><dt className="text-xs text-ink-faint">Needed per month</dt><dd className="font-bold tabular-nums">{inr(27500_00)}</dd></div>
+                <div><dt className="text-xs text-ink-faint">You contribute</dt><dd className="font-bold tabular-nums">{inr(15000_00)}</dd></div>
+                <div><dt className="text-xs text-ink-faint">Projected at current rate</dt><dd className="font-bold tabular-nums">{inr(225000_00)}</dd></div>
+                <div><dt className="text-xs text-ink-faint">Time remaining</dt><dd className="font-bold">0y 6m</dd></div>
+              </dl>
+              <button onClick={() => setShowForm(true)} className="mt-4 btn-primary !py-2 text-xs">+ Create your first goal</button>
+            </article>
           </div>
         )}
         {goals.map((g) => {

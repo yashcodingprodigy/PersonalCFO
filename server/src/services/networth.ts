@@ -29,6 +29,7 @@ export function computeNetWorth(p: ProfileData): NetWorthBreakdown {
     { category: 'debt', label: 'NPS', value: n(a.nps), liquid: false },
     { category: 'realEstate', label: 'Property', value: n(a.property), liquid: false },
     { category: 'gold', label: 'Gold & SGBs', value: n(a.gold), liquid: true },
+    { category: 'other', label: 'Vehicle', value: n(a.vehicle), liquid: false },
     { category: 'other', label: 'Other assets', value: n(a.other), liquid: false },
   ].filter((x) => x.value > 0);
 

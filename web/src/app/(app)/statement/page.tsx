@@ -21,6 +21,7 @@ export default function StatementPage() {
   const [persist, setPersist] = useState(true);
   const [report, setReport] = useState<any>(null);
   const [imported, setImported] = useState(0);
+  const [duplicates, setDuplicates] = useState(0);
   const [err, setErr] = useState('');
 
   async function handleFile(file: File) {
@@ -37,7 +38,7 @@ export default function StatementPage() {
     setStage('analyzing'); setErr('');
     try {
       const res = await post('/statements/analyze', { transactions: parsed, persist });
-      setReport(res.report); setImported(res.imported || 0); setStage('done');
+      setReport(res.report); setImported(res.imported || 0); setDuplicates(res.duplicates || 0); setStage('done');
     } catch (e: any) { setErr(e.message); setStage('ready'); }
   }
 
@@ -117,7 +118,7 @@ export default function StatementPage() {
 
       {/* Report */}
       {stage === 'done' && report && (
-        <Report report={report} imported={imported} onReset={reset} />
+        <Report report={report} imported={imported} duplicates={duplicates} onReset={reset} />
       )}
     </div>
   );
@@ -132,7 +133,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
-function Report({ report: r, imported, onReset }: { report: any; imported: number; onReset: () => void }) {
+function Report({ report: r, imported, duplicates, onReset }: { report: any; imported: number; duplicates: number; onReset: () => void }) {
   const sr = r.totals.savingsRate;
   return (
     <div className="space-y-6">
@@ -140,7 +141,8 @@ function Report({ report: r, imported, onReset }: { report: any; imported: numbe
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-pine-700 mb-1">Your statement, summarised</p>
           <p className="text-sm text-ink-soft leading-relaxed">{r.summary}</p>
-          {imported > 0 && <p className="text-xs text-signal-green mt-2">{imported} transactions saved — your Money Health Score has been updated.</p>}
+          {imported > 0 && <p className="text-xs text-signal-green mt-2">{imported} new transaction{imported === 1 ? '' : 's'} saved — your Money Health Score has been updated.</p>}
+          {duplicates > 0 && <p className="text-xs text-ink-faint mt-1">{duplicates} duplicate{duplicates === 1 ? '' : 's'} skipped (already imported from a previous upload).</p>}
         </div>
         <button onClick={onReset} className="btn-secondary !py-2 text-xs shrink-0">Scan another</button>
       </div>

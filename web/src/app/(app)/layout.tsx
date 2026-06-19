@@ -15,6 +15,7 @@ const NAV = [
   { href: '/ask', label: 'Ask PayWatch', icon: ASK_ICON, accent: true },
   { href: '/alerts', label: 'Alerts', icon: 'M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z' },
   { href: '/actions', label: 'Actions', icon: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z' },
+  { href: '/goals', label: 'Goals', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
   { href: '/invest', label: 'Invest', icon: 'M3 13h2v7H3v-7Zm4-4h2v11H7V9Zm4-5h2v16h-2V4Zm4 8h2v8h-2v-8Z' },
   { href: '/markets', label: 'Markets & news', icon: 'M3 3v18h18v-2H5V3H3Zm4 11 3-3 3 3 5-5-1.4-1.4L15 11l-3-3-4 4 1 1Z' },
@@ -23,7 +24,6 @@ const NAV = [
   { href: '/insurance', label: 'Insurance', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Z' },
   { href: '/statement', label: 'Statement scan', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z' },
   { href: '/vault', label: 'Document vault', icon: 'M3 5h6l2 2h10v12H3V5Zm2 2v10h14V9h-8.8l-2-2H5Z' },
-  { href: '/goals', label: 'Goals', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
   { href: '/reports', label: 'Reports', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z' },
   { href: '/settings', label: 'Settings', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 4a7.8 7.8 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2-1.2L16 3h-4l-.4 2.6a8 8 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2 1.2L8 21h4l.4-2.6a8 8 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.2-.8.2-1.2Z' },
 ];

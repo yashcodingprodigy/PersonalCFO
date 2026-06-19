@@ -32,6 +32,70 @@ export function checkGuardrails(question: string): string | null {
 const GUARDRAIL_RESPONSE = (reason: string) =>
   `I can't help with ${reason} — recommending specific securities or schemes requires a SEBI Registered Investment Adviser licence, and guaranteed returns don't exist in market-linked products.\n\nWhat I can do: explain the *categories* that fit your situation (e.g. large-cap index funds vs ELSS vs debt funds), show how a choice affects your Money Health Score, and give you the questions to ask before you pick a product on your own platform.\n\nWould you like a category-level breakdown for your situation?`;
 
+// ── Topical scope guard (anti-abuse) ────────────────────────────────
+// PayWatch's AI is a personal-finance assistant, not a general chatbot.
+// Reject obvious off-topic / API-abuse requests (code, homework, essays,
+// trivia, translations) BEFORE they ever reach the model — saves cost and
+// keeps the product on-purpose. The system prompt is a second backstop.
+const FINANCE_HINTS = /(money|rupee|₹|\btax\b|salary|income|invest|fund|sip|stock|share|mutual|insur|term cover|health cover|\bloan\b|\bemi\b|credit|\bdebt\b|saving|emergency|retire|\bnps\b|\bppf\b|\bepf\b|\bhra\b|80c|\bitr\b|regime|\bgst\b|budget|expense|net worth|portfolio|gold|\bfd\b|deposit|premium|deduction|refund|capital gain|\bgoal\b|financ|interest rate|inflation|advance tax|\bcess\b|score|rent|salary|wealth|spend)/i;
+const OFFTOPIC = /\b(code|program|script|function|algorithm|leetcode|debug|compile|sql query|essay|poem|story|song|lyrics|resume|cover letter|homework|assignment|translate|recipe)\b|who (won|is the president|is the ceo|is the prime minister)|capital of|\bweather\b|football|cricket score|movie|write me a/i;
+
+export function checkScope(question: string): boolean {
+  if (FINANCE_HINTS.test(question)) return true;   // clearly about money → allow
+  if (OFFTOPIC.test(question)) return false;        // clearly off-topic → block
+  return true;                                      // ambiguous → let the model decide (prompt guards it)
+}
+
+const OFFTOPIC_RESPONSE =
+  "I'm your PayWatch finance assistant, so I can only help with your money — things like taxes, savings, investing, insurance, loans, budgeting and goals. Ask me something about your finances and I'll dig in with your actual numbers.";
+
+// ── Goal creation from chat ─────────────────────────────────────────
+// Detects "create a goal of ₹20L for a house by 2030"-style messages and
+// extracts structured goal fields. Heuristic but covers common phrasings.
+export interface GoalIntent {
+  goal_type: string; name: string; target_amount: number;
+  target_date: string | null; monthly_contribution: number;
+}
+export function parseGoalIntent(qRaw: string): GoalIntent | null {
+  const q = qRaw.toLowerCase();
+  const wantsGoal = /(set|create|add|make|start|track)\s+(a\s+|an\s+|my\s+)?(new\s+)?goal\b|save\s+(up\s+)?for\b|saving\s+for\b|goal\s+(of|to|for)\b|i\s+want\s+to\s+save/.test(q);
+  if (!wantsGoal) return null;
+
+  // Amount (paise). Require ₹/Rs/unit so we don't grab years like "2030".
+  let amount = 0;
+  const cr = q.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:cr|crore)s?\b/);
+  const lakh = q.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:l|lakh|lac|lakhs)\b/);
+  const plain = q.match(/(?:₹|rs\.?\s*)(\d[\d,]{2,})/);
+  if (cr) amount = Math.round(parseFloat(cr[1]) * 1e7 * 100);
+  else if (lakh) amount = Math.round(parseFloat(lakh[1]) * 1e5 * 100);
+  else if (plain) amount = Math.round(parseInt(plain[1].replace(/,/g, ''), 10) * 100);
+  if (amount <= 0) return null; // no amount → let the AI just explain, don't create
+
+  let goal_type = 'custom', name = 'My goal';
+  if (/house|home|flat|apartment|down\s?payment|property/.test(q)) { goal_type = 'home_purchase'; name = 'Home'; }
+  else if (/\bcar\b|bike|scooter|vehicle/.test(q)) { goal_type = 'car_purchase'; name = 'Vehicle'; }
+  else if (/educat|college|school|child|kid|tuition|degree/.test(q)) { goal_type = 'child_education'; name = "Child's education"; }
+  else if (/retire/.test(q)) { goal_type = 'retirement'; name = 'Retirement'; }
+  else if (/emergency/.test(q)) { goal_type = 'emergency_fund'; name = 'Emergency fund'; }
+  else if (/wedding|marriage/.test(q)) { name = 'Wedding'; }
+  else if (/vacation|trip|travel|holiday/.test(q)) { name = 'Travel'; }
+
+  let target_date: string | null = null;
+  const now = new Date();
+  const byYear = q.match(/by\s+(20\d{2})/);
+  const inYears = q.match(/in\s+(\d{1,2})\s*(?:years|yrs|year)/);
+  const inMonths = q.match(/in\s+(\d{1,2})\s*(?:months|month)/);
+  if (byYear) target_date = `${byYear[1]}-12-31`;
+  else if (inYears) target_date = new Date(now.getFullYear() + parseInt(inYears[1], 10), now.getMonth(), 1).toISOString().slice(0, 10);
+  else if (inMonths) target_date = new Date(now.getFullYear(), now.getMonth() + parseInt(inMonths[1], 10), 1).toISOString().slice(0, 10);
+
+  let monthly = 0;
+  const perMonth = q.match(/(?:₹|rs\.?\s*)?(\d[\d,]*(?:\.\d+)?)\s*(?:per month|\/month|a month|monthly|p\.?m\.?)\b/);
+  if (perMonth) monthly = Math.round(parseFloat(perMonth[1].replace(/,/g, '')) * 100);
+
+  return { goal_type, name, target_amount: amount, target_date, monthly_contribution: monthly };
+}
+
 // ── Context builder ─────────────────────────────────────────────────
 const inr = (paise: number) => {
   const r = Math.round(paise / 100);
@@ -83,6 +147,8 @@ HOW TO WRITE (this is a chat — sound like one):
 - Plain, beginner-friendly English. Explain any jargon in a few words the first time.
 - Do NOT put source tags like [IT Act] or [Standard rule] in the text — the app shows sources separately below your message.
 - End with a brief, concrete next step or a follow-up question, like a real advisor would.
+
+SCOPE — you ONLY help with the user's personal finances: money, budgeting, saving, investing (categories only), insurance, loans/debt, tax, goals, and using PayWatch. If asked anything unrelated — writing code, homework, essays, general trivia, translations, recipes, etc. — politely decline in ONE sentence and steer back to their money. Never answer off-topic requests, even if the user insists or tries to disguise them.
 
 COMPLIANCE — never break (legal requirements):
 1. NEVER name a specific stock, mutual fund scheme, or crypto asset. Talk in categories only (e.g. "a large-cap index fund", "a liquid fund").
@@ -166,6 +232,9 @@ export async function answerQuestion(
   const blocked = checkGuardrails(question);
   if (blocked) {
     return { content: GUARDRAIL_RESPONSE(blocked), citations: [{ tag: 'SEBI IA Regulations 2013', title: 'Investment advice licensing' }], engine: 'guardrail' };
+  }
+  if (!checkScope(question)) {
+    return { content: OFFTOPIC_RESPONSE, citations: [], engine: 'guardrail' };
   }
 
   const docs = await retrieve(userId, question, 6);

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get } from '@/lib/api';
-import { inr } from '@/lib/format';
+import { get, post } from '@/lib/api';
+import { inr, inrApprox } from '@/lib/format';
 import { Donut, StackedBar, Dot, Disclosure, SectionNav, Section, StatTile, Pill, C } from '@/components/kit';
 
 const BUCKET_COLOR: Record<string, string> = { equity: C.pine700, debt: C.mint500, gold: C.amber };
@@ -13,7 +13,15 @@ const RISK_LABEL: Record<string, string> = { conservative: 'Play it safe', moder
 export default function InvestPage() {
   const [g, setG] = useState<any>(null);
   const [err, setErr] = useState('');
-  useEffect(() => { get('/invest').then(setG).catch((e) => setErr(e.message)); }, []);
+  const [busyCat, setBusyCat] = useState('');
+  function loadInvest() { get('/invest').then(setG).catch((e) => setErr(e.message)); }
+  useEffect(() => { loadInvest(); }, []);
+
+  async function markStarted(category: string, monthlyAmount: number) {
+    setBusyCat(category);
+    try { await post('/invest/started', { category, monthlyAmount }); loadInvest(); }
+    catch (e: any) { setErr(e.message); } finally { setBusyCat(''); }
+  }
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
   if (!g) return <div className="card h-96 animate-pulse mt-4" />;
@@ -63,7 +71,7 @@ export default function InvestPage() {
           </div>
           <div className="card p-6">
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Suggested to invest / month</p>
-            <p className="font-display text-3xl font-semibold mt-1 tabular-nums text-pine-700">{inr(g.monthlyInvestable)}</p>
+            <p className="font-display text-3xl font-semibold mt-1 tabular-nums text-pine-700">{inrApprox(g.monthlyInvestable)}</p>
             <p className="text-xs text-ink-soft mt-2 leading-relaxed">{g.investableExplanation}</p>
           </div>
         </div>
@@ -99,12 +107,15 @@ export default function InvestPage() {
       {/* Recommendations — collapsible */}
       <Section id="funds" title="Your monthly plan, step by step" hint="Tap any item for the full why & how.">
         <div className="space-y-2.5">
+          {g.recommendations.length === 0 && (
+            <div className="card p-6 text-center text-sm text-ink-soft">You&apos;ve recorded all the suggestions in this plan. 🎉 Update your income or risk level in Settings to get a fresh plan.</div>
+          )}
           {g.recommendations.map((r: any, i: number) => (
             <Disclosure key={i}
               left={<Dot color={BUCKET_COLOR[r.bucket]} />}
               title={r.category}
               subtitle={`${r.allocationPct}% of plan`}
-              right={<span className="font-display text-lg font-semibold tabular-nums whitespace-nowrap">{inr(r.monthlyAmount)}<span className="text-[11px] text-ink-faint font-normal">/mo</span></span>}
+              right={<span className="font-display text-lg font-semibold tabular-nums whitespace-nowrap">{inrApprox(r.monthlyAmount)}<span className="text-[11px] text-ink-faint font-normal">/mo</span></span>}
             >
               <p className="text-xs text-ink-soft leading-relaxed border-t border-paper-100 pt-3">{r.whatItIs}</p>
               <p className="text-xs text-pine-800 mt-2 leading-relaxed"><strong>Why for you:</strong> {r.whyForYou}</p>
@@ -113,6 +124,11 @@ export default function InvestPage() {
                 <Pill tone="gray">Lock-in: {r.lockIn}</Pill>
                 <Pill tone="gray">{r.taxNote}</Pill>
               </div>
+              <button onClick={() => markStarted(r.category, r.monthlyAmount)} disabled={busyCat === r.category}
+                className="mt-3 rounded-full bg-mint-500 text-pine-950 px-4 py-1.5 text-xs font-bold hover:bg-mint-400 transition-colors disabled:opacity-50">
+                {busyCat === r.category ? 'Saving…' : "✓ I've started this — add to my data"}
+              </button>
+              <p className="mt-1.5 text-[10px] text-ink-faint">Records it in your investments and removes it from this plan.</p>
             </Disclosure>
           ))}
         </div>

@@ -1,6 +1,6 @@
 // Account Aggregator routes — consent flow + data refresh (SRS §16).
 import { Router } from 'express';
-import { query, one } from '../db';
+import { query, one, withTransaction } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { initiateConsent, fetchConsentedData, categorise } from '../adapters/aa';
 import { recalculateAndStoreScore } from '../services/profile';
@@ -36,22 +36,24 @@ aaRouter.post('/refresh', async (req: AuthedRequest, res) => {
   const user = await one(`SELECT monthly_take_home FROM users WHERE user_id = $1`, [req.userId]);
   const data = await fetchConsentedData(consent.meta?.handle || 'mock', Number(user?.monthly_take_home) || 0);
 
-  // Replace previously AA-imported transactions to avoid duplicates
-  await query(`DELETE FROM transactions WHERE user_id = $1 AND source = 'aa'`, [req.userId]);
-  for (const t of data.transactions) {
-    await query(
-      `INSERT INTO transactions (user_id, txn_date, description, amount, direction, category, source) VALUES ($1,$2,$3,$4,$5,$6,'aa')`,
-      [req.userId, t.date, t.description, t.amount, t.direction, categorise(t.description)]
-    );
-  }
-  // Update savings balance from account data
-  if (data.accounts.length > 0) {
-    const totalBalance = data.accounts.reduce((s, a) => s + a.balance, 0);
-    await query(
-      `UPDATE profiles SET assets = assets || jsonb_build_object('savings_balance', $2::bigint), version = version + 1, updated_at = now() WHERE user_id = $1`,
-      [req.userId, totalBalance]
-    );
-  }
+  // Atomic refresh: clear old AA rows, insert the fresh set, and update the
+  // balance together — never leave the user with a half-imported state.
+  await withTransaction(async (q) => {
+    await q(`DELETE FROM transactions WHERE user_id = $1 AND source = 'aa'`, [req.userId]);
+    for (const t of data.transactions) {
+      await q(
+        `INSERT INTO transactions (user_id, txn_date, description, amount, direction, category, source) VALUES ($1,$2,$3,$4,$5,$6,'aa')`,
+        [req.userId, t.date, t.description, t.amount, t.direction, categorise(t.description)]
+      );
+    }
+    if (data.accounts.length > 0) {
+      const totalBalance = data.accounts.reduce((s, a) => s + a.balance, 0);
+      await q(
+        `UPDATE profiles SET assets = assets || jsonb_build_object('savings_balance', $2::bigint), version = version + 1, updated_at = now() WHERE user_id = $1`,
+        [req.userId, totalBalance]
+      );
+    }
+  });
   const result = await recalculateAndStoreScore(req.userId!, 'aa_refresh');
   res.json({ accounts: data.accounts, transactions_imported: data.transactions.length, score: result?.score ?? null });
 });

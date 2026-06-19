@@ -4,9 +4,17 @@ import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { loadProfileData } from '../services/profile';
-import { answerQuestion, AI_DISCLAIMER } from '../services/cfo-ai';
+import { answerQuestion, AI_DISCLAIMER, parseGoalIntent } from '../services/cfo-ai';
 import { remember } from '../services/rag';
+import { GOAL_TYPES } from '../services/goals';
 import { PLANS, PlanKey } from '../config';
+
+const fmtRupees = (paise: number) => {
+  const r = Math.round(paise / 100);
+  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
+  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
+  return `₹${r.toLocaleString('en-IN')}`;
+};
 
 export const qaRouter = Router();
 qaRouter.use(requireAuth);
@@ -82,6 +90,27 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   await query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convId, question]);
 
   const answer = await answerQuestion(req.userId!, question, p, history);
+
+  // Goal creation from chat: if the user asked to create a goal and gave an
+  // amount, add it directly (respecting their plan's goal limit) and confirm.
+  if (answer.engine !== 'guardrail') {
+    const gi = parseGoalIntent(question);
+    if (gi) {
+      const goalLimit = PLANS[plan].goalLimit;
+      const gcount = await one(`SELECT COUNT(*)::int AS c FROM goals WHERE user_id = $1`, [req.userId]);
+      if (gcount!.c >= goalLimit) {
+        answer.content = `Heads up — your ${plan} plan allows ${goalLimit} goals, so I couldn't add this one. You can upgrade for unlimited goals.\n\n` + answer.content;
+      } else {
+        const defaultMeta = GOAL_TYPES.find((t) => t.type === gi.goal_type)?.defaultMeta || {};
+        await query(
+          `INSERT INTO goals (user_id, goal_type, name, target_amount, target_date, current_amount, monthly_contribution, meta)
+           VALUES ($1,$2,$3,$4,$5,0,$6,$7)`,
+          [req.userId, gi.goal_type, gi.name, gi.target_amount, gi.target_date, gi.monthly_contribution, JSON.stringify(defaultMeta)]
+        );
+        answer.content = `✅ Done — I've added a goal: **${gi.name}** of ${fmtRupees(gi.target_amount)}${gi.target_date ? ` by ${gi.target_date}` : ''}${gi.monthly_contribution > 0 ? `, with ${fmtRupees(gi.monthly_contribution)}/month` : ''}. You'll find it on the Goals page.\n\n` + answer.content;
+      }
+    }
+  }
 
   // Human review layer (SRS §12.1): on paid plans, answers containing
   // recommendation-shaped content are flagged for advisor review.

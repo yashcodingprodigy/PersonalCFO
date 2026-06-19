@@ -33,17 +33,38 @@ export default function MarketsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-medium">Markets & learn</h1>
-        <p className="text-sm text-ink-soft mt-1">What&apos;s worth knowing right now — investment themes explained simply, plus the latest financial news.</p>
+        <h1 className="font-display text-3xl font-medium">News & markets</h1>
+        <p className="text-sm text-ink-soft mt-1">The latest financial news first — plus investment themes explained simply.</p>
       </div>
 
-      <SectionNav items={[{ id: 'themes', label: 'Themes' }, { id: 'news', label: 'News' }, { id: 'basics', label: 'Basics' }]} />
+      <SectionNav items={[{ id: 'news', label: 'News' }, { id: 'themes', label: 'Themes' }, { id: 'basics', label: 'Basics' }]} />
 
       <div className="card p-4 border-l-4 border-l-signal-amber">
         <p className="text-xs text-ink-soft leading-relaxed">
           <strong>Education, not tips.</strong> We don&apos;t list &ldquo;stocks to buy&rdquo; or predict prices — that needs a SEBI licence we don&apos;t hold. Instead we explain the <em>types</em> of investments and share news so you can learn and decide for yourself.
         </p>
       </div>
+
+      {/* News (now first) */}
+      <section id="news" className="card p-6 scroll-mt-20">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Latest financial news</h2>
+        {m.news.length === 0 ? (
+          <p className="text-sm text-ink-soft">{m.newsError ? 'News couldn’t be loaded right now — try again shortly.' : 'No recent headlines.'}</p>
+        ) : (
+          <ul className="divide-y divide-paper-100">
+            {m.news.map((n: any, i: number) => (
+              <li key={i} className="py-3">
+                <a href={n.link} target="_blank" rel="noopener noreferrer" className="group flex items-start justify-between gap-3">
+                  <span className="text-sm text-ink group-hover:text-pine-700 leading-snug">{n.title}</span>
+                  <span className="text-[11px] text-ink-faint whitespace-nowrap shrink-0 mt-0.5">{timeAgo(n.published)}</span>
+                </a>
+                <p className="text-[11px] text-ink-faint mt-1">{n.source}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[11px] text-ink-faint mt-3">Headlines are third-party news shown for awareness, opening on the publisher&apos;s site.</p>
+      </section>
 
       {/* Trending themes */}
       <Section id="themes" title="Trending investment themes" hint="The building blocks, explained simply."
@@ -64,27 +85,6 @@ export default function MarketsPage() {
           ))}
         </div>
       </Section>
-
-      {/* News */}
-      <section id="news" className="card p-6 scroll-mt-20">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Latest financial news</h2>
-        {m.news.length === 0 ? (
-          <p className="text-sm text-ink-soft">{m.newsError ? 'News couldn’t be loaded right now — try again shortly.' : 'No recent headlines.'}</p>
-        ) : (
-          <ul className="divide-y divide-paper-100">
-            {m.news.map((n: any, i: number) => (
-              <li key={i} className="py-3">
-                <a href={n.link} target="_blank" rel="noopener noreferrer" className="group flex items-start justify-between gap-3">
-                  <span className="text-sm text-ink group-hover:text-pine-700 leading-snug">{n.title}</span>
-                  <span className="text-[11px] text-ink-faint whitespace-nowrap shrink-0 mt-0.5">{timeAgo(n.published)}</span>
-                </a>
-                <p className="text-[11px] text-ink-faint mt-1">{n.source}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="text-[11px] text-ink-faint mt-3">Headlines are third-party news shown for awareness, opening on the publisher&apos;s site.</p>
-      </section>
 
       {/* Basics */}
       <section id="basics" className="card p-6 scroll-mt-20">

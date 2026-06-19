@@ -154,6 +154,15 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
     estCostAnnual: null,
   });
 
+  if (Number(p.assets?.vehicle) > 0) recommendations.push({
+    priority: 'medium',
+    title: 'Insure your vehicle (third-party is mandatory)',
+    whatItIs: 'Motor insurance has two parts: third-party cover (legally required for every vehicle in India) and comprehensive cover (also pays for damage/theft to your own vehicle).',
+    whyForYou: 'You own a vehicle, so at minimum third-party cover is required by law; comprehensive cover protects the asset value you\'ve recorded in your net worth.',
+    howTo: 'Renew before it lapses — driving uninsured is an offence. Compare comprehensive quotes online and add a zero-depreciation rider if the vehicle is new.',
+    estCostAnnual: null,
+  });
+
   if (Number(p.assets?.property) > 0) recommendations.push({
     priority: 'low',
     title: 'Consider home / property insurance',

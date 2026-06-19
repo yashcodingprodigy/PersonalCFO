@@ -24,6 +24,20 @@ export function inrRange(paise: number | string | null | undefined): string {
   return lo === hi ? `₹${(lo * 1000).toLocaleString('en-IN')}` : `₹${lo}k–${hi}k`;
 }
 
+// Approximate amount for guidance figures (e.g. suggested monthly investment),
+// so they read as "about ₹4,000" rather than a falsely precise ₹4,137.
+export function inrApprox(paise: number | string | null | undefined): string {
+  if (paise == null) return '—';
+  const r = Math.round(Number(paise) / 100);
+  if (r <= 0) return '₹0';
+  if (r >= 1e7) { const cr = r / 1e7; return `~₹${cr.toFixed(cr >= 10 ? 0 : 1)} Cr`; }
+  if (r >= 1e5) { const l = r / 1e5; return `~₹${l.toFixed(l >= 10 ? 0 : 1)} L`; }
+  // round to a friendly step: nearest ₹500 below ₹50k, nearest ₹1,000 above
+  const step = r >= 50000 ? 1000 : 500;
+  const rounded = Math.max(step, Math.round(r / step) * step);
+  return `~₹${rounded.toLocaleString('en-IN')}`;
+}
+
 export function inrFull(paise: number | string | null | undefined): string {
   if (paise == null) return '—';
   const r = Math.round(Number(paise) / 100);
