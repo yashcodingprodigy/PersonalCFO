@@ -67,10 +67,10 @@ export default function Dashboard() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-mint-300">Ask your CFO · AI</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-mint-300">Ask PayWatch · AI</span>
               </div>
-              <h2 className="font-display text-xl font-semibold mt-1">Have a money question? Just ask.</h2>
-              <p className="text-sm text-white/70 mt-1 leading-relaxed">Your private CFO knows your income, net worth, score and gaps — and answers in plain English, with your own numbers.</p>
+              <h2 className="font-display text-xl font-semibold mt-1">Have a money question? Ask PayWatch.</h2>
+              <p className="text-sm text-white/70 mt-1 leading-relaxed">PayWatch knows your income, net worth, score and gaps — and answers in plain English, with your own numbers.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {['Which tax regime saves me more?', 'Is my term cover enough?', 'Should I prepay my loan or invest?'].map((q) => (
                   <span key={q} onClick={(e) => { e.preventDefault(); router.push(`/ask?q=${encodeURIComponent(q)}`); }}

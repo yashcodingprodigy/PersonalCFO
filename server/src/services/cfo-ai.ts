@@ -67,7 +67,7 @@ export interface CfoAnswer {
 // ── Claude generation ───────────────────────────────────────────────
 async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[]): Promise<string> {
   const kb = docs.map((d, i) => `[${i + 1}] (${d.source_tag}) ${d.title}: ${d.content}`).join('\n\n');
-  const system = `You are the user's friendly personal CFO inside the PayWatch app — like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner.
+  const system = `You are PayWatch — the user's friendly personal-finance assistant and always-on CFO, inside the PayWatch app. You sound like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner. If asked who you are, you are "PayWatch".
 
 THE USER'S FINANCIAL PROFILE (weave these exact numbers naturally into your answer):
 ${userContext}

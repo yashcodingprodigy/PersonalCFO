@@ -87,7 +87,7 @@ export default function Landing() {
             {[
               ['01 — Connect', 'Link accounts via the RBI-regulated Account Aggregator framework, or enter details manually. We never ask for bank passwords — consent is granular, time-bound and revocable.'],
               ['02 — Understand', 'Your Money Health Score quantifies savings, insurance, diversification, emergency readiness, debt and tax efficiency — benchmarked against planning standards, not opinions.'],
-              ['03 — Act', 'A prioritised action list with exact rupee amounts and deadlines. Complete an action, watch your score move. Ask your CFO anything — answers grounded in your own numbers.'],
+              ['03 — Act', 'A prioritised action list with exact rupee amounts and deadlines. Complete an action, watch your score move. Ask PayWatch anything — answers grounded in your own numbers.'],
             ].map(([title, body]) => (
               <div key={title} className="card p-8">
                 <h3 className="font-display text-xl font-semibold text-pine-800">{title}</h3>
@@ -98,11 +98,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Ask your CFO — spotlight */}
+      {/* Ask PayWatch — spotlight */}
       <section className="bg-pine-950 text-white py-24">
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <p className="text-mint-400 text-sm font-semibold tracking-[0.2em] uppercase mb-4">Ask your CFO · AI</p>
+            <p className="text-mint-400 text-sm font-semibold tracking-[0.2em] uppercase mb-4">Ask PayWatch · AI</p>
             <h2 className="font-display text-4xl font-medium leading-tight">A finance expert in your pocket — that actually knows your money.</h2>
             <p className="mt-5 text-white/70 leading-relaxed">
               Most finance apps give you charts and leave you to figure it out. PayWatch gives you someone to ask.

@@ -64,7 +64,7 @@ export default function AskPage() {
     <div className="flex flex-col" style={{ height: 'calc(100vh - 8rem)' }}>
       <div className="flex items-end justify-between flex-wrap gap-3 mb-4">
         <div>
-          <h1 className="font-display text-3xl font-medium">Ask your CFO</h1>
+          <h1 className="font-display text-3xl font-medium">Ask PayWatch</h1>
           <p className="text-sm text-ink-soft mt-1">Answers grounded in your actual numbers — not generic advice.</p>
         </div>
         {conversations.length > 0 && (
@@ -80,7 +80,7 @@ export default function AskPage() {
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center px-6">
               <p className="text-sm text-ink-soft mb-6 max-w-md">
-                Your CFO knows your income, net worth, score, and gaps. Ask anything about your taxes,
+                PayWatch knows your income, net worth, score, and gaps. Ask anything about your taxes,
                 insurance, debt or savings — and get an answer with your numbers in it.
               </p>
               <div className="grid sm:grid-cols-2 gap-2 w-full max-w-lg">

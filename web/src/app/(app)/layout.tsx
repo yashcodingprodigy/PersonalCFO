@@ -12,7 +12,7 @@ const ASK_ICON = 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z';
 
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: 'M3 13h7V3H3v10Zm0 8h7v-6H3v6Zm11 0h7V11h-7v10Zm0-18v6h7V3h-7Z' },
-  { href: '/ask', label: 'Ask your CFO', icon: ASK_ICON, accent: true },
+  { href: '/ask', label: 'Ask PayWatch', icon: ASK_ICON, accent: true },
   { href: '/alerts', label: 'Alerts', icon: 'M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z' },
   { href: '/actions', label: 'Actions', icon: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
@@ -180,7 +180,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lift border-4 border-white ${path?.startsWith(n.href) ? 'bg-pine-900 text-white' : 'bg-mint-500 text-pine-950'}`}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
               </span>
-              <span className={`text-[10px] font-bold mt-0.5 ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-pine-700'}`}>Ask CFO</span>
+              <span className={`text-[10px] font-bold mt-0.5 ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-pine-700'}`}>Ask</span>
             </Link>
           ) : (
             <Link key={n.href} href={n.href}
@@ -198,12 +198,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="flex-1 md:ml-60 px-4 sm:px-8 pt-16 md:pt-8 pb-24 md:pb-12 max-w-6xl">{children}</main>
 
-      {/* Floating "Ask your CFO" button — ask in context from any page */}
+      {/* Floating "Ask PayWatch" button — ask in context from any page */}
       {!locked && !path?.startsWith('/ask') && (
-        <Link href="/ask" aria-label="Ask your CFO"
+        <Link href="/ask" aria-label="Ask PayWatch"
           className="fixed z-30 right-4 bottom-20 md:right-6 md:bottom-6 no-print flex items-center gap-2 rounded-full bg-mint-500 text-pine-950 shadow-lift px-4 py-3 text-sm font-bold hover:bg-mint-400 transition-colors">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={ASK_ICON} /></svg>
-          <span className="hidden sm:inline">Ask CFO</span>
+          <span className="hidden sm:inline">Ask PayWatch</span>
         </Link>
       )}
 

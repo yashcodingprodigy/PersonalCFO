@@ -25,7 +25,7 @@ const FEATURES: Record<string, { tag: string; highlight?: boolean; feats: string
       'Year-round Tax Copilot (advance tax, proofs, harvesting, CA-ready pack)',
       'Spending watchdog & goal autopilot',
       'Document vault with renewal reminders',
-      'Full insurance analysis · unlimited Ask-your-CFO',
+      'Full insurance analysis · unlimited Ask PayWatch',
     ],
   },
   family: {
