@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { get, patch } from '@/lib/api';
+import { swr, patch } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
 import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
 
@@ -18,11 +18,14 @@ export default function Dashboard() {
   const [err, setErr] = useState('');
 
   async function load() {
-    const [s, n, a, st] = await Promise.all([
-      get('/score'), get('/networth'), get('/actions?status=pending'), get('/aa/status'),
+    // Serve cached values instantly, then revalidate in the background.
+    await Promise.all([
+      swr('/score', setScore),
+      swr('/networth', setNetworth),
+      swr('/actions?status=pending', (a: any) => setActions(a.slice(0, 3))),
+      swr('/aa/status', setAa),
     ]);
-    setScore(s); setNetworth(n); setActions(a.slice(0, 3)); setAa(st);
-    get('/alerts/briefing').then(setBriefing).catch(() => {});
+    swr('/alerts/briefing', setBriefing).catch(() => {});
   }
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
 

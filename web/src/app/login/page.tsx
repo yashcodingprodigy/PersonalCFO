@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
-import { api, setTokens, getTokens } from '@/lib/api';
+import { api, setTokens, getTokens, clearCache } from '@/lib/api';
 
 export default function Login() {
   const router = useRouter();
@@ -33,6 +33,7 @@ export default function Login() {
     setErr(''); setBusy(true);
     try {
       const res = await api('/auth/otp/verify', { method: 'POST', body: JSON.stringify({ mobile: fullMobile, otp }) });
+      clearCache(); // fresh session — don't show a previous account's cached data
       setTokens(res.access_token, res.refresh_token);
       const ob = res.user?.onboarding_status || {};
       router.push(res.is_new_user || ob.session_1 !== 'complete' ? '/onboarding' : '/dashboard');

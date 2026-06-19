@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Wordmark } from '@/components/Logo';
-import { get, post, clearTokens, getTokens, del } from '@/lib/api';
+import { get, post, swr, clearTokens, getTokens, del } from '@/lib/api';
 import { isNative, initNative, unlock, registerPush } from '@/lib/native';
 import { Walkthrough } from '@/components/Walkthrough';
 
@@ -41,8 +41,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!getTokens().access) { router.replace('/login'); return; }
-    get('/user/me').then(setUser).catch(() => {});
-    get('/alerts/count').then((r) => setUnread(r.unread || 0)).catch(() => {});
+    // Cached + revalidated so the shell doesn't flicker on every navigation.
+    swr('/user/me', setUser, 30_000).catch(() => {});
+    swr('/alerts/count', (r: any) => setUnread(r.unread || 0), 10_000).catch(() => {});
   }, [router, path]);
 
   // Close the mobile drawer whenever the route changes.

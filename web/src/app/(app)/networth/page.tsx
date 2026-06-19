@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get, patch } from '@/lib/api';
+import { swr, patch } from '@/lib/api';
 import { inr, pct, CATEGORY_LABELS } from '@/lib/format';
 import { Donut, StackedBar, StatTile, Dot, Section, ALLOC_COLORS, C } from '@/components/kit';
 
@@ -16,10 +16,10 @@ export default function NetWorthPage() {
   const [hi, setHi] = useState(0); // horizon index 0/1/2 → 5/10/20yr
 
   const [savingRisk, setSavingRisk] = useState(false);
-  function loadNw() { get('/networth').then(setNw).catch(() => {}); }
+  function loadNw() { swr('/networth', setNw).catch(() => {}); }
   useEffect(() => {
     loadNw();
-    get('/spend/summary').then(setSpend).catch(() => {});
+    swr('/spend/summary', setSpend).catch(() => {});
   }, []);
 
   async function changeRisk(r: string) {
