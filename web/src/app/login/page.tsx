@@ -59,6 +59,13 @@ export default function Login() {
       <section className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-10"><Wordmark /></div>
+
+          {/* User / CA toggle */}
+          <div className="inline-flex rounded-full bg-paper-100 p-1 w-full mb-6">
+            <span className="flex-1 rounded-full py-2 text-sm font-bold text-center bg-pine-900 text-white">I'm a user</span>
+            <Link href="/ca/login" className="flex-1 rounded-full py-2 text-sm font-bold text-center text-ink-soft hover:text-ink">I'm a CA</Link>
+          </div>
+
           <h1 className="font-display text-3xl font-medium">Welcome</h1>
           <p className="text-sm text-ink-soft mt-2">Sign in or create your account with your mobile number.</p>
 
