@@ -231,6 +231,67 @@ export async function parseCapitalGainsCsv(file: File): Promise<{ stcg: number; 
   return { stcg: Math.round(stcg * 100), ltcg: Math.round(ltcg * 100), rows: rows.length };
 }
 
+// ── Holdings report parser (broker / CDSL / mutual-fund export) ──────
+export interface HoldingRow { name: string; value: number; units?: number; type?: string }
+
+function rowsToHoldings(rows: any[]): HoldingRow[] {
+  if (!rows.length) return [];
+  const keys = Object.keys(rows[0]);
+  const findCol = (re: RegExp) => keys.find((h) => re.test(String(h).toLowerCase()));
+  const num = (v: any) => { const n = parseFloat(String(v ?? '').replace(/[₹,\s]/g, '')); return isNaN(n) ? 0 : n; };
+  const nameCol = findCol(/instrument|scheme|security|company|particular|stock name|fund name|^name$|holding|scrip|symbol|description/) || keys[0];
+  const valueCol = findCol(/current value|market value|mkt.*val|cur.*val|present value|valuation|closing value|holding value|amount|^value$/);
+  const qtyCol = findCol(/qty|quantity|units|shares|balance/);
+  const priceCol = findCol(/ltp|last price|closing price|nav|current price|market price|rate/);
+  const typeCol = findCol(/asset type|instrument type|^type$|category|asset class|product/);
+
+  const out: HoldingRow[] = [];
+  for (const r of rows) {
+    const name = String(r[nameCol] ?? '').trim();
+    if (!name || /^total|grand total|sub.?total/i.test(name)) continue;
+    let value = valueCol ? num(r[valueCol]) : 0;
+    const units = qtyCol ? num(r[qtyCol]) : undefined;
+    if (!value && qtyCol && priceCol) value = num(r[qtyCol]) * num(r[priceCol]);
+    if (value <= 0) continue;
+    out.push({ name, value: Math.round(value * 100), units, type: typeCol ? String(r[typeCol] ?? '').trim() : undefined });
+  }
+  return out;
+}
+
+export async function parseHoldingsFile(file: File): Promise<{ holdings: HoldingRow[]; warning?: string }> {
+  const ext = file.name.toLowerCase().split('.').pop();
+  if (ext === 'csv' || ext === 'txt') {
+    await loadScript(CDN.papa);
+    const Papa = (window as any).Papa;
+    const text = await file.text();
+    let rows = (Papa.parse(text, { header: true, skipEmptyLines: true }).data as any[]).filter((r) => r && Object.keys(r).length);
+    // Some broker CSVs have title rows before the header — retry from the row
+    // that looks like a header if the first pass found no value-like column.
+    const holdings = rowsToHoldings(rows);
+    return { holdings, warning: holdings.length ? undefined : 'Could not find holdings in this CSV — make sure it has a name and value/quantity column.' };
+  }
+  if (ext === 'xlsx' || ext === 'xls') {
+    await loadScript(CDN.xlsx);
+    const XLSX = (window as any).XLSX;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const aoa: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+    // find the header row (the one with a name-ish and value-ish header)
+    let hdr = 0;
+    for (let i = 0; i < Math.min(aoa.length, 15); i++) {
+      const joined = aoa[i].map((c) => String(c).toLowerCase()).join(' ');
+      if (/(instrument|scheme|security|company|name|symbol)/.test(joined) && /(value|qty|quantity|units|price)/.test(joined)) { hdr = i; break; }
+    }
+    const headers = aoa[hdr].map((c) => String(c).trim());
+    const objs = aoa.slice(hdr + 1).map((r) => Object.fromEntries(headers.map((h, j) => [h, r[j]])));
+    const holdings = rowsToHoldings(objs);
+    return { holdings, warning: holdings.length ? undefined : 'Could not read holdings from this Excel file.' };
+  }
+  // PDF holdings vary too much to parse reliably; ask for CSV/Excel.
+  return { holdings: [], warning: 'For best results, upload the CSV or Excel export of your holdings (from your broker or CDSL/NSDL). PDF holdings reports aren’t supported yet.' };
+}
+
 // ── public entry ─────────────────────────────────────────────────────
 export async function parseStatementFile(file: File): Promise<ParseResult> {
   const name = file.name.toLowerCase();

@@ -16,6 +16,7 @@ import { prepareFiling, FilingInputs } from '../services/taxFiling';
 import { analyseInsurance } from '../services/insurance';
 import { buildInvestmentGuidance } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
+import { analyzeHoldings } from '../services/holdings';
 import { getMarketData } from '../services/market';
 import { deductionUsage } from '../services/score';
 import { categorise } from '../adapters/aa';
@@ -187,6 +188,21 @@ insightsRouter.post('/statements/analyze', rateLimit({ windowMs: 60_000, max: 20
   }
 
   res.json({ report, imported, duplicates });
+});
+
+// POST /holdings/analyze — portfolio look-through from an uploaded holdings file.
+insightsRouter.post('/holdings/analyze', rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'hold' }), async (req: AuthedRequest, res) => {
+  const schema = z.object({
+    holdings: z.array(z.object({
+      name: z.string().min(1).max(200),
+      value: z.number().int().nonnegative(),
+      units: z.number().optional(),
+      type: z.string().max(60).optional(),
+    })).min(1).max(2000),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  res.json(analyzeHoldings(parsed.data.holdings));
 });
 
 // GET /transactions
