@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { get, post } from '@/lib/api';
+import { get } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
 import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
 
@@ -13,7 +13,6 @@ export default function Dashboard() {
   const [networth, setNetworth] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);
   const [aa, setAa] = useState<any>(null);
-  const [busyAa, setBusyAa] = useState(false);
   const [hi, setHi] = useState(0); // growth horizon index 0/1/2
   const [briefing, setBriefing] = useState<any>(null);
   const [err, setErr] = useState('');
@@ -26,15 +25,6 @@ export default function Dashboard() {
     get('/alerts/briefing').then(setBriefing).catch(() => {});
   }
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
-
-  async function connectAa() {
-    setBusyAa(true);
-    try {
-      await post('/aa/initiate');
-      await post('/aa/refresh');
-      await load();
-    } catch (e: any) { setErr(e.message); } finally { setBusyAa(false); }
-  }
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
   if (!score) return <DashSkeleton />;
@@ -52,9 +42,10 @@ export default function Dashboard() {
           </p>
         </div>
         {!aa?.linked && (
-          <button onClick={connectAa} disabled={busyAa} className="btn-secondary text-xs !px-4 !py-2">
-            {busyAa ? 'Connecting via AA…' : 'Connect bank accounts'}
-          </button>
+          <div className="text-right">
+            <Link href="/statement" className="btn-secondary text-xs !px-4 !py-2 inline-block">Upload bank statement →</Link>
+            <p className="text-[10px] text-ink-faint mt-1">Auto bank sync coming soon — for now, upload a statement</p>
+          </div>
         )}
       </div>
 
