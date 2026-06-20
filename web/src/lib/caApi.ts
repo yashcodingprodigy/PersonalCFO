@@ -47,3 +47,4 @@ export async function caApi<T = any>(path: string, opts: RequestInit = {}, retri
 
 export const caGet = <T = any>(path: string) => caApi<T>(path);
 export const caPost = <T = any>(path: string, body?: any) => caApi<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+export const caDel = <T = any>(path: string) => caApi<T>(path, { method: 'DELETE' });

@@ -36,7 +36,7 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '12mb' })); // higher ceiling for base64 doc uploads (max 8 MB file)
 
 // Global API rate limit (per SRS §23.3)
 app.use(rateLimit({ windowMs: 60_000, max: 1000, keyPrefix: 'api' }));

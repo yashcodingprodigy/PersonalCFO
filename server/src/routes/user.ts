@@ -4,6 +4,8 @@ import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { recalculateAndStoreScore, loadProfileData } from '../services/profile';
 import { remember } from '../services/rag';
+import { ensureUserConnectCode, requestLink } from '../services/caLink';
+import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, docDownloadUrl } from '../services/caShare';
 
 export const userRouter = Router();
 userRouter.use(requireAuth);
@@ -96,4 +98,83 @@ userRouter.get('/profile/full', async (req: AuthedRequest, res) => {
   const p = await loadProfileData(req.userId!);
   if (!p) return res.status(404).json({ error: 'not_found' });
   res.json(p);
+});
+
+// ── CA connection (user side) ───────────────────────────────────────
+// GET /user/ca — my connect code + my CA links (pending + connected).
+userRouter.get('/ca', async (req: AuthedRequest, res) => {
+  const connect_code = await ensureUserConnectCode(req.userId!);
+  const links = await query(
+    `SELECT l.link_id, l.status, l.initiated_by, l.created_at,
+            c.name AS ca_name, c.firm_name, c.city, c.icai_number
+       FROM ca_client_links l JOIN cas c ON c.ca_id = l.ca_id
+      WHERE l.user_id = $1 AND l.status IN ('pending','active')
+      ORDER BY l.created_at DESC`,
+    [req.userId]
+  );
+  res.json({ connect_code, links });
+});
+
+// POST /user/ca/connect { code } — request to connect to a CA by their code.
+userRouter.post('/ca/connect', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ code: z.string().min(3).max(16) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Enter a valid CA code.' });
+  const ca = await one<{ ca_id: string }>(`SELECT ca_id FROM cas WHERE upper(connect_code) = upper($1) AND deleted_at IS NULL`, [parsed.data.code.trim()]);
+  if (!ca) return res.status(404).json({ error: 'not_found', message: 'No CA found with that code. Double-check it with your CA.' });
+  const result = await requestLink(ca.ca_id, req.userId!, 'user');
+  res.json(result);
+});
+
+// POST /user/ca/links/:id/approve — approve a CA-initiated request.
+userRouter.post('/ca/links/:id/approve', async (req: AuthedRequest, res) => {
+  const link = await one<any>(`SELECT * FROM ca_client_links WHERE link_id = $1 AND user_id = $2`, [req.params.id, req.userId]);
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  if (link.status !== 'pending' || link.initiated_by !== 'ca') return res.status(400).json({ error: 'cannot_approve', message: 'Nothing to approve here.' });
+  await query(`UPDATE ca_client_links SET status = 'active', updated_at = now() WHERE link_id = $1`, [link.link_id]);
+  res.json({ ok: true });
+});
+
+// POST /user/ca/links/:id/reject  ·  DELETE /user/ca/links/:id (revoke)
+async function removeUserLink(req: AuthedRequest, res: any) {
+  const r = await query(`DELETE FROM ca_client_links WHERE link_id = $1 AND user_id = $2 RETURNING link_id`, [req.params.id, req.userId]);
+  if (!r.length) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true });
+}
+userRouter.post('/ca/links/:id/reject', removeUserLink);
+userRouter.delete('/ca/links/:id', removeUserLink);
+
+// ── Messaging + documents with a connected CA (user side) ───────────
+userRouter.get('/ca/links/:id/messages', async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const messages = await listMessages(link.link_id);
+  await markRead(link.link_id, 'user');
+  res.json(messages);
+});
+userRouter.post('/ca/links/:id/messages', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ body: z.string().min(1).max(2000) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  res.json(await sendMessage(link.link_id, 'user', parsed.data.body));
+});
+userRouter.get('/ca/links/:id/documents', async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  res.json(await listDocs(link.link_id));
+});
+userRouter.post('/ca/links/:id/documents', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ file_name: z.string().min(1).max(200), mime_type: z.string().max(100).optional(), data: z.string().min(1) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Missing file.' });
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  try { res.json(await addDoc(link.link_id, 'user', { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data })); }
+  catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'upload_failed', message: e.message }); }
+});
+userRouter.get('/ca/links/:id/documents/:docId/url', async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const url = await docDownloadUrl(link.link_id, req.params.docId);
+  if (!url) return res.status(404).json({ error: 'not_found' });
+  res.json({ url });
 });
