@@ -18,7 +18,6 @@ const NAV = [
   { href: '/goals', label: 'Goals', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
   { href: '/invest', label: 'Invest', icon: 'M3 13h2v7H3v-7Zm4-4h2v11H7V9Zm4-5h2v16h-2V4Zm4 8h2v8h-2v-8Z' },
-  { href: '/portfolio', label: 'Portfolio X-ray', icon: 'M11 2a9 9 0 1 0 9 9h-9V2Zm2 0v7h7a9 9 0 0 0-7-7Z' },
   { href: '/markets', label: 'Markets & news', icon: 'M3 3v18h18v-2H5V3H3Zm4 11 3-3 3 3 5-5-1.4-1.4L15 11l-3-3-4 4 1 1Z' },
   { href: '/tax', label: 'Tax', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Zm-1 14-4-4 1.4-1.4L11 13.2l5.6-5.6L18 9l-7 7Z' },
   { href: '/file', label: 'File ITR', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 2 4 4h-4V4ZM9 13l2 2 4-4 1.4 1.4L11 17.8 7.6 14.4 9 13Z' },
@@ -89,7 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar — desktop */}
       <aside className="hidden md:flex w-60 flex-col bg-pine-950 text-white fixed inset-y-0 no-print">
         <div className="px-5 py-6"><Link href="/dashboard"><Wordmark dark size="sm" plus={!!isPaid} /></Link></div>
-        <nav className="flex-1 px-3 space-y-0.5">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 py-1">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors

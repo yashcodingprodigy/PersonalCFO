@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { get, post } from '@/lib/api';
 import { inr, inrApprox } from '@/lib/format';
 import { Donut, StackedBar, Dot, Disclosure, SectionNav, Section, StatTile, Pill, C } from '@/components/kit';
+import { PortfolioXray } from '@/components/PortfolioXray';
 
 const BUCKET_COLOR: Record<string, string> = { equity: C.pine700, debt: C.mint500, gold: C.amber };
 const BUCKET_LABEL: Record<string, string> = { equity: 'Equity (growth)', debt: 'Debt (stability)', gold: 'Gold (cushion)' };
@@ -48,7 +49,7 @@ export default function InvestPage() {
         <p className="text-sm text-ink-soft mt-1">A personalised, beginner-friendly plan — fund <em>categories</em>, never specific products.</p>
       </div>
 
-      <SectionNav items={[{ id: 'plan', label: 'Your plan' }, { id: 'mix', label: 'Target mix' }, { id: 'funds', label: 'Monthly plan' }, { id: 'models', label: 'Templates' }, { id: 'start', label: 'How to start' }]} />
+      <SectionNav items={[{ id: 'plan', label: 'Your plan' }, { id: 'mix', label: 'Target mix' }, { id: 'funds', label: 'Monthly plan' }, { id: 'xray', label: 'Portfolio X-ray' }, { id: 'models', label: 'Templates' }, { id: 'start', label: 'How to start' }]} />
 
       {/* Guardrails */}
       {(g.emergencyFirst || g.highCostDebtFirst) && (
@@ -66,13 +67,23 @@ export default function InvestPage() {
           <div className="card p-6">
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Your investor type</p>
             <p className="font-display text-2xl font-medium mt-1 capitalize">{RISK_LABEL[g.riskProfile] || g.riskProfile}</p>
-            <p className="text-xs text-ink-soft mt-2 leading-relaxed">{g.riskReason}</p>
-            {!g.riskWasExplicit && <Link href="/settings" className="text-xs text-pine-700 underline mt-2 inline-block">Set this yourself →</Link>}
+            <p className="text-sm text-ink-soft mt-2">{g.riskWasExplicit ? 'Based on the risk comfort you chose.' : 'Estimated from your age and situation.'}</p>
+            <Link href="/settings" className="text-xs text-pine-700 underline mt-2 inline-block">Change in Settings →</Link>
           </div>
           <div className="card p-6">
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Suggested to invest / month</p>
-            <p className="font-display text-3xl font-semibold mt-1 tabular-nums text-pine-700">{inrApprox(g.monthlyInvestable)}</p>
-            <p className="text-xs text-ink-soft mt-2 leading-relaxed">{g.investableExplanation}</p>
+            <p className="font-display text-4xl font-semibold mt-1 tabular-nums text-pine-700">{inrApprox(g.monthlyInvestable)}</p>
+            {g.surplus > 0 ? (
+              <dl className="mt-4 space-y-1.5 text-sm border-t border-paper-100 pt-3">
+                <div className="flex justify-between"><dt className="text-ink-soft">Monthly take-home</dt><dd className="tabular-nums font-medium">{inr(g.takeHome)}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-soft">Typical expenses</dt><dd className="tabular-nums font-medium">−{inr(g.monthlyExpenses)}</dd></div>
+                <div className="flex justify-between border-t border-paper-100 pt-1.5"><dt className="text-ink-soft">Free each month</dt><dd className="tabular-nums font-semibold">{inr(g.surplus)}</dd></div>
+                {g.currentSip > 0 && <div className="flex justify-between"><dt className="text-ink-soft">You already invest</dt><dd className="tabular-nums font-medium text-signal-green">{inr(g.currentSip)}</dd></div>}
+              </dl>
+            ) : (
+              <p className="text-sm text-ink-soft mt-2 leading-relaxed">{g.investableExplanation}</p>
+            )}
+            <p className="text-xs text-ink-faint mt-3">We suggest ~70% of what&apos;s free, keeping a buffer for surprises.</p>
           </div>
         </div>
       </Section>
@@ -132,6 +143,11 @@ export default function InvestPage() {
             </Disclosure>
           ))}
         </div>
+      </Section>
+
+      {/* Portfolio X-ray */}
+      <Section id="xray" title="Portfolio X-ray" hint="Already investing? Upload your holdings to see how diversified you really are.">
+        <PortfolioXray />
       </Section>
 
       {/* Model portfolios */}

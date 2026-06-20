@@ -54,6 +54,10 @@ export interface InvestmentGuidance {
 
   monthlyInvestable: number;       // paise
   investableExplanation: string;
+  takeHome: number;
+  monthlyExpenses: number;
+  currentSip: number;
+  surplus: number;
 
   targetAllocation: { equity: number; debt: number; gold: number };
   currentAllocation: { equity: number; debt: number; gold: number; cash: number; realEstate: number };
@@ -101,6 +105,7 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
       hasIncome: false, riskProfile: 'moderate', riskReason: '', riskWasExplicit: false,
       emergencyFirst: false, emergencyMessage: null, highCostDebtFirst: false, debtMessage: null,
       monthlyInvestable: 0, investableExplanation: 'Add your income and expenses to unlock a personalised plan.',
+      takeHome: 0, monthlyExpenses: 0, currentSip: 0, surplus: 0,
       targetAllocation: { equity: 0, debt: 0, gold: 0 },
       currentAllocation: { equity: 0, debt: 0, gold: 0, cash: 0, realEstate: 0 },
       allocationGap: [], recommendations: [], modelPortfolios: [], rebalanceNotes: [], startSteps: [], disclaimer,
@@ -288,6 +293,7 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
     hasIncome: true, riskProfile: risk, riskReason: reason, riskWasExplicit,
     emergencyFirst, emergencyMessage, highCostDebtFirst, debtMessage,
     monthlyInvestable, investableExplanation,
+    takeHome, monthlyExpenses: expenses, currentSip: existingSip, surplus: Math.max(0, rawSurplus),
     targetAllocation, currentAllocation, allocationGap,
     recommendations: visibleRecs, modelPortfolios, rebalanceNotes, startSteps, disclaimer,
   };
