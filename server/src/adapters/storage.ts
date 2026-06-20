@@ -5,12 +5,17 @@ import { config } from '../config';
 
 export const storageConfigured = () => !!(config.supabaseUrl && config.supabaseServiceKey);
 
+// Normalise the project URL: people often paste the Data-API URL with a
+// `/rest/v1` suffix (or a trailing slash). Strip those so `/storage/v1/...`
+// reaches the Storage service, not PostgREST.
+const baseUrl = () => config.supabaseUrl.trim().replace(/\/+$/, '').replace(/\/(rest|storage|auth)\/v1$/, '').replace(/\/+$/, '');
+
 // Supabase REST wants the key in BOTH the apikey header and as a Bearer token.
 // This works for the new sb_secret_… keys and the legacy service_role JWT.
 const authHeaders = () => ({ apikey: config.supabaseServiceKey, Authorization: `Bearer ${config.supabaseServiceKey}` });
 
 export async function uploadObject(path: string, bytes: Buffer, contentType: string): Promise<void> {
-  const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, {
+  const res = await fetch(`${baseUrl()}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': contentType, 'x-upsert': 'true' },
     body: bytes as any,
@@ -19,7 +24,7 @@ export async function uploadObject(path: string, bytes: Buffer, contentType: str
 }
 
 export async function signedUrl(path: string, expiresIn = 300): Promise<string> {
-  const res = await fetch(`${config.supabaseUrl}/storage/v1/object/sign/${config.supabaseBucket}/${encodeURI(path)}`, {
+  const res = await fetch(`${baseUrl()}/storage/v1/object/sign/${config.supabaseBucket}/${encodeURI(path)}`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ expiresIn }),
@@ -30,13 +35,13 @@ export async function signedUrl(path: string, expiresIn = 300): Promise<string> 
 }
 
 export async function downloadObject(path: string): Promise<Buffer> {
-  const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, { headers: authHeaders() });
+  const res = await fetch(`${baseUrl()}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`storage download failed (${res.status})`);
   return Buffer.from(await res.arrayBuffer());
 }
 
 export async function deleteObject(path: string): Promise<void> {
-  await fetch(`${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, {
+  await fetch(`${baseUrl()}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, {
     method: 'DELETE', headers: authHeaders(),
   });
 }
