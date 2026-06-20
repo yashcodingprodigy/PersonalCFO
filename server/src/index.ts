@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
+import jwt from 'jsonwebtoken';
+import { addClient, removeClient } from './services/realtime';
 import { authRouter } from './routes/auth';
 import { caRouter } from './routes/ca';
 import { userRouter } from './routes/user';
@@ -42,6 +44,24 @@ app.use(express.json({ limit: '12mb' })); // higher ceiling for base64 doc uploa
 app.use(rateLimit({ windowMs: 60_000, max: 1000, keyPrefix: 'api' }));
 
 app.get('/v1/health', (_req, res) => res.json({ status: 'ok', service: 'paywatch-api', ts: new Date().toISOString() }));
+
+// SSE stream for instant updates. EventSource can't send headers, so the JWT
+// comes as ?token=. Subject = caId for CA tokens, userId otherwise.
+app.get('/v1/events', (req, res) => {
+  const token = String(req.query.token || '');
+  let subject: string | null = null;
+  try {
+    const p = jwt.verify(token, config.jwtSecret) as { sub: string; role?: string };
+    if (p.role === 'ca-refresh') subject = null; else subject = p.sub;
+  } catch { subject = null; }
+  if (!subject) return res.status(401).end();
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+  res.flushHeaders?.();
+  res.write('retry: 5000\n\n');
+  addClient(subject, res);
+  const keepAlive = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25000);
+  req.on('close', () => { clearInterval(keepAlive); removeClient(subject!, res); });
+});
 
 app.use('/v1/auth', authRouter);
 app.use('/v1/ca', caRouter);

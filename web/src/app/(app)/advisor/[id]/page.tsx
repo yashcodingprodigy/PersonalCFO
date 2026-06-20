@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { get, post } from '@/lib/api';
+import { get, post, downloadFile, subscribeEvents } from '@/lib/api';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
 
 export default function AdvisorThread() {
@@ -18,13 +18,15 @@ export default function AdvisorThread() {
   useEffect(() => {
     get('/user/ca').then((d) => { const l = (d.links || []).find((x: any) => x.link_id === id); if (l) setCaName(l.ca_name); }).catch(() => {});
     loadMsgs(); loadDocs();
-    const t = setInterval(() => { if (!document.hidden) { loadMsgs(); loadDocs(); } }, 5000);
-    return () => clearInterval(t);
+    const refresh = () => { loadMsgs(); loadDocs(); };
+    const unsub = subscribeEvents(refresh);                         // instant via SSE
+    const t = setInterval(() => { if (!document.hidden) refresh(); }, 8000); // fallback
+    return () => { clearInterval(t); unsub(); };
   }, [id]);
 
   async function send(text: string) { await post(`/user/ca/links/${id}/messages`, { body: text }); loadMsgs(); }
   async function upload(file: File) { const { data, mime } = await fileToBase64(file); await post(`/user/ca/links/${id}/documents`, { file_name: file.name, mime_type: mime, data }); loadDocs(); }
-  async function download(docId: string) { const r = await get(`/user/ca/links/${id}/documents/${docId}/url`); if (r?.url) window.open(r.url, '_blank'); }
+  async function download(docId: string) { const d = docs.find((x) => x.document_id === docId); await downloadFile(`/user/ca/links/${id}/documents/${docId}/file`, d?.file_name || 'document'); }
 
   return (
     <div className="space-y-6 max-w-4xl">

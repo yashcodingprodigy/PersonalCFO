@@ -34,6 +34,7 @@ export async function caApi<T = any>(path: string, opts: RequestInit = {}, retri
   const { access } = getCaTokens();
   const res = await fetch(`${BASE}${path}`, {
     ...opts,
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}), ...(opts.headers || {}) },
   });
   if (res.status === 401 && !retried && getCaTokens().refresh) {
@@ -43,6 +44,26 @@ export async function caApi<T = any>(path: string, opts: RequestInit = {}, retri
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).message || 'Request failed');
   return data as T;
+}
+
+// SSE stream for the CA side (token in query; server derives caId from role).
+export function subscribeCaEvents(onEvent: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const { access } = getCaTokens();
+  if (!access) return () => {};
+  let es: EventSource | null = null;
+  try { es = new EventSource(`${BASE}/events?token=${encodeURIComponent(access)}`); es.onmessage = () => onEvent(); } catch {}
+  return () => { try { es?.close(); } catch {} };
+}
+
+export async function caDownloadFile(path: string, filename: string): Promise<void> {
+  const { access } = getCaTokens();
+  const res = await fetch(`${BASE}${path}`, { cache: 'no-store', headers: access ? { Authorization: `Bearer ${access}` } : {} });
+  if (!res.ok) throw new Error('Download failed');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename || 'document'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 export const caGet = <T = any>(path: string) => caApi<T>(path);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Wordmark } from '@/components/Logo';
-import { caGet, caPost, caDel, getCaTokens, clearCaTokens } from '@/lib/caApi';
+import { caGet, caPost, caDel, subscribeCaEvents, getCaTokens, clearCaTokens } from '@/lib/caApi';
 
 export default function CaHome() {
   const router = useRouter();
@@ -18,8 +18,10 @@ export default function CaHome() {
   useEffect(() => {
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
     caGet('/ca/me').then((c) => { setCa(c); loadClients(); }).catch(() => { clearCaTokens(); router.replace('/ca/login'); });
-    const t = setInterval(() => { if (!document.hidden) { loadClients(); caGet('/ca/me').then(setCa).catch(() => {}); } }, 8000);
-    return () => clearInterval(t);
+    const refresh = () => { loadClients(); caGet('/ca/me').then(setCa).catch(() => {}); };
+    const unsub = subscribeCaEvents(refresh);
+    const t = setInterval(() => { if (!document.hidden) refresh(); }, 10000);
+    return () => { clearInterval(t); unsub(); };
   }, [router]);
 
   async function connectClient(e: React.FormEvent) {

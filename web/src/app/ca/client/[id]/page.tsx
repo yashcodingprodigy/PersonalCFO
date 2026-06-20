@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
 import { inr } from '@/lib/format';
-import { caGet, caPost, getCaTokens, clearCaTokens } from '@/lib/caApi';
+import { caGet, caPost, caDownloadFile, subscribeCaEvents, getCaTokens, clearCaTokens } from '@/lib/caApi';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
 
 export default function CaClient() {
@@ -21,13 +21,15 @@ export default function CaClient() {
   useEffect(() => {
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
     caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); }).catch((e) => setErr(e.message));
-    const t = setInterval(() => { if (!document.hidden) { loadMsgs(); loadDocs(); } }, 5000);
-    return () => clearInterval(t);
+    const refresh = () => { loadMsgs(); loadDocs(); };
+    const unsub = subscribeCaEvents(refresh);
+    const t = setInterval(() => { if (!document.hidden) refresh(); }, 8000);
+    return () => { clearInterval(t); unsub(); };
   }, [id, router]);
 
   async function send(text: string) { await caPost(`/ca/clients/${id}/messages`, { body: text }); loadMsgs(); }
   async function upload(file: File) { const { data, mime } = await fileToBase64(file); await caPost(`/ca/clients/${id}/documents`, { file_name: file.name, mime_type: mime, data }); loadDocs(); }
-  async function download(docId: string) { const r = await caGet(`/ca/clients/${id}/documents/${docId}/url`); if (r?.url) window.open(r.url, '_blank'); }
+  async function download(docId: string) { const d = docs.find((x) => x.document_id === docId); await caDownloadFile(`/ca/clients/${id}/documents/${docId}/file`, d?.file_name || 'document'); }
 
   if (err) return <main className="min-h-screen bg-paper p-8"><p className="text-signal-red text-sm">{err}</p><Link href="/ca" className="text-sm text-pine-700 underline">← Back</Link></main>;
   if (!ov) return <main className="min-h-screen bg-paper animate-pulse" />;

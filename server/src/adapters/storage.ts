@@ -29,6 +29,12 @@ export async function signedUrl(path: string, expiresIn = 300): Promise<string> 
   return `${config.supabaseUrl}/storage/v1${data.signedURL}`;
 }
 
+export async function downloadObject(path: string): Promise<Buffer> {
+  const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`storage download failed (${res.status})`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 export async function deleteObject(path: string): Promise<void> {
   await fetch(`${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${encodeURI(path)}`, {
     method: 'DELETE', headers: authHeaders(),

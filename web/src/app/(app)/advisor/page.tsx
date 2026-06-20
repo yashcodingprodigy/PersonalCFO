@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get, post, del } from '@/lib/api';
+import { get, post, del, subscribeEvents } from '@/lib/api';
 
 export default function AdvisorPage() {
   const [data, setData] = useState<any>(null);
@@ -15,8 +15,9 @@ export default function AdvisorPage() {
   function load() { get('/user/ca').then(setData).catch((e) => setErr(e.message)); }
   useEffect(() => {
     load();
-    const t = setInterval(() => { if (!document.hidden) load(); }, 8000);
-    return () => clearInterval(t);
+    const unsub = subscribeEvents(load);
+    const t = setInterval(() => { if (!document.hidden) load(); }, 10000);
+    return () => { clearInterval(t); unsub(); };
   }, []);
 
   async function connect(e: React.FormEvent) {

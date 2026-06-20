@@ -74,7 +74,7 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload }:
             </ul>
           )}
         </div>
-        <p className="text-[10px] text-ink-faint mt-2">Files are private to this connection. Max 8 MB each.</p>
+        <p className="text-[10px] text-ink-faint mt-2">Messages &amp; files are encrypted (AES-256) and private to this connection. Max 8 MB each.</p>
       </div>
     </div>
   );

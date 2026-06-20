@@ -50,6 +50,7 @@ export async function api<T = any>(path: string, opts: RequestInit = {}, retried
   const { access } = getTokens();
   const res = await fetch(`${BASE}${path}`, {
     ...opts,
+    cache: 'no-store', // always hit the network — polling must see fresh data
     headers: {
       'Content-Type': 'application/json',
       ...(access ? { Authorization: `Bearer ${access}` } : {}),
@@ -107,6 +108,29 @@ export function clearCache() {
   } catch {}
 }
 function bust<T>(v: T): T { clearCache(); return v; }
+
+// Open an SSE stream; calls onEvent whenever the server pushes a refresh
+// signal. Returns an unsubscribe fn. (EventSource can't send headers, so the
+// token rides in the query string.)
+export function subscribeEvents(onEvent: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const { access } = getTokens();
+  if (!access) return () => {};
+  let es: EventSource | null = null;
+  try { es = new EventSource(`${BASE}/events?token=${encodeURIComponent(access)}`); es.onmessage = () => onEvent(); } catch {}
+  return () => { try { es?.close(); } catch {} };
+}
+
+// Authenticated binary download (decrypted on the server) → triggers a save.
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const { access } = getTokens();
+  const res = await fetch(`${BASE}${path}`, { cache: 'no-store', headers: access ? { Authorization: `Bearer ${access}` } : {} });
+  if (!res.ok) throw new Error('Download failed');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename || 'document'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 
 // Stale-while-revalidate: calls onData immediately with any cached value, then
 // fetches fresh and calls onData again. Use in place of `get(...).then(setX)`.

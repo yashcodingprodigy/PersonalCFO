@@ -15,6 +15,7 @@ export const config = {
   aaProvider: process.env.AA_PROVIDER || 'mock',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+  encryptionKey: process.env.ENCRYPTION_KEY || '',
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
   supabaseBucket: process.env.SUPABASE_BUCKET || 'ca-documents',
