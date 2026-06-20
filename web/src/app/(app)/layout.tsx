@@ -47,6 +47,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     swr('/alerts/count', (r: any) => setUnread(r.unread || 0), 10_000).catch(() => {});
   }, [router, path]);
 
+  // Keep the unread-alerts badge fresh without a reload (paused when hidden).
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) get('/alerts/count').then((r) => setUnread(r.unread || 0)).catch(() => {}); }, 20000);
+    return () => clearInterval(t);
+  }, []);
+
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setMenuOpen(false); }, [path]);
   const isPaid = user && (user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active';

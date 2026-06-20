@@ -18,6 +18,8 @@ export default function AdvisorThread() {
   useEffect(() => {
     get('/user/ca').then((d) => { const l = (d.links || []).find((x: any) => x.link_id === id); if (l) setCaName(l.ca_name); }).catch(() => {});
     loadMsgs(); loadDocs();
+    const t = setInterval(() => { if (!document.hidden) { loadMsgs(); loadDocs(); } }, 5000);
+    return () => clearInterval(t);
   }, [id]);
 
   async function send(text: string) { await post(`/user/ca/links/${id}/messages`, { body: text }); loadMsgs(); }

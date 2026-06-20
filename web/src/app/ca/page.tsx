@@ -18,6 +18,8 @@ export default function CaHome() {
   useEffect(() => {
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
     caGet('/ca/me').then((c) => { setCa(c); loadClients(); }).catch(() => { clearCaTokens(); router.replace('/ca/login'); });
+    const t = setInterval(() => { if (!document.hidden) { loadClients(); caGet('/ca/me').then(setCa).catch(() => {}); } }, 8000);
+    return () => clearInterval(t);
   }, [router]);
 
   async function connectClient(e: React.FormEvent) {

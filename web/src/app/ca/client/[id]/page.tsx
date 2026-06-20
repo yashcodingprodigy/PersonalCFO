@@ -21,6 +21,8 @@ export default function CaClient() {
   useEffect(() => {
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
     caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); }).catch((e) => setErr(e.message));
+    const t = setInterval(() => { if (!document.hidden) { loadMsgs(); loadDocs(); } }, 5000);
+    return () => clearInterval(t);
   }, [id, router]);
 
   async function send(text: string) { await caPost(`/ca/clients/${id}/messages`, { body: text }); loadMsgs(); }

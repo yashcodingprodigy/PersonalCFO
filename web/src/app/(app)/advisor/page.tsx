@@ -13,7 +13,11 @@ export default function AdvisorPage() {
   const [copied, setCopied] = useState(false);
 
   function load() { get('/user/ca').then(setData).catch((e) => setErr(e.message)); }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const t = setInterval(() => { if (!document.hidden) load(); }, 8000);
+    return () => clearInterval(t);
+  }, []);
 
   async function connect(e: React.FormEvent) {
     e.preventDefault(); setErr(''); setMsg(''); setBusy(true);
