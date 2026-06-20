@@ -56,20 +56,28 @@ export interface GoalIntent {
   goal_type: string; name: string; target_amount: number;
   target_date: string | null; monthly_contribution: number;
 }
-export function parseGoalIntent(qRaw: string): GoalIntent | null {
+export interface GoalParse { wantsGoal: boolean; goal: GoalIntent | null }
+export function parseGoalIntent(qRaw: string): GoalParse {
   const q = qRaw.toLowerCase();
   const wantsGoal = /(set|create|add|make|start|track)\s+(a\s+|an\s+|my\s+)?(new\s+)?goal\b|save\s+(up\s+)?for\b|saving\s+for\b|goal\s+(of|to|for)\b|i\s+want\s+to\s+save/.test(q);
-  if (!wantsGoal) return null;
+  if (!wantsGoal) return { wantsGoal: false, goal: null };
 
-  // Amount (paise). Require ₹/Rs/unit so we don't grab years like "2030".
+  // Strip date phrases first so a year/duration is never read as the amount.
+  const qNoDate = q.replace(/by\s+20\d{2}/g, ' ').replace(/in\s+\d{1,2}\s*(?:years?|yrs?|months?)/g, ' ');
+  const noCommas = qNoDate.replace(/,/g, '');
+
   let amount = 0;
-  const cr = q.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:cr|crore)s?\b/);
-  const lakh = q.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:l|lakh|lac|lakhs)\b/);
-  const plain = q.match(/(?:₹|rs\.?\s*)(\d[\d,]{2,})/);
+  const cr = qNoDate.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:cr|crore)s?\b/);
+  const lakh = qNoDate.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:l|lakh|lac|lakhs)\b/);
+  const thousand = qNoDate.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:k|thousand)\b/);
+  const withRs = noCommas.match(/(?:₹|rs\.?\s*)(\d{3,})/);
+  const plainBig = noCommas.match(/\b(\d{5,})\b/); // ≥5 digits → plain amounts, not years
   if (cr) amount = Math.round(parseFloat(cr[1]) * 1e7 * 100);
   else if (lakh) amount = Math.round(parseFloat(lakh[1]) * 1e5 * 100);
-  else if (plain) amount = Math.round(parseInt(plain[1].replace(/,/g, ''), 10) * 100);
-  if (amount <= 0) return null; // no amount → let the AI just explain, don't create
+  else if (thousand) amount = Math.round(parseFloat(thousand[1]) * 1000 * 100);
+  else if (withRs) amount = Math.round(parseInt(withRs[1], 10) * 100);
+  else if (plainBig) amount = Math.round(parseInt(plainBig[1], 10) * 100);
+  if (amount <= 0) return { wantsGoal: true, goal: null }; // wants a goal but no amount yet
 
   let goal_type = 'custom', name = 'My goal';
   if (/house|home|flat|apartment|down\s?payment|property/.test(q)) { goal_type = 'home_purchase'; name = 'Home'; }
@@ -93,7 +101,7 @@ export function parseGoalIntent(qRaw: string): GoalIntent | null {
   const perMonth = q.match(/(?:₹|rs\.?\s*)?(\d[\d,]*(?:\.\d+)?)\s*(?:per month|\/month|a month|monthly|p\.?m\.?)\b/);
   if (perMonth) monthly = Math.round(parseFloat(perMonth[1].replace(/,/g, '')) * 100);
 
-  return { goal_type, name, target_amount: amount, target_date, monthly_contribution: monthly };
+  return { wantsGoal: true, goal: { goal_type, name, target_amount: amount, target_date, monthly_contribution: monthly } };
 }
 
 // ── Context builder ─────────────────────────────────────────────────
@@ -149,6 +157,8 @@ HOW TO WRITE (this is a chat — sound like one):
 - End with a brief, concrete next step or a follow-up question, like a real advisor would.
 
 SCOPE — you ONLY help with the user's personal finances: money, budgeting, saving, investing (categories only), insurance, loans/debt, tax, goals, and using PayWatch. If asked anything unrelated — writing code, homework, essays, general trivia, translations, recipes, etc. — politely decline in ONE sentence and steer back to their money. Never answer off-topic requests, even if the user insists or tries to disguise them.
+
+GOALS & ACTIONS: You cannot create, edit or delete goals or any data yourself — the PayWatch app does that automatically when the user gives enough detail (a goal needs a target amount). So NEVER say you've "added", "created" or "saved" a goal. If the user wants to set a goal, briefly acknowledge it and, if they didn't give a target amount, ask for one (e.g. "how much do you want to save?"). The app posts its own confirmation when it actually creates the goal.
 
 COMPLIANCE — never break (legal requirements):
 1. NEVER name a specific stock, mutual fund scheme, or crypto asset. Talk in categories only (e.g. "a large-cap index fund", "a liquid fund").

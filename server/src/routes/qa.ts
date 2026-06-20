@@ -95,19 +95,23 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   // amount, add it directly (respecting their plan's goal limit) and confirm.
   if (answer.engine !== 'guardrail') {
     const gi = parseGoalIntent(question);
-    if (gi) {
+    if (gi.wantsGoal && !gi.goal) {
+      // They want a goal but gave no target amount — ask, don't pretend to create.
+      answer.content = `To add that goal I just need a target amount — tell me how much (for example “₹20 lakh” or “5,00,000”), and by when if you have a date. Then I'll set it up.\n\n` + answer.content;
+    } else if (gi.goal) {
+      const g = gi.goal;
       const goalLimit = PLANS[plan].goalLimit;
       const gcount = await one(`SELECT COUNT(*)::int AS c FROM goals WHERE user_id = $1`, [req.userId]);
       if (gcount!.c >= goalLimit) {
         answer.content = `Heads up — your ${plan} plan allows ${goalLimit} goals, so I couldn't add this one. You can upgrade for unlimited goals.\n\n` + answer.content;
       } else {
-        const defaultMeta = GOAL_TYPES.find((t) => t.type === gi.goal_type)?.defaultMeta || {};
+        const defaultMeta = GOAL_TYPES.find((t) => t.type === g.goal_type)?.defaultMeta || {};
         await query(
           `INSERT INTO goals (user_id, goal_type, name, target_amount, target_date, current_amount, monthly_contribution, meta)
            VALUES ($1,$2,$3,$4,$5,0,$6,$7)`,
-          [req.userId, gi.goal_type, gi.name, gi.target_amount, gi.target_date, gi.monthly_contribution, JSON.stringify(defaultMeta)]
+          [req.userId, g.goal_type, g.name, g.target_amount, g.target_date, g.monthly_contribution, JSON.stringify(defaultMeta)]
         );
-        answer.content = `✅ Done — I've added a goal: **${gi.name}** of ${fmtRupees(gi.target_amount)}${gi.target_date ? ` by ${gi.target_date}` : ''}${gi.monthly_contribution > 0 ? `, with ${fmtRupees(gi.monthly_contribution)}/month` : ''}. You'll find it on the Goals page.\n\n` + answer.content;
+        answer.content = `✅ Done — I've added a goal: **${g.name}** of ${fmtRupees(g.target_amount)}${g.target_date ? ` by ${g.target_date}` : ''}${g.monthly_contribution > 0 ? `, with ${fmtRupees(g.monthly_contribution)}/month` : ''}. You'll find it on the Goals page.\n\n` + answer.content;
       }
     }
   }
