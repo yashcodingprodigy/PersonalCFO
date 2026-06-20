@@ -14,9 +14,10 @@ import { verifyOtp } from './auth';
 import { requireCa, AuthedRequest } from '../middleware/auth';
 import { requestLink, maskMobile } from '../services/caLink';
 import { loadProfileData } from '../services/profile';
-import { computeScore } from '../services/score';
+import { computeScore, deductionUsage } from '../services/score';
 import { computeNetWorth } from '../services/networth';
-import { taxCopilot } from '../services/tax';
+import { taxCopilot, compareRegimes, computeHraExemption } from '../services/tax';
+import { analyseInsurance } from '../services/insurance';
 import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile } from '../services/caShare';
 import { publish } from '../services/realtime';
 
@@ -181,19 +182,39 @@ caRouter.get('/clients/:id/overview', requireCa, async (req: AuthedRequest, res)
   const link = await activeLink(req.caId!, req.params.id);
   if (!link) return res.status(404).json({ error: 'not_found' });
   if (link.status !== 'active') return res.status(403).json({ error: 'not_connected', message: 'This client hasn’t approved the connection yet.' });
-  const user = await one<any>(`SELECT name, mobile, city, email FROM users WHERE user_id = $1 AND deleted_at IS NULL`, [link.user_id]);
+  const user = await one<any>(
+    `SELECT name, mobile, city, state, email, age, employment_type, dependents_count, risk_appetite,
+            annual_gross_income, monthly_take_home FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
+    [link.user_id]
+  );
   const p = await loadProfileData(link.user_id);
   if (!p) return res.status(404).json({ error: 'no_profile' });
   const score = computeScore(p);
   const nw = computeNetWorth(p);
   const copilot = taxCopilot(p);
+  const cmp = compareRegimes(p);
+  const ded = deductionUsage(p);
+  const ins = analyseInsurance(p);
   res.json({
     link_id: link.link_id,
-    client: { name: user?.name || 'Client', mobile: maskMobile(user?.mobile || ''), city: user?.city || '', email: user?.email || '' },
+    client: {
+      name: user?.name || 'Client', mobile: maskMobile(user?.mobile || ''), email: user?.email || '',
+      city: user?.city || '', state: user?.state || '', age: user?.age ?? null,
+      employment_type: user?.employment_type || '', dependents: user?.dependents_count ?? 0,
+      risk_appetite: user?.risk_appetite || '',
+    },
+    income: { annualGross: Number(user?.annual_gross_income) || 0, monthlyTakeHome: Number(user?.monthly_take_home) || 0, monthlyExpenses: p.monthlyExpenses ?? null },
     score: score.score,
-    netWorth: nw.netWorth,
-    totalAssets: nw.totalAssets,
-    totalLiabilities: nw.totalLiabilities,
+    netWorth: nw.netWorth, totalAssets: nw.totalAssets, totalLiabilities: nw.totalLiabilities,
+    assets: nw.assets, liabilities: nw.liabilities, allocation: nw.allocation,
+    regimes: {
+      recommended: cmp.recommended, savings: cmp.savings, reasoning: cmp.reasoning,
+      old: { taxableIncome: cmp.oldRegime.taxableIncome, totalDeductions: cmp.oldRegime.totalDeductions, tax: cmp.oldRegime.tax },
+      new: { taxableIncome: cmp.newRegime.taxableIncome, totalDeductions: cmp.newRegime.totalDeductions, tax: cmp.newRegime.tax },
+    },
+    deductions: ded.items,
+    hraExemption: computeHraExemption(p),
+    insurance: { term: ins.term, health: ins.health },
     taxPack: copilot.readyPack,
   });
 });

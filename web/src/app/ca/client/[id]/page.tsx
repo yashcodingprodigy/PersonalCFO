@@ -45,7 +45,8 @@ export default function CaClient() {
       <div className="max-w-4xl mx-auto px-5 py-8 space-y-6">
         <div>
           <h1 className="font-display text-3xl font-medium">{ov.client.name}</h1>
-          <p className="text-sm text-ink-soft mt-1">{[ov.client.city, ov.client.mobile].filter(Boolean).join(' · ')}</p>
+          <p className="text-sm text-ink-soft mt-1">{[[ov.client.city, ov.client.state].filter(Boolean).join(', '), ov.client.age ? `${ov.client.age} yrs` : '', ov.client.employment_type?.replace(/_/g, ' '), ov.client.dependents ? `${ov.client.dependents} dependents` : 'no dependents', ov.client.mobile].filter(Boolean).join(' · ')}</p>
+          <p className="text-xs text-ink-faint mt-0.5">{[ov.client.email, ov.client.risk_appetite && `${ov.client.risk_appetite} risk profile`].filter(Boolean).join(' · ')}</p>
         </div>
 
         {/* Snapshot */}
@@ -53,6 +54,32 @@ export default function CaClient() {
           <div className="card p-5"><p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Money score</p><p className="font-display text-2xl font-semibold mt-1">{ov.score}/100</p></div>
           <div className="card p-5"><p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Net worth</p><p className="font-display text-2xl font-semibold mt-1">{inr(ov.netWorth)}</p></div>
           <div className="card p-5"><p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Est. tax</p><p className="font-display text-2xl font-semibold mt-1">{inr(tp.estimatedTax)}</p></div>
+        </div>
+
+        {/* Income */}
+        <div className="card p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Income</h2>
+          <dl className="grid sm:grid-cols-3 gap-x-8 gap-y-2 text-sm">
+            <div className="flex justify-between"><dt className="text-ink-soft">Gross / year</dt><dd className="font-semibold tabular-nums">{inr(ov.income.annualGross)}</dd></div>
+            <div className="flex justify-between"><dt className="text-ink-soft">Take-home / mo</dt><dd className="font-semibold tabular-nums">{inr(ov.income.monthlyTakeHome)}</dd></div>
+            <div className="flex justify-between"><dt className="text-ink-soft">Expenses / mo</dt><dd className="font-semibold tabular-nums">{ov.income.monthlyExpenses != null ? inr(ov.income.monthlyExpenses) : '—'}</dd></div>
+          </dl>
+        </div>
+
+        {/* Regime comparison */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2"><h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Old vs new regime</h2><span className="chip bg-mint-100 text-pine-800 capitalize">Recommended: {ov.regimes.recommended}</span></div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {(['old', 'new'] as const).map((r) => (
+              <div key={r} className={`rounded-xl border p-4 ${ov.regimes.recommended === r ? 'border-pine-700 bg-pine-900/5' : 'border-paper-200'}`}>
+                <p className="font-bold capitalize mb-1.5">{r} regime</p>
+                <div className="flex justify-between"><span className="text-ink-soft">Deductions</span><span className="tabular-nums">{inr(ov.regimes[r].totalDeductions)}</span></div>
+                <div className="flex justify-between"><span className="text-ink-soft">Taxable</span><span className="tabular-nums">{inr(ov.regimes[r].taxableIncome)}</span></div>
+                <div className="flex justify-between font-semibold mt-1"><span>Tax</span><span className="tabular-nums">{inr(ov.regimes[r].tax)}</span></div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-ink-soft mt-3">{ov.regimes.reasoning}</p>
         </div>
 
         {/* Tax pack */}
@@ -64,6 +91,7 @@ export default function CaClient() {
             <div className="flex justify-between"><dt className="text-ink-soft">Taxable income</dt><dd className="font-semibold tabular-nums">{inr(tp.taxableIncome)}</dd></div>
             <div className="flex justify-between"><dt className="text-ink-soft">Estimated tax</dt><dd className="font-semibold tabular-nums">{inr(tp.estimatedTax)}</dd></div>
             <div className="flex justify-between"><dt className="text-ink-soft">Effective rate</dt><dd className="font-semibold tabular-nums">{tp.effectiveRatePct}%</dd></div>
+            <div className="flex justify-between"><dt className="text-ink-soft">HRA exemption</dt><dd className="font-semibold tabular-nums">{inr(ov.hraExemption)}</dd></div>
           </dl>
           {tp.deductionItems?.length > 0 && (
             <div className="mt-4 border-t border-paper-100 pt-3">
@@ -77,6 +105,35 @@ export default function CaClient() {
           )}
           <p className="text-[11px] text-ink-faint mt-3">Computed from the client’s self-entered data. Verify against Form 26AS/AIS before filing.</p>
         </div>
+
+        {/* Assets & liabilities */}
+        <div className="grid sm:grid-cols-2 gap-6">
+          <div className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Assets</h2>
+            <ul className="space-y-1.5 text-sm">
+              {ov.assets?.length ? ov.assets.map((a: any, i: number) => (<li key={i} className="flex justify-between"><span className="text-ink-soft">{a.label}</span><span className="tabular-nums">{inr(a.value)}</span></li>)) : <li className="text-ink-faint">None recorded.</li>}
+            </ul>
+            <p className="flex justify-between text-sm font-semibold border-t border-paper-100 mt-2 pt-2"><span>Total assets</span><span className="tabular-nums">{inr(ov.totalAssets)}</span></p>
+          </div>
+          <div className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Liabilities</h2>
+            <ul className="space-y-1.5 text-sm">
+              {ov.liabilities?.length ? ov.liabilities.map((l: any, i: number) => (<li key={i} className="flex justify-between"><span className="text-ink-soft">{l.label}</span><span className="tabular-nums">{inr(l.value)}</span></li>)) : <li className="text-ink-faint">None recorded.</li>}
+            </ul>
+            <p className="flex justify-between text-sm font-semibold border-t border-paper-100 mt-2 pt-2"><span>Total liabilities</span><span className="tabular-nums">{inr(ov.totalLiabilities)}</span></p>
+          </div>
+        </div>
+
+        {/* Insurance */}
+        <div className="card p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Insurance cover</h2>
+          <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <div className="flex justify-between"><dt className="text-ink-soft">Term life</dt><dd className="tabular-nums">{inr(ov.insurance.term.current)} <span className="text-ink-faint">/ {inr(ov.insurance.term.recommended)} rec.</span></dd></div>
+            <div className="flex justify-between"><dt className="text-ink-soft">Health</dt><dd className="tabular-nums">{inr(ov.insurance.health.current)} <span className="text-ink-faint">/ {inr(ov.insurance.health.recommended)} rec.</span></dd></div>
+          </dl>
+        </div>
+
+        <p className="text-[11px] text-ink-faint">Need PAN, Form 16, 26AS/AIS or other paperwork? Ask the client to share them via the documents panel below.</p>
 
         <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} />
       </div>
