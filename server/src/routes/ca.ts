@@ -47,11 +47,18 @@ function caTokens(caId: string) {
 caRouter.post('/auth/register', async (req, res) => {
   const schema = mobileSchema.extend({
     otp: z.string().length(6),
+    // Required for a genuine individual CA.
     name: z.string().min(2).max(120),
-    email: z.string().email().max(160).optional(),
+    icai_number: z.string().min(3).max(40),
+    email: z.string().email().max(160),
+    city: z.string().min(1).max(100),
+    // Optional practice details.
     firm_name: z.string().max(160).optional(),
-    icai_number: z.string().max(40).optional(),
-    city: z.string().max(100).optional(),
+    frn: z.string().max(40).optional(),
+    cop_number: z.string().max(40).optional(),
+    office_address: z.string().max(300).optional(),
+    website: z.string().max(200).optional(),
+    gstin: z.string().max(20).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
@@ -64,9 +71,9 @@ caRouter.post('/auth/register', async (req, res) => {
 
   const code = await uniqueCaCode();
   const ca = await one(
-    `INSERT INTO cas (mobile, name, email, firm_name, icai_number, city, connect_code)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING ca_id, name, connect_code`,
-    [d.mobile, d.name, d.email || null, d.firm_name || null, d.icai_number || null, d.city || null, code]
+    `INSERT INTO cas (mobile, name, icai_number, email, city, firm_name, frn, cop_number, office_address, website, gstin, connect_code)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING ca_id, name, connect_code`,
+    [d.mobile, d.name, d.icai_number, d.email, d.city, d.firm_name || null, d.frn || null, d.cop_number || null, d.office_address || null, d.website || null, d.gstin || null, code]
   );
   const { accessToken, refreshToken } = caTokens(ca!.ca_id);
   res.json({ access_token: accessToken, refresh_token: refreshToken, ca: { ca_id: ca!.ca_id, name: ca!.name, connect_code: ca!.connect_code } });

@@ -3,7 +3,7 @@
 > Single source of truth for the PayWatch project. Read this first before working on the codebase.
 > Keep it updated when architecture, features, deployment, branding, or compliance decisions change.
 
-Last updated: June 2026.
+Last updated: June 2026 (CA portal, Portfolio X-ray, Ask PayWatch rename, Supabase Mumbai DB).
 
 ---
 
@@ -57,17 +57,23 @@ PayWatch/
 Web app tabs live in `web/src/app/(app)/<tab>/page.tsx`, behind the auth layout (sidebar + mobile nav,
 unread-alerts badge, native biometric lock overlay).
 
-- **Overview** (`dashboard`) — Money Health Score gauge + 6 dimensions, monthly **briefing** card,
-  **net-worth growth** comparison (do-nothing vs with-PayWatch, 5/10/20yr toggle, step-up SIP), net
-  worth summary, top actions, AA connect.
+- **Overview** (`dashboard`) — **Ask PayWatch spotlight** card (suggested Qs deep-link to `/ask?q=`),
+  Money Health Score gauge + 6 dimensions, monthly **briefing** card, **net-worth growth** comparison
+  (do-nothing vs with-PayWatch, 5/10/20yr toggle, **risk selector** that re-projects, step-up SIP,
+  honest disclaimer), net worth summary, top actions, "Upload bank statement" CTA (AA bank-sync is
+  "coming soon"). Data fetched via the **SWR cache** (`lib/api swr()`).
 - **Alerts** (`alerts`) — proactive inbox (urgent/warning/info/good), mark read/dismiss.
 - **Actions** (`actions`) — quantified action plan; **priority** badges + filters (status/priority/sort);
   "Mark done" → confirmation → optional "how much / into what" → writes to profile + recalcs score.
 - **Net worth** (`networth`) — allocation **donut**, assets/liabilities, growth projection w/ horizon
   toggle, spending breakdown.
 - **Invest** (`invest`) — SEBI-compliant: risk profile, target-mix donut, collapsible fund-category
-  recommendations, model portfolios, start steps. Section nav.
-- **Markets & news** (`markets`) — educational investment themes + live financial news (keyless RSS).
+  recommendations (each with **"I've started this → add to my data"** which bumps SIP + hides it),
+  approximate amounts (`inrApprox`), **Portfolio X-ray** section (upload holdings → look-through), model
+  portfolios, start steps. Section nav. (`/portfolio` route now redirects here.)
+- **Your CA** (`advisor`) — connect to a Chartered Accountant: your connect code, enter a CA code,
+  approve/decline requests, disconnect. Active CA → `/advisor/[id]` (messaging + document sharing). See §11.
+- **Markets & news** (`markets`) — **news first**, then educational investment themes (keyless RSS).
 - **Tax** (`tax`) — regime comparison, "how to reduce your tax" (collapsible steps), **Tax Copilot**
   (advance-tax timeline, proof calendar, harvesting, CA-ready pack), deduction tracker, calendar,
   docs + glossary. Section nav.
@@ -78,8 +84,11 @@ unread-alerts badge, native biometric lock overlay).
 - **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → detailed spending report.
 - **Document vault** (`vault`) — track CA paperwork + expiry reminders (feeds alerts).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
-- **Goals**, **Ask your CFO** (RAG Q&A), **Reports**, **Plans** (pricing/subscribe), **Settings**.
-- Public: `onboarding` (3-session, state→city dropdowns, risk question), `login`, landing `/`, `legal/*`.
+- **Goals** (moved up in nav; shows a dummy **Example** goal when empty), **Ask PayWatch** (`ask`, RAG
+  Q&A — renamed from "Ask your CFO"; can **create goals from chat**; topical scope guard rejects
+  off-topic/abuse), **Reports**, **Plans** (pricing/subscribe), **Settings** (+ Vehicle asset field).
+- Public: `onboarding` (3-session, state→city dropdowns, risk question), `login` (+ **User/CA toggle**),
+  landing `/`, `legal/*`. **CA portal** is separate: `/ca/login`, `/ca` (home), `/ca/client/[id]`.
 
 ---
 
@@ -106,41 +115,61 @@ unread-alerts badge, native biometric lock overlay).
 - `insurance.ts` — 25× term rule (no life cover without dependents), health sizing, personalised
   "what to get" + "what to avoid". Student-aware.
 - `investment.ts` — SEBI-compliant guidance: risk profile, target allocation, fund-**category**
-  recommendations, model portfolios, monthly SIP plan. Never names a product.
-- `statement.ts` — bank-statement analyser (category breakdown, invested total, recurring subs, reduce
-  suggestions, watch-outs).
-- `networth.ts` — asset/liability breakdown, allocation, `growthProjection()` (5/10/20yr, step-up SIP).
-- `actions.ts` — rule engine ACT-001…ACT-021, each with computed `priority`.
+  recommendations, model portfolios, monthly SIP plan. Returns `takeHome/monthlyExpenses/currentSip/surplus`
+  for the clean plan card; hides categories in `assets.invest_started`. Never names a product.
+- `holdings.ts` — **Portfolio X-ray look-through**: `analyzeHoldings()` classifies each holding (asset
+  class, equity market-cap, sector for direct stocks via a built-in map) and scores true diversification
+  (grade + flags). Educational only.
+- `statement.ts` — bank-statement analyser. Import is **de-duplicated** by a transaction `fingerprint`
+  (sha256 of date+amount+direction+desc) with a partial-unique index; re-uploads skip duplicates.
+- `networth.ts` — asset/liability breakdown, allocation, `growthProjection()` — **realistic + risk-based**:
+  baseline = current SIP (not full surplus), improved = 25% of take-home (step-up 10%/yr), rates 7/9/11%
+  by risk (`conservative/moderate/aggressive`), nominal; returns `riskAppetite` + `assumedReturnPct`.
+- `actions.ts` — rule engine ACT-001…ACT-021, each with computed `priority`. Insurance sizing shown as
+  rounded ranges (`inrRange`), not false-precise figures.
 - `market.ts` — educational themes + live news via keyless Google News RSS (fails soft).
 - `alerts.ts` — alert generators; `monitor.ts` — shared regenerate/gatherSignals (used by route + cron).
-- `goals.ts`, `cfo-ai.ts` (RAG Q&A), `rag.ts` (Postgres FTS), `profile.ts` (load ProfileData + recalc).
+- `goals.ts`, `cfo-ai.ts` (RAG Q&A — scope guard `checkScope()`, `parseGoalIntent()` for chat goal
+  creation, model `claude-sonnet-4`), `rag.ts` (Postgres FTS, **47-doc** seeded KB, incremental seed),
+  `profile.ts` (load ProfileData + recalc).
+- `caLink.ts` (connect-code gen + `requestLink` handshake), `caShare.ts` (messaging + documents for an
+  active link). `db/index.ts` exports **`withTransaction()`** (ACID) — used by statement import + AA refresh.
 
 ### Adapters
 `sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
 Razorpay), `email.ts` (dev logs / Resend + digest template), `push.ts` (FCM integration point — log
-mode until firebase-admin wired).
+mode until firebase-admin wired), `storage.ts` (**Supabase Storage** for CA documents — signed URLs;
+active when `SUPABASE_URL`+`SUPABASE_SERVICE_KEY` set; supports new `sb_secret_` keys via apikey+Bearer).
 
 ### Routes
-`auth`, `user` (+ `/push-token`), `score`, `actions` (+ `/:id/complete`), `insights` (mounts `/networth`
-`/tax` `/tax/filing/prefill` `/tax/filing/compute` `/insurance` `/invest` `/market` `/statements/analyze`
-`/transactions` `/spend`), `goals`, `qa`, `billing`, `compliance`, `aa`, `reports`, `alerts`
-(`/` `/count` `/run` `/:id/read` `/read-all` `/:id`(dismiss) `/briefing`), `documents`, `cron` (`/run`,
-secret-protected — NOT requireAuth).
+`auth` (+ exported `verifyOtp`), `user` (+ `/push-token`, **`/ca`** connect-code + links, `/ca/connect`,
+`/ca/links/:id/(approve|reject)` + DELETE, `/ca/links/:id/(messages|documents)`), `score`,
+`actions` (+ `/:id/complete`), `insights` (mounts `/networth` `/tax` `/tax/filing/*` `/insurance`
+`/invest` **`/invest/started`** `/market` `/statements/analyze` **`/holdings/analyze`** `/transactions`
+`/spend`), `goals`, `qa`, `billing`, `compliance`, `aa`, `reports`, `alerts`, `documents`, `cron`,
+**`ca`** (`/auth/(register|login|token/refresh)`, `/me`, `/clients` connect/approve/reject/delete,
+`/clients/:id/(overview|messages|documents)`). CA tokens are JWT `role:'ca'`; `requireCa` guards CA
+routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base64 doc uploads.
 
 ### DB tables
-`users`(+state,risk_appetite,email), `otp_codes`, `refresh_tokens`, `profiles`, `score_history`,
-`actions`(+priority), `goals`, `transactions`, `conversations`, `messages`, `rag_documents`,
-`subscriptions`, `invoices`, `consents`, `notifications`(+emailed_at, unique on user_id+dedupe_key),
-`documents`, `device_tokens`, `audit_log`.
+`users`(+state,risk_appetite,email,**connect_code**), `otp_codes`, `refresh_tokens`, `profiles`,
+`score_history`, `actions`(+priority), `goals`, `transactions`(+**fingerprint**, partial-unique on
+user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`, `invoices`, `consents`,
+`notifications`, `documents`, `device_tokens`, `audit_log`, and the **CA portal**: `cas`,
+`ca_client_links`(handshake: status pending/active, initiated_by), `ca_messages`, `ca_documents`.
 
 ---
 
 ## 5. Web (`web/src`)
-- `lib/api.ts` (fetch + token refresh), `lib/format.ts` (`inr()`), `lib/india.ts` (states→cities, metro),
-  `lib/statementParse.ts` (client CSV/XLSX/PDF parse via cdnjs), `lib/native.ts` (Capacitor bridge).
-- `components/kit.tsx` — shared UI: `Donut`, `Ring`, `StackedBar`, `Disclosure`, `SectionNav`, `Section`,
-  `StatTile`, `Pill`, `TopicIcon`, colours. `Logo.tsx` (Wordmark "Pay*Watch*"), `ScoreGauge`,
-  `UpgradeBanner` (soft paywall), `AuthRedirect` (resume session on app open).
+- `lib/api.ts` (fetch + token refresh + **`swr()` stale-while-revalidate cache**, busted on any write &
+  on login/logout), `lib/caApi.ts` (**CA-side client**, separate `paywatch_ca_*` tokens), `lib/format.ts`
+  (`inr`, `inrRange`, `inrApprox`), `lib/india.ts`, `lib/statementParse.ts` (client CSV/XLSX/PDF parse +
+  `parseHoldingsFile`), `lib/native.ts`.
+- `components/kit.tsx` (shared UI), `Logo.tsx` (Wordmark "Pay*Watch*", `plus` badge), `ScoreGauge`,
+  `UpgradeBanner`, `AuthRedirect`, `Walkthrough.tsx` (first-run tour), **`PortfolioXray.tsx`** (holdings
+  upload + look-through, used inside Invest), **`CaThread.tsx`** (shared messaging + documents panel for
+  both CA & user sides; `fileToBase64`).
+- Sidebar nav scrolls (`overflow-y-auto min-h-0`) so the account/sign-out footer stays visible.
 
 ---
 
@@ -161,7 +190,11 @@ secret-protected — NOT requireAuth).
 - **API:** Railway service "PersonalCFO" (built from `server/`). **Pre-Deploy = `npm run migrate:prod`**
   (compiled, idempotent; `build` copies `schema.sql` into `dist/db/`) → no manual migrations for additive
   changes. Start = `node dist/index.js`.
-- **DB:** Railway Postgres (`DATABASE_URL` injected).
+- **DB:** **Supabase Postgres, South-Asia (Mumbai)** for India data residency — set Railway
+  `DATABASE_URL` to the **Session pooler** URI (`...pooler.supabase.com:5432`, user `postgres.<ref>`);
+  the direct `db.<ref>.supabase.co` host is IPv6-only and fails from Railway. `db/index.ts` enables SSL
+  for any non-localhost DB. (The old Railway Postgres is being retired.) Seed: `npm run seed` (KB) and
+  `npm run seed:personas` (15 demo users); `npm run check:personas` to verify which DB has them.
 - **Web:** Vercel (from `web/`). `NEXT_PUBLIC_API_URL` baked at build → redeploy on change.
 - **Domain:** `paywatch.in` (GoDaddy). Apex `A @ → 76.76.21.21` (Vercel), `CNAME www → cname.vercel-dns.com`.
   **`api.paywatch.in`** = Railway custom domain (`CNAME api → <railway target>` + `TXT _railway-verify.api`).
@@ -174,7 +207,9 @@ secret-protected — NOT requireAuth).
 - **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
   `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
   `CRON_SECRET`, `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
-  `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery).
+  `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery),
+  **`SUPABASE_URL`+`SUPABASE_SERVICE_KEY`+`SUPABASE_BUCKET`** (opt — enables CA document sharing; use the
+  new `sb_secret_` key; create a **private** bucket `ca-documents`).
   Vercel → `NEXT_PUBLIC_API_URL` (+ `NEXT_PUBLIC_PUSH_ENABLED=1` only for mobile builds once Firebase ready).
 
 ### Reset DB (keeps seeded knowledge base)
@@ -215,6 +250,13 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Full app feature set (§3), recurring-value engine (alerts/briefing/copilot/watchdog/autopilot/vault),
   plans/soft-paywall, email+cron delivery, **mobile (Capacitor) scaffolded**, **guided ITR filing wizard**,
   **rent-receipt generator**, `api.paywatch.in` custom domain.
+- **Ask PayWatch** as hero (nav/dashboard/landing) + topical scope guard + chat goal-creation;
+  **Portfolio X-ray** (holdings look-through, inside Invest); **risk-based realistic growth projections**;
+  **client-side SWR cache**; **statement de-dup**; **invest record-as-started + approx figures**; **vehicle
+  asset + motor insurance**; **ACID transactions**; **CA helper repositioning** (no "replace your CA");
+  **15 demo personas**; **Supabase Mumbai DB** (India residency).
+- **CA portal (§11)** — CA signup/login, two-way connect handshake, client tax-pack view, in-app
+  messaging, document sharing (Supabase Storage). Field-level encryption + CA verification still TODO.
 
 ### Software still to build (legal now, no registration needed)
 1. **Form 16 auto-fill** ✓ (best-effort PDF parse on the wizard). **26AS / AIS JSON import & reconciliation** still to do.
@@ -260,5 +302,25 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
   Pure functions only — no DB. Run after any logic change. Untested without infra: DB-backed routes
   (need Postgres) and React components (need a frontend test runner).
 - **Security:** all SQL parameterised (the few interpolated bits use whitelisted column names); every
-  `/:id` route scopes by `user_id`; rate limits on OTP, AI Q&A, statement/transaction/filing endpoints;
-  server refuses to boot in production with default JWT secrets.
+  `/:id` route scopes by `user_id` (or `ca_id`); rate limits on OTP, AI Q&A, statement/transaction/filing
+  endpoints; server refuses to boot in production with default JWT secrets.
+
+---
+
+## 11. CA portal
+A second account type (Chartered Accountants) alongside users. Built across phases 1–5.
+
+- **Identity:** `cas` table; CA tokens are JWT `role:'ca'` (15m access + stateless 90d refresh — no
+  rotation/revoke yet, hardening TODO). `requireCa` guards `/v1/ca/*`; `requireAuth` rejects CA tokens.
+  Login/signup via the same OTP pipeline (`verifyOtp`). Self-declared signup (name, ICAI no., firm, city,
+  email) — **no verification gate yet** (TODO). CA web client = `lib/caApi.ts` (`paywatch_ca_*` tokens).
+- **Pages:** `/login` has a User/CA toggle → `/ca/login` (signup+login), `/ca` (home: connect code +
+  client list + add-client), `/ca/client/[id]` (tax-pack view + messaging + docs). User side = **Your CA**
+  (`/advisor`) + `/advisor/[id]` (thread).
+- **Handshake (`caLink.ts`):** every user & CA has a unique `connect_code` (`PW-…` / `CA-…`). Either side
+  enters the other's code → `ca_client_links` row `pending` (`initiated_by`); the **other** party approves
+  → `active`. If both have requested, it auto-activates. Reject/disconnect DELETEs the row (re-linkable).
+- **Sharing (`caShare.ts`, active links only):** `ca_messages` (in-app chat) and `ca_documents`
+  (Supabase Storage, signed URLs, ≤8 MB). CA's read-only client view computes score/net-worth/tax-pack
+  live from the client's profile. Documents need `SUPABASE_*` env + a private `ca-documents` bucket.
+- **Demo:** no CA seed yet; create one via the signup flow (OTP from logs / `424242` locally).

@@ -47,6 +47,12 @@ CREATE TABLE IF NOT EXISTS cas (
   last_active_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at     TIMESTAMPTZ
 );
+-- Optional practice details (individual CAs may have none of these).
+ALTER TABLE cas ADD COLUMN IF NOT EXISTS frn            VARCHAR(40);
+ALTER TABLE cas ADD COLUMN IF NOT EXISTS cop_number     VARCHAR(40);
+ALTER TABLE cas ADD COLUMN IF NOT EXISTS office_address VARCHAR(300);
+ALTER TABLE cas ADD COLUMN IF NOT EXISTS website        VARCHAR(200);
+ALTER TABLE cas ADD COLUMN IF NOT EXISTS gstin          VARCHAR(20);
 
 -- The connection handshake: a CA and a user are linked once both sides agree.
 CREATE TABLE IF NOT EXISTS ca_client_links (

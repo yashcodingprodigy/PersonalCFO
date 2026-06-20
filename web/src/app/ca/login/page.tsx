@@ -18,17 +18,28 @@ export default function CaLogin() {
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  const [firm, setFirm] = useState('');
   const [icai, setIcai] = useState('');
   const [email, setEmail] = useState('');
   const [city, setCity] = useState('');
+  const [firm, setFirm] = useState('');
+  const [frn, setFrn] = useState('');
+  const [cop, setCop] = useState('');
+  const [address, setAddress] = useState('');
+  const [website, setWebsite] = useState('');
+  const [gstin, setGstin] = useState('');
+  const [showMore, setShowMore] = useState(false);
 
   const fullMobile = `+91${mobile}`;
 
   async function sendOtp(e: React.FormEvent) {
     e.preventDefault(); setErr('');
     if (!/^[6-9]\d{9}$/.test(mobile)) { setErr('Enter a valid 10-digit mobile number.'); return; }
-    if (mode === 'signup' && name.trim().length < 2) { setErr('Please enter your name.'); return; }
+    if (mode === 'signup') {
+      if (name.trim().length < 2) { setErr('Please enter your full name.'); return; }
+      if (icai.trim().length < 3) { setErr('Please enter your ICAI membership number.'); return; }
+      if (!/^\S+@\S+\.\S+$/.test(email)) { setErr('Please enter a valid email.'); return; }
+      if (!city.trim()) { setErr('Please enter your city.'); return; }
+    }
     setBusy(true);
     try {
       const res = await fetch(`${API}/auth/otp/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile: fullMobile }) });
@@ -41,7 +52,11 @@ export default function CaLogin() {
     e.preventDefault(); setErr(''); setBusy(true);
     try {
       const body: any = { mobile: fullMobile, otp };
-      if (mode === 'signup') Object.assign(body, { name, firm_name: firm || undefined, icai_number: icai || undefined, email: email || undefined, city: city || undefined });
+      if (mode === 'signup') Object.assign(body, {
+        name, icai_number: icai, email, city,
+        firm_name: firm || undefined, frn: frn || undefined, cop_number: cop || undefined,
+        office_address: address || undefined, website: website || undefined, gstin: gstin || undefined,
+      });
       const res = await caPost(mode === 'signup' ? '/ca/auth/register' : '/ca/auth/login', body);
       setCaTokens(res.access_token, res.refresh_token);
       router.push('/ca');
@@ -70,12 +85,27 @@ export default function CaLogin() {
               {mode === 'signup' && (
                 <>
                   <div><label className="label">Full name *</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="CA Jane Doe" /></div>
-                  <div><label className="label">Firm name</label><input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="Doe & Associates" /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><label className="label">ICAI membership no.</label><input className="input" value={icai} onChange={(e) => setIcai(e.target.value)} placeholder="123456" /></div>
-                    <div><label className="label">City</label><input className="input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" /></div>
+                    <div><label className="label">ICAI membership no. *</label><input className="input" value={icai} onChange={(e) => setIcai(e.target.value)} placeholder="123456" /></div>
+                    <div><label className="label">City *</label><input className="input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" /></div>
                   </div>
-                  <div><label className="label">Email</label><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@firm.in" /></div>
+                  <div><label className="label">Email *</label><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></div>
+                  <div><label className="label">Firm / Practice name</label><input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="If any (e.g. Doe & Associates)" /></div>
+
+                  <button type="button" onClick={() => setShowMore((s) => !s)} className="text-xs text-pine-700 underline">{showMore ? '− Hide' : '+ Add'} practice details (optional)</button>
+                  {showMore && (
+                    <div className="space-y-3 border-l-2 border-paper-200 pl-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="label">FRN</label><input className="input" value={frn} onChange={(e) => setFrn(e.target.value)} placeholder="Firm reg. no." /></div>
+                        <div><label className="label">COP number</label><input className="input" value={cop} onChange={(e) => setCop(e.target.value)} placeholder="If practising" /></div>
+                      </div>
+                      <div><label className="label">Office address</label><input className="input" value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="label">Website</label><input className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="example.com" /></div>
+                        <div><label className="label">GSTIN</label><input className="input" value={gstin} onChange={(e) => setGstin(e.target.value)} /></div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               <div>
