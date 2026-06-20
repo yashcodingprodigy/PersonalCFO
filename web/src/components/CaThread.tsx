@@ -19,6 +19,7 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload }:
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
+  const [pending, setPending] = useState<File | null>(null);
   const [err, setErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -27,9 +28,11 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload }:
     setBusy(true); setErr('');
     try { await onSend(t); setText(''); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
-  async function upload(file: File) {
+  function clearPending() { setPending(null); if (fileRef.current) fileRef.current.value = ''; }
+  async function sendFile() {
+    if (!pending) return;
     setUpBusy(true); setErr('');
-    try { await onUpload(file); } catch (e: any) { setErr(e.message); } finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+    try { await onUpload(pending); clearPending(); } catch (e: any) { setErr(e.message); } finally { setUpBusy(false); }
   }
 
   return (
@@ -55,9 +58,19 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload }:
       <div className="card p-5 flex flex-col h-[26rem]">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-bold uppercase tracking-widest text-ink-faint">Shared documents</p>
-          <button onClick={() => fileRef.current?.click()} disabled={upBusy} className="rounded-full bg-mint-500 text-pine-950 px-4 py-1.5 text-xs font-bold hover:bg-mint-400 disabled:opacity-50">{upBusy ? 'Uploading…' : '+ Upload'}</button>
-          <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+          <button onClick={() => fileRef.current?.click()} className="rounded-full border border-paper-200 text-ink-soft px-4 py-1.5 text-xs font-bold hover:border-pine-600">+ Choose file</button>
+          <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setPending(f); setErr(''); } }} />
         </div>
+        {/* Staged file — review before sending */}
+        {pending && (
+          <div className="flex items-center justify-between gap-2 mb-2 rounded-lg bg-paper-50 border border-paper-200 px-3 py-2">
+            <span className="text-xs truncate flex-1">📎 {pending.name} <span className="text-ink-faint">({fmtSize(pending.size)})</span></span>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={sendFile} disabled={upBusy} className="rounded-full bg-mint-500 text-pine-950 px-4 py-1 text-xs font-bold hover:bg-mint-400 disabled:opacity-50">{upBusy ? 'Sending…' : 'Send'}</button>
+              <button onClick={clearPending} disabled={upBusy} className="text-xs text-ink-faint underline">Cancel</button>
+            </div>
+          </div>
+        )}
         {err && <p className="text-xs text-signal-red mb-2">{err}</p>}
         <div className="flex-1 overflow-y-auto">
           {docs.length === 0 ? <p className="text-sm text-ink-faint text-center mt-8">No documents shared yet.</p> : (

@@ -8,7 +8,13 @@ export const storageConfigured = () => !!(config.supabaseUrl && config.supabaseS
 // Normalise the project URL: people often paste the Data-API URL with a
 // `/rest/v1` suffix (or a trailing slash). Strip those so `/storage/v1/...`
 // reaches the Storage service, not PostgREST.
-const baseUrl = () => config.supabaseUrl.trim().replace(/\/+$/, '').replace(/\/(rest|storage|auth)\/v1$/, '').replace(/\/+$/, '');
+const baseUrl = () => config.supabaseUrl.trim()
+  .replace(/^[A-Za-z_]+\s*=\s*/, '')  // stray "SUPABASE_URL = " prefix from a bad paste
+  .replace(/^["']|["']$/g, '')          // stray surrounding quotes
+  .trim()
+  .replace(/\/+$/, '')
+  .replace(/\/(rest|storage|auth)\/v1$/, '')
+  .replace(/\/+$/, '');
 
 // Supabase REST wants the key in BOTH the apikey header and as a Bearer token.
 // This works for the new sb_secret_… keys and the legacy service_role JWT.
