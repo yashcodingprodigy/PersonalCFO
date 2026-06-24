@@ -10,6 +10,7 @@ import { compareRegimes } from './tax';
 import { analyseInsurance } from './insurance';
 import { computeNetWorth } from './networth';
 import { retrieve, RetrievedDoc } from './rag';
+import { query } from '../db';
 
 export const AI_DISCLAIMER =
   'This is educational information based on your financial data and standard planning principles — not SEBI-registered investment advice. For personalised investment recommendations, consult a SEBI Registered Investment Adviser.';
@@ -248,7 +249,15 @@ export async function answerQuestion(
   }
 
   const docs = await retrieve(userId, question, 6);
-  const userContext = buildUserContext(p);
+  // Context memory: profile snapshot + the user's active goals, so guidance is
+  // grounded in their overall picture and what they're saving for.
+  let userContext = buildUserContext(p);
+  try {
+    const goals = await query<any>(`SELECT name, goal_type, target_amount, target_date, current_amount FROM goals WHERE user_id = $1 ORDER BY created_at LIMIT 10`, [userId]);
+    if (goals.length) {
+      userContext += '\nActive goals:\n' + goals.map((g) => `- ${g.name} (${String(g.goal_type).replace(/_/g, ' ')}): target ${inr(Number(g.target_amount))}${g.target_date ? ` by ${g.target_date}` : ''}, saved so far ${inr(Number(g.current_amount))}`).join('\n');
+    }
+  } catch { /* goals are best-effort context */ }
 
   let content: string;
   let engine: 'claude' | 'rules';

@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS ca_client_links (
 );
 CREATE INDEX IF NOT EXISTS idx_links_ca ON ca_client_links(ca_id, status);
 CREATE INDEX IF NOT EXISTS idx_links_user ON ca_client_links(user_id, status);
+-- Shared ITR document checklist: { docKey: { sent: bool, received: bool } }.
+ALTER TABLE ca_client_links ADD COLUMN IF NOT EXISTS itr_checklist JSONB NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS ca_messages (
   message_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

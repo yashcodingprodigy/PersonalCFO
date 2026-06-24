@@ -56,3 +56,15 @@ export async function getDocFile(linkId: string, docId: string): Promise<{ buffe
   const enc = await downloadObject(d.storage_path);
   return { buffer: decryptBuf(enc), fileName: d.file_name, mimeType: d.mime_type || 'application/octet-stream' };
 }
+
+// ── Shared ITR document checklist ───────────────────────────────────
+export async function getChecklist(linkId: string): Promise<Record<string, { sent?: boolean; received?: boolean }>> {
+  const r = await one<any>(`SELECT itr_checklist FROM ca_client_links WHERE link_id = $1`, [linkId]);
+  return r?.itr_checklist || {};
+}
+export async function setChecklistField(linkId: string, key: string, field: 'sent' | 'received', value: boolean) {
+  const cur = await getChecklist(linkId);
+  cur[key] = { ...(cur[key] || {}), [field]: value };
+  await query(`UPDATE ca_client_links SET itr_checklist = $2::jsonb, updated_at = now() WHERE link_id = $1`, [linkId, JSON.stringify(cur)]);
+  return cur;
+}

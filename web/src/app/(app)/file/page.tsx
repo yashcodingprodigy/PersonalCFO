@@ -134,8 +134,32 @@ export default function FilePage() {
     <div className="space-y-5 max-w-2xl">
       <div>
         <h1 className="font-display text-3xl font-medium">File your taxes</h1>
-        <p className="text-sm text-ink-soft mt-1">A guided walk-through — answer a few questions and we&apos;ll compute your return. Then file it yourself with our step-by-step, or hand your CA a ready-to-file pack. {fy && <>FY {fy}.</>}</p>
+        <p className="text-sm text-ink-soft mt-1">First, get your documents ready. Then answer a few questions and we&apos;ll compute your return — file it yourself or hand your CA a ready-to-file pack. {fy && <>FY {fy}.</>}</p>
       </div>
+
+      {/* Documents to prepare */}
+      <details className="card p-5" open>
+        <summary className="cursor-pointer text-sm font-bold uppercase tracking-widest text-ink-faint">📋 Documents to prepare (and how to get them)</summary>
+        <ul className="mt-4 space-y-3">
+          {[
+            ['PAN & Aadhaar', 'You', 'Keep your PAN handy and ensure it is linked with Aadhaar (used for e-verification).'],
+            ['Form 16', 'Employer', 'Your employer issues it after the year ends (by mid-June). Download from your payroll/HR portal.'],
+            ['Form 26AS & AIS', 'You', 'On incometax.gov.in — 26AS under e-File → View 26AS; AIS under Services → AIS. Shows all TDS and reported income.'],
+            ['Bank interest certificate', 'Bank', 'From net-banking → interest/TDS certificate, for savings and FD interest.'],
+            ['Capital-gains statement', 'Broker / Fund', 'Download the realised P&L for the FY from your broker (Zerodha, Groww) or AMC (CAMS/KFintech).'],
+            ['80C / 80D / NPS proofs', 'You', 'ELSS/PPF/LIC receipts, NPS statement, and health-insurance premium receipts.'],
+            ['Home-loan interest certificate', 'Lender', 'From your bank — shows the principal (80C) and interest (24b) split.'],
+            ['Rent receipts + landlord PAN', 'You', 'For HRA. Landlord PAN required if annual rent exceeds ₹1 lakh.'],
+            ['Bank account for refund', 'You', 'Account number + IFSC, pre-validated on the portal so refunds can be credited.'],
+          ].map(([name, who, how], i) => (
+            <li key={i} className="border-b border-paper-100 pb-3 last:border-0 last:pb-0">
+              <p className="text-sm font-semibold">{name} <span className="text-[10px] text-ink-faint font-normal">· from {who}</span></p>
+              <p className="text-xs text-ink-soft leading-relaxed mt-0.5">{how}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="text-[11px] text-ink-faint mt-3">Connected a CA? Use the shared checklist under <strong>Your CA</strong> to track which of these you&apos;ve sent and what they&apos;ve received.</p>
+      </details>
 
       <UpgradeBanner feature="Guided ITR preparation and filing" />
 

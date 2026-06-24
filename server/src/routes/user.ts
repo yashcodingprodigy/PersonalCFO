@@ -6,8 +6,9 @@ import { rateLimit } from '../middleware/rateLimit';
 import { recalculateAndStoreScore, loadProfileData } from '../services/profile';
 import { remember } from '../services/rag';
 import { ensureUserConnectCode, requestLink } from '../services/caLink';
-import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile } from '../services/caShare';
+import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, getChecklist, setChecklistField } from '../services/caShare';
 import { publish } from '../services/realtime';
+import { ITR_DOCUMENTS } from '../services/itr';
 
 export const userRouter = Router();
 userRouter.use(requireAuth);
@@ -177,6 +178,21 @@ userRouter.post('/ca/links/:id/documents', async (req: AuthedRequest, res) => {
   try { const d = await addDoc(link.link_id, 'user', { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data }); publish(link.ca_id); res.json(d); }
   catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'upload_failed', message: e.message }); }
 });
+userRouter.get('/ca/links/:id/checklist', async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  res.json({ documents: ITR_DOCUMENTS, state: await getChecklist(link.link_id) });
+});
+userRouter.patch('/ca/links/:id/checklist', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ key: z.string().min(1).max(40), sent: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const state = await setChecklistField(link.link_id, parsed.data.key, 'sent', parsed.data.sent);
+  publish(link.ca_id);
+  res.json({ state });
+});
+
 userRouter.get('/ca/links/:id/documents/:docId/file', async (req: AuthedRequest, res) => {
   const link = await getActiveLink(req.params.id, { userId: req.userId });
   if (!link) return res.status(404).json({ error: 'not_found' });

@@ -68,4 +68,5 @@ export async function caDownloadFile(path: string, filename: string): Promise<vo
 
 export const caGet = <T = any>(path: string) => caApi<T>(path);
 export const caPost = <T = any>(path: string, body?: any) => caApi<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+export const caPatch = <T = any>(path: string, body: any) => caApi<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 export const caDel = <T = any>(path: string) => caApi<T>(path, { method: 'DELETE' });

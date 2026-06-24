@@ -5,8 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
 import { inr } from '@/lib/format';
-import { caGet, caPost, caDownloadFile, subscribeCaEvents, getCaTokens, clearCaTokens } from '@/lib/caApi';
+import { caGet, caPost, caPatch, caDownloadFile, subscribeCaEvents, getCaTokens, clearCaTokens } from '@/lib/caApi';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
+import { ChecklistPanel } from '@/components/ChecklistPanel';
 
 export default function CaClient() {
   const router = useRouter();
@@ -14,14 +15,17 @@ export default function CaClient() {
   const [ov, setOv] = useState<any>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [chk, setChk] = useState<any>(null);
   const [err, setErr] = useState('');
 
   function loadMsgs() { caGet(`/ca/clients/${id}/messages`).then(setMessages).catch(() => {}); }
   function loadDocs() { caGet(`/ca/clients/${id}/documents`).then(setDocs).catch(() => {}); }
+  function loadChk() { caGet(`/ca/clients/${id}/checklist`).then(setChk).catch(() => {}); }
+  async function toggleChk(key: string, _field: 'sent' | 'received', value: boolean) { await caPatch(`/ca/clients/${id}/checklist`, { key, received: value }); loadChk(); }
   useEffect(() => {
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
-    caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); }).catch((e) => setErr(e.message));
-    const refresh = () => { loadMsgs(); loadDocs(); };
+    caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); loadChk(); }).catch((e) => setErr(e.message));
+    const refresh = () => { loadMsgs(); loadDocs(); loadChk(); };
     const unsub = subscribeCaEvents(refresh);
     const t = setInterval(() => { if (!document.hidden) refresh(); }, 8000);
     return () => { clearInterval(t); unsub(); };
@@ -133,7 +137,18 @@ export default function CaClient() {
           </dl>
         </div>
 
-        <p className="text-[11px] text-ink-faint">Need PAN, Form 16, 26AS/AIS or other paperwork? Ask the client to share them via the documents panel below.</p>
+        {/* ITR filing workflow */}
+        {chk?.filingSteps && (
+          <div className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">ITR filing workflow</h2>
+            <ol className="space-y-2 text-sm text-ink-soft leading-relaxed list-decimal list-inside">
+              {chk.filingSteps.map((s: string, i: number) => <li key={i}>{s}</li>)}
+            </ol>
+          </div>
+        )}
+
+        {/* Shared document checklist */}
+        {chk?.documents && <ChecklistPanel role="ca" documents={chk.documents} state={chk.state || {}} onToggle={toggleChk} />}
 
         <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} />
       </div>
