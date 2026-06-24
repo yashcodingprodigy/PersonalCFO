@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
@@ -16,6 +16,8 @@ export default function CaClient() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
   const [chk, setChk] = useState<any>(null);
+  const [draft, setDraft] = useState('');
+  const chatRef = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState('');
 
   function loadMsgs() { caGet(`/ca/clients/${id}/messages`).then(setMessages).catch(() => {}); }
@@ -34,6 +36,10 @@ export default function CaClient() {
   async function send(text: string) { await caPost(`/ca/clients/${id}/messages`, { body: text }); loadMsgs(); }
   async function upload(file: File) { const { data, mime } = await fileToBase64(file); await caPost(`/ca/clients/${id}/documents`, { file_name: file.name, mime_type: mime, data }); loadDocs(); }
   async function download(docId: string) { const d = docs.find((x) => x.document_id === docId); await caDownloadFile(`/ca/clients/${id}/documents/${docId}/file`, d?.file_name || 'document'); }
+  function requestDoc(_key: string, name: string) {
+    setDraft(`Hi, could you please share your ${name} for the ITR? 🙏`);
+    chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   if (err) return <main className="min-h-screen bg-paper p-8"><p className="text-signal-red text-sm">{err}</p><Link href="/ca" className="text-sm text-pine-700 underline">← Back</Link></main>;
   if (!ov) return <main className="min-h-screen bg-paper animate-pulse" />;
@@ -148,9 +154,11 @@ export default function CaClient() {
         )}
 
         {/* Shared document checklist */}
-        {chk?.documents && <ChecklistPanel role="ca" documents={chk.documents} state={chk.state || {}} onToggle={toggleChk} />}
+        {chk?.documents && <ChecklistPanel role="ca" documents={chk.documents} state={chk.state || {}} onToggle={toggleChk} onRequest={requestDoc} />}
 
-        <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} />
+        <div ref={chatRef}>
+          <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} initialDraft={draft} />
+        </div>
       </div>
     </main>
   );

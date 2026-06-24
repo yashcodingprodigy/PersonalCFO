@@ -19,13 +19,13 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, i
 }) {
   const [text, setText] = useState(initialDraft || '');
   const [drafted, setDrafted] = useState(false); // highlight a freshly-applied draft
-  const draftApplied = useRef(false);
+  const lastDraft = useRef('');
   const inputRef = useRef<HTMLInputElement>(null);
-  // Apply a drafted message even when it arrives after the first render
-  // (e.g. on client-side navigation from "send to CA"), and make it noticeable.
+  // Apply a drafted message whenever a new one arrives — on navigation
+  // ("send to CA") or when the CA taps "request" on a checklist item.
   useEffect(() => {
-    if (initialDraft && !draftApplied.current) {
-      setText(initialDraft); draftApplied.current = true; setDrafted(true);
+    if (initialDraft && initialDraft !== lastDraft.current) {
+      setText(initialDraft); lastDraft.current = initialDraft; setDrafted(true);
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [initialDraft]);

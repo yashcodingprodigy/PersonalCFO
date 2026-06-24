@@ -8,14 +8,16 @@ type State = Record<string, { sent?: boolean; received?: boolean }>;
 // Shared ITR document checklist used on both the CA and user sides. The current
 // side toggles its own field (CA → "received", user → "sent"); the other side's
 // status is shown read-only and updates live.
-export function ChecklistPanel({ role, documents, state, onToggle }: {
+export function ChecklistPanel({ role, documents, state, onToggle, onRequest }: {
   role: 'ca' | 'user';
   documents: ItrDoc[];
   state: State;
   onToggle: (key: string, field: 'sent' | 'received', value: boolean) => void;
+  onRequest?: (key: string, name: string) => void;  // CA only: draft "please share…"
 }) {
   const [expanded, setExpanded] = useState(false);
   const received = documents.filter((d) => state[d.key]?.received).length;
+  const pct = Math.round((received / documents.length) * 100);
   const shown = expanded ? documents : documents.slice(0, 3);
   return (
     <div className="card p-6">
@@ -23,23 +25,30 @@ export function ChecklistPanel({ role, documents, state, onToggle }: {
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">ITR document checklist</h2>
         <span className="text-xs text-ink-faint">{received}/{documents.length} received · {expanded ? 'hide' : 'show all'} ▾</span>
       </button>
+      <div className="h-2 bg-paper-100 rounded-full overflow-hidden mt-3"><div className="h-full bg-mint-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} /></div>
       <ul className="divide-y divide-paper-100 mt-3">
         {shown.map((d) => {
           const st = state[d.key] || {};
           const mine = role === 'ca' ? !!st.received : !!st.sent;
           return (
             <li key={d.key} className="py-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={mine} onChange={() => onToggle(d.key, role === 'ca' ? 'received' : 'sent', !mine)} className="mt-1 accent-mint-500 w-4 h-4 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{d.name} <span className="text-[10px] text-ink-faint font-normal">· from {d.who}</span></p>
-                  <p className="text-xs text-ink-faint leading-relaxed">{d.how}</p>
-                  <div className="mt-1 flex gap-3 text-[10px]">
-                    <span className={st.sent ? 'text-signal-green font-bold' : 'text-ink-faint'}>{st.sent ? '✓ client sent' : '○ not sent'}</span>
-                    <span className={st.received ? 'text-signal-green font-bold' : 'text-ink-faint'}>{st.received ? '✓ CA received' : '○ CA awaiting'}</span>
+              <div className="flex items-start gap-3">
+                <label className="flex items-start gap-3 cursor-pointer flex-1 min-w-0">
+                  <input type="checkbox" checked={mine} onChange={() => onToggle(d.key, role === 'ca' ? 'received' : 'sent', !mine)} className="mt-1 accent-mint-500 w-4 h-4 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{d.name} <span className="text-[10px] text-ink-faint font-normal">· from {d.who}</span></p>
+                    <p className="text-xs text-ink-faint leading-relaxed">{d.how}</p>
+                    <div className="mt-1 flex gap-3 text-[10px]">
+                      <span className={st.sent ? 'text-signal-green font-bold' : 'text-ink-faint'}>{st.sent ? '✓ client sent' : '○ not sent'}</span>
+                      <span className={st.received ? 'text-signal-green font-bold' : 'text-ink-faint'}>{st.received ? '✓ CA received' : '○ CA awaiting'}</span>
+                    </div>
                   </div>
-                </div>
-              </label>
+                </label>
+                {/* CA: ask the client for anything not yet sent */}
+                {role === 'ca' && onRequest && !st.sent && !st.received && (
+                  <button onClick={() => onRequest(d.key, d.name)} className="shrink-0 rounded-full border border-paper-200 text-pine-700 px-3 py-1 text-[11px] font-bold hover:border-pine-600">Request</button>
+                )}
+              </div>
             </li>
           );
         })}
