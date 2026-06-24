@@ -8,23 +8,24 @@ import { fileToBase64 } from '@/components/CaThread';
 
 // Keys match the shared CA checklist + the vault slots used here.
 const DOCS = [
-  { key: 'pan', name: 'PAN & Aadhaar', who: 'You', how: 'Keep your PAN handy and ensure it is linked with Aadhaar (used for e-verification).' },
-  { key: 'form16', name: 'Form 16', who: 'Employer', how: 'Your employer issues it after the year ends (by mid-June). Download from your payroll/HR portal.' },
-  { key: 'form26as_ais', name: 'Form 26AS & AIS', who: 'You', how: 'On incometax.gov.in — 26AS under e-File → View 26AS; AIS under Services → AIS.' },
-  { key: 'bank_interest', name: 'Bank interest certificate', who: 'Bank', how: 'From net-banking → interest/TDS certificate, for savings and FD interest.' },
-  { key: 'capital_gains', name: 'Capital-gains statement', who: 'Broker / Fund', how: 'Download the realised P&L for the FY from your broker (Zerodha, Groww) or AMC (CAMS/KFintech).' },
-  { key: 'deduction_proofs', name: '80C / 80D / NPS proofs', who: 'You', how: 'ELSS/PPF/LIC receipts, NPS statement, and health-insurance premium receipts.' },
-  { key: 'home_loan', name: 'Home-loan interest certificate', who: 'Lender', how: 'From your bank — shows the principal (80C) and interest (24b) split.' },
-  { key: 'rent_hra', name: 'Rent receipts + landlord PAN', who: 'You', how: 'For HRA. Landlord PAN required if annual rent exceeds ₹1 lakh.' },
-  { key: 'bank_for_refund', name: 'Bank account for refund', who: 'You', how: 'Account number + IFSC, pre-validated on the portal so refunds can be credited.' },
+  { key: 'pan', icon: '🪪', name: 'PAN card', who: 'You', how: 'Your 10-character PAN — make sure it’s linked with Aadhaar.' },
+  { key: 'aadhaar', icon: '🆔', name: 'Aadhaar', who: 'You', how: 'Used for e-verification (OTP) when you file.' },
+  { key: 'form16', icon: '📄', name: 'Form 16', who: 'Employer', how: 'Your employer gives it after the year ends (by mid-June) — grab it from your payroll/HR portal.' },
+  { key: 'form26as_ais', icon: '🧾', name: 'Form 26AS & AIS', who: 'You', how: 'On incometax.gov.in — 26AS under e-File → View 26AS; AIS under Services → AIS.' },
+  { key: 'bank_interest', icon: '🏦', name: 'Bank interest certificate', who: 'Bank', how: 'From net-banking → interest/TDS certificate (savings + FD interest).' },
+  { key: 'capital_gains', icon: '📈', name: 'Capital-gains statement', who: 'Broker / Fund', how: 'Download the realised P&L for the year from Zerodha/Groww or your AMC.' },
+  { key: 'deduction_proofs', icon: '🧮', name: '80C / 80D / NPS proofs', who: 'You', how: 'ELSS/PPF/LIC receipts, NPS statement, health-insurance premium receipts.' },
+  { key: 'home_loan', icon: '🏠', name: 'Home-loan interest certificate', who: 'Lender', how: 'From your bank — shows the principal (80C) and interest (24b) split.' },
+  { key: 'rent_hra', icon: '🧾', name: 'Rent receipts + landlord PAN', who: 'You', how: 'For HRA. Landlord PAN needed if annual rent is over ₹1 lakh.' },
+  { key: 'bank_for_refund', icon: '💳', name: 'Bank account for refund', who: 'You', how: 'Account number + IFSC, pre-validated on the portal so refunds land safely.' },
 ];
 
 export function ItrDocPrep() {
   const router = useRouter();
   const [vault, setVault] = useState<any[]>([]);
   const [cas, setCas] = useState<any[]>([]);
-  const [openMenu, setOpenMenu] = useState('');   // doc key whose "+" menu is open
-  const [sendMenu, setSendMenu] = useState('');   // doc key whose send picker is open
+  const [openMenu, setOpenMenu] = useState('');
+  const [sendMenu, setSendMenu] = useState('');
   const [busy, setBusy] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const pending = useRef<{ key: string; name: string } | null>(null);
@@ -60,42 +61,58 @@ export function ItrDocPrep() {
     setBusy(key); setSendMenu('');
     try {
       await post(`/user/ca/links/${linkId}/documents/from-vault`, { vault_id: vf.id, checklist_key: key });
-      // Take them to the chat with a ready-to-send message.
-      router.push(`/advisor/${linkId}?draft=${encodeURIComponent(`I have sent ${name}.`)}`);
+      router.push(`/advisor/${linkId}?draft=${encodeURIComponent(`Hi, I’ve sent my ${name} for the ITR. 📎`)}`);
     } catch { setBusy(''); }
   }
+
+  const total = DOCS.length;
+  const done = DOCS.filter((d) => vaultFor(d.key)).length;
+  const pct = Math.round((done / total) * 100);
+  const cheer = done === 0 ? 'Quicker than it looks — let’s gather your docs one tap at a time.'
+    : done >= total ? '🎉 All set! Everything’s ready to send to your CA.'
+    : done >= total / 2 ? 'Almost there — you’re crushing it 🔥'
+    : 'Nice start! Keep going 💪';
 
   return (
     <div>
       <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-      <ul className="space-y-1">
+
+      {/* Progress */}
+      <div className="rounded-2xl bg-pine-950 text-white p-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold">{done} of {total} ready</span>
+          <span className="text-xs font-bold text-mint-300">{pct}%</span>
+        </div>
+        <div className="h-2.5 bg-white/15 rounded-full overflow-hidden"><div className="h-full bg-mint-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} /></div>
+        <p className="text-xs text-white/70 mt-2">{cheer}</p>
+      </div>
+
+      {/* Doc cards */}
+      <div className="space-y-2">
         {DOCS.map((d) => {
           const vf = vaultFor(d.key);
           return (
-            <li key={d.key} className="border-b border-paper-100 py-3 last:border-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold flex items-center gap-2">
-                    {vf && <span className="text-signal-green">✓</span>}{d.name}
-                    <span className="text-[10px] text-ink-faint font-normal">· from {d.who}</span>
-                  </p>
-                  <p className="text-xs text-ink-soft leading-relaxed mt-0.5">{d.how}</p>
-                  {vf && <p className="text-[11px] text-pine-700 mt-1">📎 {vf.file_name}</p>}
+            <div key={d.key} className={`rounded-xl border p-3 transition-colors ${vf ? 'border-mint-500/60 bg-mint-50' : 'border-paper-200 bg-white hover:border-pine-600/40'}`}>
+              <div className="flex items-center gap-3">
+                <span className={`grid place-items-center w-10 h-10 rounded-full text-lg shrink-0 ${vf ? 'bg-mint-500 text-pine-950' : 'bg-paper-100'}`}>{vf ? '✓' : d.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold flex items-center gap-2">{d.name}{vf ? <span className="chip bg-mint-100 text-pine-800 text-[10px]">Ready</span> : <span className="text-[10px] text-ink-faint font-normal">from {d.who}</span>}</p>
+                  <p className="text-[11px] text-ink-faint leading-snug mt-0.5 truncate">{vf ? <span className="text-pine-700">📎 {vf.file_name}</span> : d.how}</p>
                 </div>
+
+                {/* Actions */}
                 <div className="relative shrink-0 flex items-center gap-1.5">
-                  {/* Quick send — appears once a file is attached */}
                   {vf && (
                     <button onClick={() => { setSendMenu(sendMenu === d.key ? '' : d.key); setOpenMenu(''); }} disabled={busy === d.key} title="Send to your CA"
-                      className="rounded-full bg-mint-500 text-pine-950 w-7 h-7 grid place-items-center disabled:opacity-50">
+                      className="rounded-full bg-mint-500 text-pine-950 w-8 h-8 grid place-items-center hover:bg-mint-400 disabled:opacity-50">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" /></svg>
                     </button>
                   )}
                   <button onClick={() => { setOpenMenu(openMenu === d.key ? '' : d.key); setSendMenu(''); }} disabled={busy === d.key}
-                    className="rounded-full bg-pine-900 text-white w-7 h-7 text-lg leading-none font-bold disabled:opacity-50">{busy === d.key ? '…' : '+'}</button>
+                    className="rounded-full bg-pine-900 text-white w-8 h-8 text-xl leading-none font-bold grid place-items-center hover:bg-pine-800 disabled:opacity-50">{busy === d.key ? '…' : '+'}</button>
 
-                  {/* "+" menu: upload / fetch from vault */}
                   {openMenu === d.key && (
-                    <div className="absolute right-0 top-8 z-10 w-60 card p-2 shadow-lift text-sm max-h-72 overflow-y-auto">
+                    <div className="absolute right-0 top-9 z-10 w-60 card p-2 shadow-lift text-sm max-h-72 overflow-y-auto">
                       <button onClick={() => pickUpload(d.key, d.name)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-paper-50">📤 {vf ? 'Replace file' : 'Upload a file'}</button>
                       <div className="border-t border-paper-100 mt-1 pt-1">
                         <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-ink-faint">Fetch from your vault</p>
@@ -108,9 +125,8 @@ export function ItrDocPrep() {
                     </div>
                   )}
 
-                  {/* Send picker */}
                   {sendMenu === d.key && vf && (
-                    <div className="absolute right-0 top-8 z-10 w-56 card p-2 shadow-lift text-sm">
+                    <div className="absolute right-0 top-9 z-10 w-56 card p-2 shadow-lift text-sm">
                       <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-ink-faint">Send to your CA</p>
                       {cas.length === 0 ? (
                         <Link href="/advisor" className="block px-3 py-2 rounded-lg hover:bg-paper-50 text-pine-700">Connect a CA first →</Link>
@@ -121,11 +137,12 @@ export function ItrDocPrep() {
                   )}
                 </div>
               </div>
-            </li>
+            </div>
           );
         })}
-      </ul>
-      <p className="text-[11px] text-ink-faint mt-3">Files are AES-256 encrypted. Sending one to your CA ticks it off automatically in your shared checklist and drops a ready-to-send note in the chat.</p>
+      </div>
+
+      <p className="text-[11px] text-ink-faint mt-3">🔒 Every file is AES-256 encrypted. Sending one ticks it off automatically in your shared checklist and drops a ready note in the chat.</p>
     </div>
   );
 }

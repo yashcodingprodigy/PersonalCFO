@@ -8,18 +8,38 @@ import { attachVaultFile, getVaultFile } from '../services/vault';
 export const documentsRouter = Router();
 documentsRouter.use(requireAuth);
 
-// The standard slots PayWatch tracks for every user.
+// The standard slots PayWatch tracks for every user — identity, tax, money,
+// property and personal records. Users can store any file against these.
 export const DOC_SLOTS = [
+  // Identity
   { slot: 'pan', label: 'PAN card' },
   { slot: 'aadhaar', label: 'Aadhaar' },
+  { slot: 'passport', label: 'Passport' },
+  { slot: 'driving_license', label: 'Driving licence' },
+  { slot: 'voter_id', label: 'Voter ID' },
+  // Tax & income
   { slot: 'form16', label: 'Form 16 (this year)' },
-  { slot: 'bank_statement', label: 'Bank statements' },
-  { slot: 'investment_proofs', label: '80C / 80D investment proofs' },
+  { slot: 'form26as_ais', label: 'Form 26AS / AIS' },
+  { slot: 'salary_slips', label: 'Salary slips' },
   { slot: 'capital_gains', label: 'Capital-gains statement' },
-  { slot: 'insurance_policy', label: 'Insurance policies' },
-  { slot: 'nomination', label: 'Nominations updated (bank/MF/EPF)' },
+  { slot: 'investment_proofs', label: '80C / 80D investment proofs' },
   { slot: 'rent_receipts', label: 'Rent receipts + landlord PAN' },
   { slot: 'loan_certificate', label: 'Loan interest certificates' },
+  // Money & banking
+  { slot: 'bank_statement', label: 'Bank statements' },
+  { slot: 'insurance_policy', label: 'Insurance policies' },
+  { slot: 'nomination', label: 'Nominations (bank/MF/EPF)' },
+  { slot: 'demat_holdings', label: 'Demat / mutual-fund holdings' },
+  // Property & assets
+  { slot: 'property_papers', label: 'Property papers / sale deed' },
+  { slot: 'vehicle_rc', label: 'Vehicle RC + insurance' },
+  // Personal records
+  { slot: 'birth_certificate', label: 'Birth certificate' },
+  { slot: 'marriage_certificate', label: 'Marriage certificate' },
+  { slot: 'degree_certificates', label: 'Degree / education certificates' },
+  { slot: 'medical_records', label: 'Medical records / health policy' },
+  { slot: 'will_estate', label: 'Will / estate documents' },
+  { slot: 'other', label: 'Other important documents' },
 ];
 
 documentsRouter.get('/slots', (_req, res) => res.json(DOC_SLOTS));

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export interface Msg { message_id: string; sender: 'ca' | 'user'; body: string; created_at: string }
 export interface Doc { document_id: string; uploaded_by: 'ca' | 'user'; file_name: string; size_bytes?: number; created_at: string }
@@ -18,6 +18,12 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, i
   initialDraft?: string;
 }) {
   const [text, setText] = useState(initialDraft || '');
+  const draftApplied = useRef(false);
+  // Apply a drafted message even when it arrives after the first render
+  // (e.g. on client-side navigation from "send to CA").
+  useEffect(() => {
+    if (initialDraft && !draftApplied.current) { setText(initialDraft); draftApplied.current = true; }
+  }, [initialDraft]);
   const [busy, setBusy] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
   const [pending, setPending] = useState<File | null>(null);

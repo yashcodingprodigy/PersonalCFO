@@ -16,7 +16,13 @@ export default function AdvisorThread() {
   const [vaultDocs, setVaultDocs] = useState<any[]>([]);
   const [showVault, setShowVault] = useState(false);
   const [err, setErr] = useState('');
-  const [draft] = useState(() => { try { return new URLSearchParams(window.location.search).get('draft') || ''; } catch { return ''; } });
+  const [draft, setDraft] = useState('');
+  useEffect(() => {
+    try {
+      const d = new URLSearchParams(window.location.search).get('draft');
+      if (d) { setDraft(d); window.history.replaceState({}, '', `/advisor/${id}`); }
+    } catch {}
+  }, [id]);
 
   function loadMsgs() { get(`/user/ca/links/${id}/messages`).then(setMessages).catch((e) => setErr(e.message)); }
   function loadDocs() { get(`/user/ca/links/${id}/documents`).then(setDocs).catch(() => {}); }
