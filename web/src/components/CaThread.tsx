@@ -18,11 +18,16 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, i
   initialDraft?: string;
 }) {
   const [text, setText] = useState(initialDraft || '');
+  const [drafted, setDrafted] = useState(false); // highlight a freshly-applied draft
   const draftApplied = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   // Apply a drafted message even when it arrives after the first render
-  // (e.g. on client-side navigation from "send to CA").
+  // (e.g. on client-side navigation from "send to CA"), and make it noticeable.
   useEffect(() => {
-    if (initialDraft && !draftApplied.current) { setText(initialDraft); draftApplied.current = true; }
+    if (initialDraft && !draftApplied.current) {
+      setText(initialDraft); draftApplied.current = true; setDrafted(true);
+      setTimeout(() => inputRef.current?.focus(), 150);
+    }
   }, [initialDraft]);
   const [busy, setBusy] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
@@ -32,7 +37,7 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, i
 
   async function send(e: React.FormEvent) {
     e.preventDefault(); const t = text.trim(); if (!t || busy) return;
-    setBusy(true); setErr('');
+    setBusy(true); setErr(''); setDrafted(false);
     try { await onSend(t); setText(''); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   function clearPending() { setPending(null); if (fileRef.current) fileRef.current.value = ''; }
@@ -55,9 +60,15 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, i
             </div>
           ))}
         </div>
+        {drafted && (
+          <div className="mx-3 mb-1 rounded-lg bg-mint-100 border border-mint-500/40 px-3 py-2 flex items-center justify-between gap-2 animate-pulse">
+            <span className="text-xs font-semibold text-pine-800">✏️ Your message is ready — just press Send →</span>
+            <button onClick={() => setDrafted(false)} className="text-[11px] text-ink-faint underline shrink-0">dismiss</button>
+          </div>
+        )}
         <form onSubmit={send} className="border-t border-paper-100 p-3 flex gap-2">
-          <input className="input flex-1" placeholder="Write a message…" value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} />
-          <button className="btn-primary !px-4" disabled={busy || !text.trim()}>Send</button>
+          <input ref={inputRef} className={`input flex-1 transition-shadow ${drafted ? 'ring-2 ring-mint-500 border-mint-500' : ''}`} placeholder="Write a message…" value={text} onChange={(e) => { setText(e.target.value); setDrafted(false); }} maxLength={2000} />
+          <button className={`btn-primary !px-4 ${drafted ? 'ring-2 ring-mint-400 ring-offset-2 animate-pulse' : ''}`} disabled={busy || !text.trim()}>Send</button>
         </form>
       </div>
 
