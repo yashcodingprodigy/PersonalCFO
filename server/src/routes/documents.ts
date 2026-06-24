@@ -83,6 +83,20 @@ documentsRouter.post('/:id/file', async (req: AuthedRequest, res) => {
   }
 });
 
+// POST /documents/:id/copy — reuse an existing vault file for another doc slot.
+documentsRouter.post('/:id/copy', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ to_slot: z.string().min(1).max(40), to_label: z.string().min(1).max(140) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const f = await getVaultFile(req.userId!, req.params.id);
+  if (!f) return res.status(404).json({ error: 'no_file', message: 'That vault item has no file.' });
+  let target = await one<any>(`SELECT id FROM documents WHERE user_id=$1 AND slot=$2`, [req.userId, parsed.data.to_slot]);
+  if (!target) target = await one<any>(`INSERT INTO documents (user_id, slot, label, status) VALUES ($1,$2,$3,'have') RETURNING id`, [req.userId, parsed.data.to_slot, parsed.data.to_label]);
+  try {
+    await attachVaultFile(req.userId!, target!.id, { name: f.fileName, mimeType: f.mimeType, dataBase64: f.buffer.toString('base64') });
+    res.json({ ok: true, id: target!.id });
+  } catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'failed', message: e.message }); }
+});
+
 // GET /documents/:id/file — download (decrypted) the vault file.
 documentsRouter.get('/:id/file', async (req: AuthedRequest, res) => {
   const f = await getVaultFile(req.userId!, req.params.id);

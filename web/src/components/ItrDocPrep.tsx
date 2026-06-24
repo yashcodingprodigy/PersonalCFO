@@ -23,7 +23,8 @@ export function ItrDocPrep() {
   const router = useRouter();
   const [vault, setVault] = useState<any[]>([]);
   const [cas, setCas] = useState<any[]>([]);
-  const [openMenu, setOpenMenu] = useState('');   // doc key whose menu is open
+  const [openMenu, setOpenMenu] = useState('');   // doc key whose "+" menu is open
+  const [sendMenu, setSendMenu] = useState('');   // doc key whose send picker is open
   const [busy, setBusy] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const pending = useRef<{ key: string; name: string } | null>(null);
@@ -35,6 +36,7 @@ export function ItrDocPrep() {
   useEffect(() => { load(); }, []);
 
   const vaultFor = (key: string) => vault.find((v) => v.slot === key && v.file_name);
+  const vaultFiles = vault.filter((v) => v.file_name);
 
   function pickUpload(key: string, name: string) { pending.current = { key, name }; fileRef.current?.click(); }
   async function onFile(file: File) {
@@ -48,9 +50,14 @@ export function ItrDocPrep() {
       load();
     } catch { /* ignore */ } finally { setBusy(''); if (fileRef.current) fileRef.current.value = ''; }
   }
+  async function fetchFromVault(key: string, name: string, sourceId: string) {
+    setBusy(key); setOpenMenu('');
+    try { await post(`/documents/${sourceId}/copy`, { to_slot: key, to_label: name }); load(); }
+    catch { /* ignore */ } finally { setBusy(''); }
+  }
   async function sendToCa(key: string, name: string, linkId: string) {
     const vf = vaultFor(key); if (!vf) return;
-    setBusy(key);
+    setBusy(key); setSendMenu('');
     try {
       await post(`/user/ca/links/${linkId}/documents/from-vault`, { vault_id: vf.id, checklist_key: key });
       // Take them to the chat with a ready-to-send message.
@@ -75,23 +82,41 @@ export function ItrDocPrep() {
                   <p className="text-xs text-ink-soft leading-relaxed mt-0.5">{d.how}</p>
                   {vf && <p className="text-[11px] text-pine-700 mt-1">📎 {vf.file_name}</p>}
                 </div>
-                <div className="relative shrink-0">
-                  <button onClick={() => setOpenMenu(openMenu === d.key ? '' : d.key)} disabled={busy === d.key}
+                <div className="relative shrink-0 flex items-center gap-1.5">
+                  {/* Quick send — appears once a file is attached */}
+                  {vf && (
+                    <button onClick={() => { setSendMenu(sendMenu === d.key ? '' : d.key); setOpenMenu(''); }} disabled={busy === d.key} title="Send to your CA"
+                      className="rounded-full bg-mint-500 text-pine-950 w-7 h-7 grid place-items-center disabled:opacity-50">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" /></svg>
+                    </button>
+                  )}
+                  <button onClick={() => { setOpenMenu(openMenu === d.key ? '' : d.key); setSendMenu(''); }} disabled={busy === d.key}
                     className="rounded-full bg-pine-900 text-white w-7 h-7 text-lg leading-none font-bold disabled:opacity-50">{busy === d.key ? '…' : '+'}</button>
+
+                  {/* "+" menu: upload / fetch from vault */}
                   {openMenu === d.key && (
-                    <div className="absolute right-0 mt-1 z-10 w-56 card p-2 shadow-lift text-sm">
+                    <div className="absolute right-0 top-8 z-10 w-60 card p-2 shadow-lift text-sm max-h-72 overflow-y-auto">
                       <button onClick={() => pickUpload(d.key, d.name)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-paper-50">📤 {vf ? 'Replace file' : 'Upload a file'}</button>
-                      <Link href="/vault" className="block px-3 py-2 rounded-lg hover:bg-paper-50">📁 Manage in Document vault</Link>
-                      {vf && (
-                        <div className="border-t border-paper-100 mt-1 pt-1">
-                          <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-ink-faint">Send to your CA</p>
-                          {cas.length === 0 ? (
-                            <Link href="/advisor" className="block px-3 py-2 rounded-lg hover:bg-paper-50 text-pine-700">Connect a CA first →</Link>
-                          ) : cas.map((c) => (
-                            <button key={c.link_id} onClick={() => sendToCa(d.key, d.name, c.link_id)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-paper-50">📨 Send to {c.ca_name}</button>
-                          ))}
-                        </div>
-                      )}
+                      <div className="border-t border-paper-100 mt-1 pt-1">
+                        <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-ink-faint">Fetch from your vault</p>
+                        {vaultFiles.length === 0 ? (
+                          <p className="px-3 py-1.5 text-xs text-ink-faint">No files in your vault yet.</p>
+                        ) : vaultFiles.map((v) => (
+                          <button key={v.id} onClick={() => fetchFromVault(d.key, d.name, v.id)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-paper-50 truncate">📁 {v.label || v.file_name}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Send picker */}
+                  {sendMenu === d.key && vf && (
+                    <div className="absolute right-0 top-8 z-10 w-56 card p-2 shadow-lift text-sm">
+                      <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-ink-faint">Send to your CA</p>
+                      {cas.length === 0 ? (
+                        <Link href="/advisor" className="block px-3 py-2 rounded-lg hover:bg-paper-50 text-pine-700">Connect a CA first →</Link>
+                      ) : cas.map((c) => (
+                        <button key={c.link_id} onClick={() => sendToCa(d.key, d.name, c.link_id)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-paper-50">📨 Send to {c.ca_name}</button>
+                      ))}
                     </div>
                   )}
                 </div>
