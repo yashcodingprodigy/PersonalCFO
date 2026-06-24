@@ -8,15 +8,16 @@ export interface Doc { document_id: string; uploaded_by: 'ca' | 'user'; file_nam
 function fmtSize(b?: number) { if (!b) return ''; if (b > 1e6) return `${(b / 1e6).toFixed(1)} MB`; return `${Math.round(b / 1024)} KB`; }
 
 // Shared messaging + document panel used by both the CA and the user sides.
-export function CaThread({ role, messages, onSend, docs, onUpload, onDownload }: {
+export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, initialDraft }: {
   role: 'ca' | 'user';
   messages: Msg[];
   onSend: (text: string) => Promise<void>;
   docs: Doc[];
   onUpload: (file: File) => Promise<void>;
   onDownload: (docId: string) => void;
+  initialDraft?: string;
 }) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialDraft || '');
   const [busy, setBusy] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
   const [pending, setPending] = useState<File | null>(null);

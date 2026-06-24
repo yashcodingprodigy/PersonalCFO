@@ -16,6 +16,7 @@ export default function AdvisorThread() {
   const [vaultDocs, setVaultDocs] = useState<any[]>([]);
   const [showVault, setShowVault] = useState(false);
   const [err, setErr] = useState('');
+  const [draft] = useState(() => { try { return new URLSearchParams(window.location.search).get('draft') || ''; } catch { return ''; } });
 
   function loadMsgs() { get(`/user/ca/links/${id}/messages`).then(setMessages).catch((e) => setErr(e.message)); }
   function loadDocs() { get(`/user/ca/links/${id}/documents`).then(setDocs).catch(() => {}); }
@@ -45,7 +46,7 @@ export default function AdvisorThread() {
       </div>
       {err && <p className="text-sm text-signal-red">{err}</p>}
 
-      <CaThread role="user" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} />
+      <CaThread role="user" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} initialDraft={draft} />
 
       {/* Send a file straight from the vault */}
       <div className="card p-5">

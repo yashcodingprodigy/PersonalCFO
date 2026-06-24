@@ -196,7 +196,7 @@ userRouter.patch('/ca/links/:id/checklist', async (req: AuthedRequest, res) => {
 
 // POST /ca/links/:id/documents/from-vault { vault_id } — share a vault file to the CA.
 userRouter.post('/ca/links/:id/documents/from-vault', async (req: AuthedRequest, res) => {
-  const parsed = z.object({ vault_id: z.string().uuid() }).safeParse(req.body);
+  const parsed = z.object({ vault_id: z.string().uuid(), checklist_key: z.string().max(40).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const link = await getActiveLink(req.params.id, { userId: req.userId });
   if (!link) return res.status(404).json({ error: 'not_found' });
@@ -204,6 +204,7 @@ userRouter.post('/ca/links/:id/documents/from-vault', async (req: AuthedRequest,
   if (!f) return res.status(404).json({ error: 'no_file', message: 'That vault item has no file attached.' });
   try {
     const d = await addDoc(link.link_id, 'user', { name: f.fileName, mimeType: f.mimeType, dataBase64: f.buffer.toString('base64') });
+    if (parsed.data.checklist_key) await setChecklistField(link.link_id, parsed.data.checklist_key, 'sent', true);
     publish(link.ca_id);
     res.json(d);
   } catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'failed', message: e.message }); }

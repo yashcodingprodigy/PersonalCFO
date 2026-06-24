@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { get, post } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
-import { readPdfText, parseForm16, parseCapitalGainsCsv } from '@/lib/statementParse';
+import { parseCapitalGainsCsv } from '@/lib/statementParse';
+import { ItrDocPrep } from '@/components/ItrDocPrep';
 import Link from 'next/link';
 import { Disclosure, Pill } from '@/components/kit';
 import { UpgradeBanner } from '@/components/UpgradeBanner';
@@ -58,7 +59,6 @@ export default function FilePage() {
   const [fy, setFy] = useState('');
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
-  const [form16Note, setForm16Note] = useState('');
   const [cgNote, setCgNote] = useState('');
 
   async function onCgCsv(file: File) {
@@ -71,22 +71,6 @@ export default function FilePage() {
     } catch { setCgNote('Could not read that file — enter the amounts manually.'); }
   }
 
-  async function onForm16(file: File) {
-    setForm16Note('Reading your Form 16…');
-    try {
-      const text = await readPdfText(file);
-      const { grossSalary, tds } = parseForm16(text);
-      if (grossSalary || tds) {
-        setInputs((p) => ({ ...p,
-          ...(grossSalary ? { grossSalary: String(Math.round(grossSalary / 100)) } : {}),
-          ...(tds ? { tdsSalary: String(Math.round(tds / 100)) } : {}),
-        }));
-        setForm16Note(`Read ${[grossSalary && `salary ${inr(grossSalary)}`, tds && `TDS ${inr(tds)}`].filter(Boolean).join(', ')} — please double-check the figures below.`);
-      } else {
-        setForm16Note("Couldn't read this Form 16 automatically (employer formats vary) — just enter the numbers below.");
-      }
-    } catch { setForm16Note('Could not read that PDF — please enter the numbers manually.'); }
-  }
 
   useEffect(() => {
     get('/tax/filing/prefill').then((r) => {
@@ -133,37 +117,16 @@ export default function FilePage() {
   return (
     <div className="space-y-5 max-w-2xl">
       <div>
-        <h1 className="font-display text-3xl font-medium">File your taxes</h1>
-        <p className="text-sm text-ink-soft mt-1">First, get your documents ready. Then answer a few questions and we&apos;ll compute your return — file it yourself or hand your CA a ready-to-file pack. {fy && <>FY {fy}.</>}</p>
+        <h1 className="font-display text-3xl font-medium">Prepare your ITR docs</h1>
+        <p className="text-sm text-ink-soft mt-1">Get everything you need to file your taxes in one place. Gather each document below, store it safely, and send it to your CA in a tap — or use the wizard to compute your return yourself. {fy && <>FY {fy}.</>}</p>
       </div>
 
-      {/* Documents to prepare */}
-      <details className="card p-5" open>
-        <summary className="cursor-pointer text-sm font-bold uppercase tracking-widest text-ink-faint">📋 Documents to prepare (and how to get them)</summary>
-        <ul className="mt-4 space-y-3">
-          {[
-            ['PAN & Aadhaar', 'You', 'Keep your PAN handy and ensure it is linked with Aadhaar (used for e-verification).'],
-            ['Form 16', 'Employer', 'Your employer issues it after the year ends (by mid-June). Download from your payroll/HR portal.'],
-            ['Form 26AS & AIS', 'You', 'On incometax.gov.in — 26AS under e-File → View 26AS; AIS under Services → AIS. Shows all TDS and reported income.'],
-            ['Bank interest certificate', 'Bank', 'From net-banking → interest/TDS certificate, for savings and FD interest.'],
-            ['Capital-gains statement', 'Broker / Fund', 'Download the realised P&L for the FY from your broker (Zerodha, Groww) or AMC (CAMS/KFintech).'],
-            ['80C / 80D / NPS proofs', 'You', 'ELSS/PPF/LIC receipts, NPS statement, and health-insurance premium receipts.'],
-            ['Home-loan interest certificate', 'Lender', 'From your bank — shows the principal (80C) and interest (24b) split.'],
-            ['Rent receipts + landlord PAN', 'You', 'For HRA. Landlord PAN required if annual rent exceeds ₹1 lakh.'],
-            ['Bank account for refund', 'You', 'Account number + IFSC, pre-validated on the portal so refunds can be credited.'],
-          ].map(([name, who, how], i) => (
-            <li key={i} className="border-b border-paper-100 pb-3 last:border-0 last:pb-0">
-              <p className="text-sm font-semibold">{name} <span className="text-[10px] text-ink-faint font-normal">· from {who}</span></p>
-              <p className="text-xs text-ink-soft leading-relaxed mt-0.5">{how}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="text-[11px] text-ink-faint mt-3">Connected a CA? Use the shared checklist under <strong>Your CA</strong> to track which of these you&apos;ve sent and what they&apos;ve received.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link href="/vault" className="btn-secondary text-xs !px-4 !py-2">📂 Store / view files in your vault</Link>
-          <Link href="/advisor" className="btn-primary text-xs !px-4 !py-2">📨 Send documents to your CA →</Link>
-        </div>
-      </details>
+      {/* Documents to prepare — upload, store & send to your CA */}
+      <div className="card p-5">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-1">📋 Documents to prepare</h2>
+        <p className="text-xs text-ink-soft mb-3">Tap <strong>+</strong> on any document to upload it (encrypted) or send it to your CA. Sent items tick off automatically in your shared checklist.</p>
+        <ItrDocPrep />
+      </div>
 
       <UpgradeBanner feature="Guided ITR preparation and filing" />
 
@@ -180,13 +143,6 @@ export default function FilePage() {
       {step === 0 && (
         <section className="card p-6 space-y-4">
           <h2 className="font-display text-xl font-medium">What did you earn?</h2>
-          <div className="rounded-lg bg-mint-100 px-4 py-3">
-            <label className="text-sm font-semibold cursor-pointer text-pine-800 inline-flex items-center gap-2">
-              📄 Have your Form 16? Upload it to auto-fill
-              <input type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onForm16(f); }} />
-            </label>
-            <p className="text-[11px] text-ink-soft mt-1">{form16Note || 'We read it on your device — the file is never uploaded.'}</p>
-          </div>
           {FIELDS_INCOME.map((f) => <MoneyRow key={f.k} f={f} value={v(f.k)} onChange={set(f.k)} />)}
           <label className="flex items-center gap-2 text-sm text-ink-soft pt-1">
             <input type="checkbox" checked={hasCG} onChange={(e) => setHasCG(e.target.checked)} />

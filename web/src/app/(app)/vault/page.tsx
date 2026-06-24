@@ -19,11 +19,6 @@ export default function VaultPage() {
   function flash(m: string) { setToast(m); setTimeout(() => setToast(''), 2500); }
   const docFor = (slot: string) => docs.find((d) => d.slot === slot);
 
-  async function setStatus(slot: string, label: string, status: 'have' | 'missing') {
-    const ex = docFor(slot);
-    if (ex) { const r = await patch(`/documents/${ex.id}`, { status }); setDocs((p) => p.map((d) => (d.id === ex.id ? r : d))); }
-    else { const r = await post('/documents', { slot, label, status }); setDocs((p) => [...p, r]); }
-  }
   async function saveMeta(slot: string, label: string, expiry: string, note: string) {
     const ex = docFor(slot);
     const body = { expiry_date: expiry || null, note: note || null };
@@ -74,10 +69,6 @@ export default function VaultPage() {
                     <h2 className="text-sm font-bold">{s.label}</h2>
                     {d?.expiry_date && <p className="text-[11px] text-signal-amber mt-0.5">renews {new Date(d.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
                   </div>
-                </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => setStatus(s.slot, s.label, 'have')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${have ? 'bg-pine-900 text-white' : 'bg-white border border-paper-200 text-ink-soft'}`}>Have it</button>
-                  <button onClick={() => setStatus(s.slot, s.label, 'missing')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${d && !have ? 'bg-signal-amber text-white' : 'bg-white border border-paper-200 text-ink-soft'}`}>Need it</button>
                 </div>
               </div>
               {/* Encrypted file attach / download */}
