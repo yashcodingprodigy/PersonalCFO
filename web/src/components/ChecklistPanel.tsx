@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 export interface ItrDoc { key: string; name: string; who: string; how: string }
 type State = Record<string, { sent?: boolean; received?: boolean }>;
 
@@ -12,15 +14,17 @@ export function ChecklistPanel({ role, documents, state, onToggle }: {
   state: State;
   onToggle: (key: string, field: 'sent' | 'received', value: boolean) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const received = documents.filter((d) => state[d.key]?.received).length;
+  const shown = expanded ? documents : documents.slice(0, 3);
   return (
     <div className="card p-6">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <button onClick={() => setExpanded((e) => !e)} className="w-full flex items-center justify-between gap-2 flex-wrap text-left">
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">ITR document checklist</h2>
-        <span className="text-xs text-ink-faint">{received}/{documents.length} received by CA</span>
-      </div>
-      <ul className="divide-y divide-paper-100">
-        {documents.map((d) => {
+        <span className="text-xs text-ink-faint">{received}/{documents.length} received · {expanded ? 'hide' : 'show all'} ▾</span>
+      </button>
+      <ul className="divide-y divide-paper-100 mt-3">
+        {shown.map((d) => {
           const st = state[d.key] || {};
           const mine = role === 'ca' ? !!st.received : !!st.sent;
           return (
@@ -40,6 +44,9 @@ export function ChecklistPanel({ role, documents, state, onToggle }: {
           );
         })}
       </ul>
+      {!expanded && documents.length > shown.length && (
+        <button onClick={() => setExpanded(true)} className="mt-2 text-xs text-pine-700 font-semibold hover:underline">Show all {documents.length} documents ▾</button>
+      )}
       <p className="text-[10px] text-ink-faint mt-2">{role === 'ca' ? 'Tick documents as you receive them — the client sees it live.' : 'Tick documents you’ve shared — your CA confirms receipt.'}</p>
     </div>
   );

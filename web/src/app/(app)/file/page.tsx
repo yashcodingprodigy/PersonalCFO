@@ -159,6 +159,10 @@ export default function FilePage() {
           ))}
         </ul>
         <p className="text-[11px] text-ink-faint mt-3">Connected a CA? Use the shared checklist under <strong>Your CA</strong> to track which of these you&apos;ve sent and what they&apos;ve received.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href="/vault" className="btn-secondary text-xs !px-4 !py-2">📂 Store / view files in your vault</Link>
+          <Link href="/advisor" className="btn-primary text-xs !px-4 !py-2">📨 Send documents to your CA →</Link>
+        </div>
       </details>
 
       <UpgradeBanner feature="Guided ITR preparation and filing" />

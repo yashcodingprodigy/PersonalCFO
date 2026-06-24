@@ -43,7 +43,7 @@ app.use(cors({
 const jsonSmall = express.json({ limit: '1mb' });
 const jsonLarge = express.json({ limit: '12mb' });
 app.use((req, res, next) =>
-  (req.method === 'POST' && req.path.endsWith('/documents')) ? jsonLarge(req, res, next) : jsonSmall(req, res, next)
+  (req.method === 'POST' && (req.path.endsWith('/documents') || req.path.endsWith('/file'))) ? jsonLarge(req, res, next) : jsonSmall(req, res, next)
 );
 
 // Global API rate limit (per SRS §23.3)

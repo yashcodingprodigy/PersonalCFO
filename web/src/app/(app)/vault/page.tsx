@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { get, post, patch, del } from '@/lib/api';
+import { get, post, patch, del, downloadFile } from '@/lib/api';
+import { fileToBase64 } from '@/components/CaThread';
 import { UpgradeBanner } from '@/components/UpgradeBanner';
 
 export default function VaultPage() {
@@ -31,6 +32,17 @@ export default function VaultPage() {
     flash('Saved.');
   }
 
+  async function uploadFile(slot: string, label: string, file: File) {
+    try {
+      let ex = docFor(slot);
+      if (!ex) { ex = await post('/documents', { slot, label, status: 'have' }); setDocs((p) => [...p, ex]); }
+      const { data, mime } = await fileToBase64(file);
+      await post(`/documents/${ex.id}/file`, { file_name: file.name, mime_type: mime, data });
+      flash('File saved & encrypted.'); load();
+    } catch (e: any) { flash(e.message || 'Upload failed'); }
+  }
+  async function downloadDoc(d: any) { try { await downloadFile(`/documents/${d.id}/file`, d.file_name); } catch { flash('Download failed'); } }
+
   const haveCount = slots.filter((s) => docFor(s.slot)?.status === 'have').length;
 
   return (
@@ -43,7 +55,7 @@ export default function VaultPage() {
       <UpgradeBanner feature="The document vault and renewal reminders" />
 
       <div className="card p-4 border-l-4 border-l-mint-500">
-        <p className="text-xs text-ink-soft leading-relaxed">This is an organiser, not a locker — mark what you have and add renewal dates. PayWatch will remind you in Alerts before a policy lapses or a deadline hits. (We don&apos;t store the files themselves.)</p>
+        <p className="text-xs text-ink-soft leading-relaxed">Mark what you have, add renewal dates, and securely store the actual files — each is <strong>AES-256 encrypted</strong> before storage. PayWatch reminds you in Alerts before anything lapses, and you can share a file straight to your CA from here or the chat.</p>
       </div>
 
       <div className="space-y-3">
@@ -67,6 +79,17 @@ export default function VaultPage() {
                   <button onClick={() => setStatus(s.slot, s.label, 'have')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${have ? 'bg-pine-900 text-white' : 'bg-white border border-paper-200 text-ink-soft'}`}>Have it</button>
                   <button onClick={() => setStatus(s.slot, s.label, 'missing')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${d && !have ? 'bg-signal-amber text-white' : 'bg-white border border-paper-200 text-ink-soft'}`}>Need it</button>
                 </div>
+              </div>
+              {/* Encrypted file attach / download */}
+              <div className="mt-3 ml-9 flex items-center gap-3 text-xs flex-wrap">
+                {d?.file_name ? (
+                  <>
+                    <button onClick={() => downloadDoc(d)} className="text-pine-700 hover:underline font-semibold">📎 {d.file_name}</button>
+                    <label className="text-ink-faint underline cursor-pointer">Replace<input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(s.slot, s.label, f); }} /></label>
+                  </>
+                ) : (
+                  <label className="text-pine-700 underline cursor-pointer">+ Attach file (encrypted)<input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(s.slot, s.label, f); }} /></label>
+                )}
               </div>
               {datey && (
                 <MetaEditor slot={s.slot} label={s.label} doc={d} onSave={saveMeta} />

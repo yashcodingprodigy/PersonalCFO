@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { attachVaultFile, getVaultFile } from '../services/vault';
 
 export const documentsRouter = Router();
 documentsRouter.use(requireAuth);
@@ -68,4 +69,25 @@ documentsRouter.patch('/:id', async (req: AuthedRequest, res) => {
 documentsRouter.delete('/:id', async (req: AuthedRequest, res) => {
   await query(`DELETE FROM documents WHERE id=$1 AND user_id=$2`, [req.params.id, req.userId]);
   res.json({ ok: true });
+});
+
+// POST /documents/:id/file — upload (encrypted) a file into a vault entry.
+documentsRouter.post('/:id/file', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ file_name: z.string().min(1).max(200), mime_type: z.string().max(100).optional(), data: z.string().min(1) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Missing file.' });
+  try {
+    const r = await attachVaultFile(req.userId!, req.params.id, { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data });
+    res.json(r);
+  } catch (e: any) {
+    res.status(e.code === 'not_configured' ? 503 : e.code === 'not_found' ? 404 : 400).json({ error: e.code || 'upload_failed', message: e.message });
+  }
+});
+
+// GET /documents/:id/file — download (decrypted) the vault file.
+documentsRouter.get('/:id/file', async (req: AuthedRequest, res) => {
+  const f = await getVaultFile(req.userId!, req.params.id);
+  if (!f) return res.status(404).json({ error: 'not_found' });
+  res.setHeader('Content-Type', f.mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename="${f.fileName.replace(/"/g, '')}"`);
+  res.send(f.buffer);
 });

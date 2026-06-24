@@ -309,6 +309,11 @@ CREATE TABLE IF NOT EXISTS documents (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_docs_user ON documents(user_id);
+-- Optional encrypted file attached to a vault entry (stored in Supabase Storage).
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path VARCHAR(300);
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_name    VARCHAR(200);
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS mime_type    VARCHAR(100);
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS size_bytes   BIGINT;
 
 -- Push notification device tokens (one user can have several devices).
 CREATE TABLE IF NOT EXISTS device_tokens (

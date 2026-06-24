@@ -7,6 +7,7 @@ import { recalculateAndStoreScore, loadProfileData } from '../services/profile';
 import { remember } from '../services/rag';
 import { ensureUserConnectCode, requestLink } from '../services/caLink';
 import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, getChecklist, setChecklistField } from '../services/caShare';
+import { getVaultFile } from '../services/vault';
 import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS } from '../services/itr';
 
@@ -191,6 +192,21 @@ userRouter.patch('/ca/links/:id/checklist', async (req: AuthedRequest, res) => {
   const state = await setChecklistField(link.link_id, parsed.data.key, 'sent', parsed.data.sent);
   publish(link.ca_id);
   res.json({ state });
+});
+
+// POST /ca/links/:id/documents/from-vault { vault_id } — share a vault file to the CA.
+userRouter.post('/ca/links/:id/documents/from-vault', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ vault_id: z.string().uuid() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const f = await getVaultFile(req.userId!, parsed.data.vault_id);
+  if (!f) return res.status(404).json({ error: 'no_file', message: 'That vault item has no file attached.' });
+  try {
+    const d = await addDoc(link.link_id, 'user', { name: f.fileName, mimeType: f.mimeType, dataBase64: f.buffer.toString('base64') });
+    publish(link.ca_id);
+    res.json(d);
+  } catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'failed', message: e.message }); }
 });
 
 userRouter.get('/ca/links/:id/documents/:docId/file', async (req: AuthedRequest, res) => {
