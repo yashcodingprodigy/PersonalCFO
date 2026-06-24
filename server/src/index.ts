@@ -38,7 +38,13 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '12mb' })); // higher ceiling for base64 doc uploads (max 8 MB file)
+// Tight body limit everywhere (blocks oversized-payload abuse), with a higher
+// ceiling ONLY for the base64 document-upload routes (≤8 MB file → ~11 MB b64).
+const jsonSmall = express.json({ limit: '1mb' });
+const jsonLarge = express.json({ limit: '12mb' });
+app.use((req, res, next) =>
+  (req.method === 'POST' && req.path.endsWith('/documents')) ? jsonLarge(req, res, next) : jsonSmall(req, res, next)
+);
 
 // Global API rate limit (per SRS §23.3)
 app.use(rateLimit({ windowMs: 60_000, max: 1000, keyPrefix: 'api' }));

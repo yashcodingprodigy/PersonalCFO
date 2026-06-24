@@ -12,6 +12,11 @@ import { query, one } from '../db';
 import { config } from '../config';
 import { verifyOtp } from './auth';
 import { requireCa, AuthedRequest } from '../middleware/auth';
+import { rateLimit } from '../middleware/rateLimit';
+
+// Brute-force protection for OTP-backed auth and code-based connection.
+const caAuthLimit = rateLimit({ windowMs: 60_000, max: 6, keyPrefix: 'caauth' });
+const caConnectLimit = rateLimit({ windowMs: 60_000, max: 12, keyPrefix: 'caconnect' });
 import { requestLink, maskMobile } from '../services/caLink';
 import { loadProfileData } from '../services/profile';
 import { computeScore, deductionUsage } from '../services/score';
@@ -46,7 +51,7 @@ function caTokens(caId: string) {
 }
 
 // POST /ca/auth/register — first-time CA signup (after OTP). Self-declared.
-caRouter.post('/auth/register', async (req, res) => {
+caRouter.post('/auth/register', caAuthLimit, async (req, res) => {
   const schema = mobileSchema.extend({
     otp: z.string().length(6),
     // Required for a genuine individual CA.
@@ -82,7 +87,7 @@ caRouter.post('/auth/register', async (req, res) => {
 });
 
 // POST /ca/auth/login — existing CA logs in with OTP.
-caRouter.post('/auth/login', async (req, res) => {
+caRouter.post('/auth/login', caAuthLimit, async (req, res) => {
   const schema = mobileSchema.extend({ otp: z.string().length(6) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
@@ -98,7 +103,7 @@ caRouter.post('/auth/login', async (req, res) => {
 });
 
 // POST /ca/auth/token/refresh — stateless refresh (MVP; rotation TODO).
-caRouter.post('/auth/token/refresh', (req, res) => {
+caRouter.post('/auth/token/refresh', caAuthLimit, (req, res) => {
   const token = req.body?.refresh_token;
   if (!token) return res.status(400).json({ error: 'missing_token' });
   try {
@@ -143,7 +148,7 @@ caRouter.get('/clients', requireCa, async (req: AuthedRequest, res) => {
 });
 
 // POST /ca/clients/connect { code } — request a client by their connect code.
-caRouter.post('/clients/connect', requireCa, async (req: AuthedRequest, res) => {
+caRouter.post('/clients/connect', caConnectLimit, requireCa, async (req: AuthedRequest, res) => {
   const parsed = z.object({ code: z.string().min(3).max(16) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Enter a valid client code.' });
   const u = await one<{ user_id: string }>(`SELECT user_id FROM users WHERE upper(connect_code) = upper($1) AND deleted_at IS NULL`, [parsed.data.code.trim()]);

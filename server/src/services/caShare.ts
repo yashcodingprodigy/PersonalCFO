@@ -16,8 +16,9 @@ export async function getActiveLink(linkId: string, party: { caId?: string; user
 
 // ── Messaging (bodies encrypted at rest) ────────────────────────────
 export async function listMessages(linkId: string) {
-  const rows = await query<any>(`SELECT message_id, sender, body, read_at, created_at FROM ca_messages WHERE link_id = $1 ORDER BY created_at`, [linkId]);
-  return rows.map((m) => ({ ...m, body: decryptText(m.body) }));
+  // Bounded read: most recent 500, returned chronologically.
+  const rows = await query<any>(`SELECT message_id, sender, body, read_at, created_at FROM ca_messages WHERE link_id = $1 ORDER BY created_at DESC LIMIT 500`, [linkId]);
+  return rows.reverse().map((m) => ({ ...m, body: decryptText(m.body) }));
 }
 export async function sendMessage(linkId: string, sender: 'ca' | 'user', body: string) {
   const row = await one<any>(`INSERT INTO ca_messages (link_id, sender, body) VALUES ($1,$2,$3) RETURNING message_id, sender, created_at`, [linkId, sender, encryptText(body)]);

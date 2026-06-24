@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { rateLimit } from '../middleware/rateLimit';
 import { recalculateAndStoreScore, loadProfileData } from '../services/profile';
 import { remember } from '../services/rag';
 import { ensureUserConnectCode, requestLink } from '../services/caLink';
@@ -117,7 +118,7 @@ userRouter.get('/ca', async (req: AuthedRequest, res) => {
 });
 
 // POST /user/ca/connect { code } — request to connect to a CA by their code.
-userRouter.post('/ca/connect', async (req: AuthedRequest, res) => {
+userRouter.post('/ca/connect', rateLimit({ windowMs: 60_000, max: 12, keyPrefix: 'userconnect' }), async (req: AuthedRequest, res) => {
   const parsed = z.object({ code: z.string().min(3).max(16) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Enter a valid CA code.' });
   const ca = await one<{ ca_id: string }>(`SELECT ca_id FROM cas WHERE upper(connect_code) = upper($1) AND deleted_at IS NULL`, [parsed.data.code.trim()]);
