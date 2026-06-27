@@ -105,6 +105,78 @@ export function computeRegime(p: ProfileData, regime: 'old' | 'new'): RegimeResu
   };
 }
 
+// ── Salary → tax-liability breakdown (used by the Monthly Records payslip card)
+// Given an annualised gross salary (paise) it returns, for each regime, the
+// slab-by-slab "tax rate window", the rebate/surcharge/cess, the total tax,
+// the implied monthly TDS, and the marginal + effective rates. This is a
+// projection from one payslip annualised — always shown as an estimate.
+export interface TaxBand { from: number; to: number | null; rate: number; taxedAmount: number; tax: number }
+export interface SalaryTaxResult {
+  regime: 'old' | 'new';
+  annualGross: number;
+  standardDeduction: number;
+  otherDeductions: number;
+  taxableIncome: number;
+  bands: TaxBand[];
+  baseTax: number;     // slab tax before rebate
+  rebate: number;      // 87A rebate applied (negative effect)
+  surcharge: number;
+  cess: number;
+  totalTax: number;    // payable incl. surcharge + cess, after rebate
+  monthlyTds: number;  // totalTax / 12
+  marginalRatePct: number;  // top slab the income reaches
+  effectiveRatePct: number; // totalTax / gross
+}
+
+function bandsFor(taxable: number, slabs: Slab[]): TaxBand[] {
+  const out: TaxBand[] = [];
+  let prev = 0;
+  for (const s of slabs) {
+    const top = s.upTo === Infinity ? null : s.upTo;
+    const taxedAmount = Math.max(0, Math.min(taxable, s.upTo) - prev);
+    out.push({ from: prev, to: top, rate: s.rate, taxedAmount, tax: Math.round(taxedAmount * s.rate) });
+    if (taxable <= s.upTo) break;
+    prev = s.upTo;
+  }
+  return out;
+}
+
+export function salaryTaxBreakdown(annualGross: number, regime: 'old' | 'new', otherDeductions = 0): SalaryTaxResult {
+  const slabs = regime === 'new' ? NEW_REGIME_SLABS : OLD_REGIME_SLABS;
+  const stdDed = regime === 'new' ? NEW_STD_DEDUCTION : OLD_STD_DEDUCTION;
+  const taxable = Math.max(0, annualGross - stdDed - Math.max(0, otherDeductions));
+  const bands = bandsFor(taxable, slabs);
+  const baseTax = bands.reduce((s, b) => s + b.tax, 0);
+  const rebated = taxable <= (regime === 'new' ? NEW_REBATE_LIMIT : OLD_REBATE_LIMIT);
+  const afterRebate = rebated ? 0 : baseTax;
+  const sur = surcharge(taxable, afterRebate, regime);
+  const cess = Math.round((afterRebate + sur) * CESS);
+  const totalTax = afterRebate + sur + cess;
+  const marginalBand = [...bands].reverse().find((b) => b.taxedAmount > 0);
+  return {
+    regime, annualGross, standardDeduction: stdDed, otherDeductions: Math.max(0, otherDeductions),
+    taxableIncome: taxable, bands, baseTax,
+    rebate: rebated ? baseTax : 0, surcharge: sur, cess, totalTax,
+    monthlyTds: Math.round(totalTax / 12),
+    marginalRatePct: rebated ? 0 : Math.round((marginalBand?.rate || 0) * 100),
+    effectiveRatePct: annualGross > 0 ? Math.round((totalTax / annualGross) * 1000) / 10 : 0,
+  };
+}
+
+export interface SalaryTaxComparison {
+  annualGross: number;
+  old: SalaryTaxResult;
+  new: SalaryTaxResult;
+  recommended: 'old' | 'new';
+  savings: number;
+}
+export function salaryTaxComparison(annualGross: number, oldOtherDeductions = 0): SalaryTaxComparison {
+  const oldR = salaryTaxBreakdown(annualGross, 'old', oldOtherDeductions);
+  const newR = salaryTaxBreakdown(annualGross, 'new', 0);
+  const recommended = oldR.totalTax <= newR.totalTax ? 'old' : 'new';
+  return { annualGross, old: oldR, new: newR, recommended, savings: Math.abs(oldR.totalTax - newR.totalTax) };
+}
+
 export interface RegimeComparison {
   oldRegime: RegimeResult;
   newRegime: RegimeResult;
@@ -237,7 +309,7 @@ export function taxReductionPlan(p: ProfileData): TaxReductionPlan {
       howTo: 'Get the interest certificate from your lender and enter the annual interest in Settings → Tax data.',
       difficulty: 'easy',
     });
-    if (p.user.employment_type === 'salaried' && !Number(t.rent_paid_monthly)) steps.push({
+    if ((p.user.employment_type === 'salaried' || p.user.employment_type === 'both') && !Number(t.rent_paid_monthly)) steps.push({
       section: 'HRA', title: 'If you pay rent, claim HRA exemption',
       whatItMeans: 'House Rent Allowance in your salary is partly tax-free if you actually pay rent — often one of the biggest savings for renters.',
       howMuchMore: 0, taxSaved: 0,
@@ -254,7 +326,7 @@ export function taxReductionPlan(p: ProfileData): TaxReductionPlan {
   }
 
   // Works in BOTH regimes — always worth flagging
-  if (p.user.employment_type === 'salaried' && !Number(t.employer_nps_annual)) steps.push({
+  if ((p.user.employment_type === 'salaried' || p.user.employment_type === 'both') && !Number(t.employer_nps_annual)) steps.push({
     section: '80CCD(2)', title: 'Ask HR about employer NPS — works even in the new regime',
     whatItMeans: 'If your employer contributes to NPS on your behalf (up to 14% of basic for govt, 10% private), that amount is tax-free — and unlike most deductions, it survives the NEW regime too.',
     howMuchMore: 0, taxSaved: 0,

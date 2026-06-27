@@ -18,6 +18,7 @@ import { aaRouter } from './routes/aa';
 import { reportsRouter } from './routes/reports';
 import { alertsRouter } from './routes/alerts';
 import { documentsRouter } from './routes/documents';
+import { recordsRouter } from './routes/records';
 import { cronRouter } from './routes/cron';
 import { rateLimit } from './middleware/rateLimit';
 
@@ -83,6 +84,7 @@ app.use('/v1/aa', aaRouter);
 app.use('/v1/reports', reportsRouter);
 app.use('/v1/alerts', alertsRouter);
 app.use('/v1/documents', documentsRouter);
+app.use('/v1/records', recordsRouter);   // monthly financial records (payslip/statement/holdings…)
 app.use('/v1/cron', cronRouter);   // secret-protected (x-cron-key), not requireAuth
 
 // 404

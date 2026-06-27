@@ -61,7 +61,7 @@ export function ItrDocPrep() {
     setBusy(key); setSendMenu('');
     try {
       await post(`/user/ca/links/${linkId}/documents/from-vault`, { vault_id: vf.id, checklist_key: key });
-      router.push(`/advisor/${linkId}?draft=${encodeURIComponent(`Hi, I’ve sent my ${name} for the ITR. 📎`)}`);
+      router.push(`/advisor/thread?id=${linkId}&draft=${encodeURIComponent(`Hi, I’ve sent my ${name} for the ITR. 📎`)}`);
     } catch { setBusy(''); }
   }
 

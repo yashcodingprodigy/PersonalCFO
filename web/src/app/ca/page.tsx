@@ -105,7 +105,7 @@ export default function CaHome() {
           {clients.filter((c) => c.status === 'active' || (c.status === 'pending' && c.initiated_by === 'ca')).length === 0 && <p className="text-sm text-ink-soft">No clients yet. Add one with their code above.</p>}
           {clients.filter((c) => c.status === 'active').map((c) => (
             <div key={c.link_id} className="flex items-center justify-between gap-3 flex-wrap border-b border-paper-100 pb-3 last:border-0 last:pb-0">
-              <a href={`/ca/client/${c.link_id}`} className="min-w-0 group"><p className="font-semibold text-sm group-hover:text-pine-700">{c.name || c.mobile} <span className="chip bg-mint-100 text-pine-800 ml-1">Connected</span> <span className="text-xs text-pine-700">→</span></p><p className="text-xs text-ink-faint">{[c.city, c.mobile].filter(Boolean).join(' · ')}</p></a>
+              <a href={`/ca/client?id=${c.link_id}`} className="min-w-0 group"><p className="font-semibold text-sm group-hover:text-pine-700">{c.name || c.mobile} <span className="chip bg-mint-100 text-pine-800 ml-1">Connected</span> <span className="text-xs text-pine-700">→</span></p><p className="text-xs text-ink-faint">{[c.city, c.mobile].filter(Boolean).join(' · ')}</p></a>
               <button onClick={() => act(`/ca/clients/${c.link_id}`, 'del')} className="text-xs text-signal-red underline shrink-0">Disconnect</button>
             </div>
           ))}

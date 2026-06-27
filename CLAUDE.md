@@ -46,7 +46,8 @@ PayWatch/
 - **Auth:** mobile OTP (+91), JWT 15-min access + 90-day rotating refresh. Tokens in `localStorage`
   (`paywatch_access` / `paywatch_refresh`). OTP is **never** returned to the client — read from Railway
   logs in dev (`424242` when `NODE_ENV!=production`; random in prod), or SMS via msg91.
-- **Audiences:** working professionals AND **students (~19–23)**. `employment_type` includes `'student'`.
+- **Audiences:** working professionals AND **students (~19–23)**. `employment_type` includes `'student'`
+  and **`'both'`** (salaried + owns a business — gets both salaried tax steps AND business/advance-tax guidance).
   Onboarding, score, insurance, tax and actions all adapt for students (no life-insurance pressure, no
   tax pressure below threshold, "start investing small / index funds before stocks").
 
@@ -81,6 +82,15 @@ unread-alerts badge, native biometric lock overlay).
   return, picks the ITR form, refund/payable, full computation, "how to file yourself" portal steps,
   downloadable computation pack. Links to rent receipts.
 - **Insurance** (`insurance`) — coverage **rings**, collapsible "what to get" recommendations, avoid list.
+- **Monthly records** (`records`) — recurring monthly-upload hub (CA-requested): month picker + cards for
+  employment contract, salary-structure letter, payslip, **Form 16**, bank statement, demat/holdings,
+  capital gains, 26AS/AIS. **Strict formats**
+  enforced (PDF text / Excel / CSV; images rejected for parseable docs so a blurry scan can't corrupt data).
+  Client-side extraction (reuses `statementParse` + `parsePayslip`/`parseForm16`, both tuned to real Indian
+  payslips with bare-integer line items and real Form 16 Part A/B totals) → user **confirms** values before save
+  (never trusted blindly). Payslip → annualised **tax-liability window** (slab-by-slab, both regimes, marginal +
+  monthly TDS) via `/records/tax-preview`; bank statement → imports de-duped transactions; holdings → look-through
+  grade. Files AES-256 encrypted; visible read-only to the connected CA.
 - **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → detailed spending report.
 - **Document vault** (`vault`) — track CA paperwork + expiry reminders (feeds alerts).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
@@ -117,6 +127,10 @@ unread-alerts badge, native biometric lock overlay).
 - `investment.ts` — SEBI-compliant guidance: risk profile, target allocation, fund-**category**
   recommendations, model portfolios, monthly SIP plan. Returns `takeHome/monthlyExpenses/currentSip/surplus`
   for the clean plan card; hides categories in `assets.invest_started`. Never names a product.
+- `monthlyRecords.ts` — **Monthly Records** store: encrypted file per record (Supabase Storage, `records/<user>/…`)
+  + user-confirmed `extracted` JSON; `listRecords/createRecord/attachRecordFile/getRecordFile`. `tax.ts` adds
+  `salaryTaxBreakdown()`/`salaryTaxComparison()` (slab bands + rebate/surcharge/cess + marginal/effective +
+  monthly TDS) powering the payslip tax window.
 - `holdings.ts` — **Portfolio X-ray look-through**: `analyzeHoldings()` classifies each holding (asset
   class, equity market-cap, sector for direct stocks via a built-in map) and scores true diversification
   (grade + flags). Educational only.
@@ -146,7 +160,10 @@ active when `SUPABASE_URL`+`SUPABASE_SERVICE_KEY` set; supports new `sb_secret_`
 `/ca/links/:id/(approve|reject)` + DELETE, `/ca/links/:id/(messages|documents)`), `score`,
 `actions` (+ `/:id/complete`), `insights` (mounts `/networth` `/tax` `/tax/filing/*` `/insurance`
 `/invest` **`/invest/started`** `/market` `/statements/analyze` **`/holdings/analyze`** `/transactions`
-`/spend`), `goals`, `qa`, `billing`, `compliance`, `aa`, `reports`, `alerts`, `documents`, `cron`,
+`/spend`), `goals`, `qa`, `billing`, `compliance`, `aa`, `reports`, `alerts`, `documents`,
+**`records`** (`/records` list, `/records/types`, `/records/tax-preview`, POST `/records` + `/records/:id/file`,
+GET `/records/:id/file`, DELETE) — monthly financial records; CA reads them via `/ca/clients/:id/overview`
+(`monthlyRecords`) + `/ca/clients/:id/records/:rid/file`. `cron`,
 **`ca`** (`/auth/(register|login|token/refresh)`, `/me`, `/clients` connect/approve/reject/delete,
 `/clients/:id/(overview|messages|documents)`). CA tokens are JWT `role:'ca'`; `requireCa` guards CA
 routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base64 doc uploads.
@@ -155,7 +172,8 @@ routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base
 `users`(+state,risk_appetite,email,**connect_code**), `otp_codes`, `refresh_tokens`, `profiles`,
 `score_history`, `actions`(+priority), `goals`, `transactions`(+**fingerprint**, partial-unique on
 user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`, `invoices`, `consents`,
-`notifications`, `documents`, `device_tokens`, `audit_log`, and the **CA portal**: `cas`,
+`notifications`, `documents`, **`monthly_records`**(period YYYY-MM, doc_type, encrypted file +
+`extracted` JSONB), `device_tokens`, `audit_log`, and the **CA portal**: `cas`,
 `ca_client_links`(handshake: status pending/active, initiated_by), `ca_messages`, `ca_documents`.
 
 ---
@@ -293,12 +311,13 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **136 assertions** across `test/*.ts` (the script loops
+- **Test suite:** `cd server && npm test` runs **140 assertions** across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge, investment risk logic, goals), `services` (alerts, statement analyser,
   actions, insurance, tax copilot, investment guardrails), `branches` (recurring/reduce, growth levers,
   edge bands), `guardrails` (SEBI block/allow patterns + AI context), `middleware` (rate-limit + JWT auth
-  with mocked req/res), `webparsers` (date/money/Form-16 extraction from `web/src/lib/statementParse`).
+  with mocked req/res), `webparsers` (date/money/Form-16 + payslip extraction from `web/src/lib/statementParse`,
+  incl. real Indian salary-slip integers and Form 16 Part A/B totals).
   Pure functions only — no DB. Run after any logic change. Untested without infra: DB-backed routes
   (need Postgres) and React components (need a frontend test runner).
 - **Security:** all SQL parameterised (the few interpolated bits use whitelisted column names); every

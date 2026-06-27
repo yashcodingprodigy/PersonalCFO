@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { get, post, patch, downloadFile, subscribeEvents } from '@/lib/api';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 
+// NOTE: this route reads the link id from the `?id=` query param rather than a
+// path segment. That keeps it a single static page so the Capacitor mobile
+// build (`output: 'export'`) works without generateStaticParams. Web + mobile
+// share this exact file.
 export default function AdvisorThread() {
-  const { id } = useParams<{ id: string }>();
+  const [id, setId] = useState('');
   const [caName, setCaName] = useState('Your CA');
   const [messages, setMessages] = useState<Msg[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -17,18 +20,23 @@ export default function AdvisorThread() {
   const [showVault, setShowVault] = useState(false);
   const [err, setErr] = useState('');
   const [draft, setDraft] = useState('');
+  // Read id (+ optional draft) from the query string on mount.
   useEffect(() => {
     try {
-      const d = new URLSearchParams(window.location.search).get('draft');
-      if (d) { setDraft(d); window.history.replaceState({}, '', `/advisor/${id}`); }
+      const sp = new URLSearchParams(window.location.search);
+      const linkId = sp.get('id') || '';
+      setId(linkId);
+      const d = sp.get('draft');
+      if (d) { setDraft(d); window.history.replaceState({}, '', `/advisor/thread?id=${linkId}`); }
     } catch {}
-  }, [id]);
+  }, []);
 
   function loadMsgs() { get(`/user/ca/links/${id}/messages`).then(setMessages).catch((e) => setErr(e.message)); }
   function loadDocs() { get(`/user/ca/links/${id}/documents`).then(setDocs).catch(() => {}); }
   function loadChk() { get(`/user/ca/links/${id}/checklist`).then(setChk).catch(() => {}); }
   async function toggleChk(key: string, _field: 'sent' | 'received', value: boolean) { await patch(`/user/ca/links/${id}/checklist`, { key, sent: value }); loadChk(); }
   useEffect(() => {
+    if (!id) return;
     get('/user/ca').then((d) => { const l = (d.links || []).find((x: any) => x.link_id === id); if (l) setCaName(l.ca_name); }).catch(() => {});
     get('/documents').then((rows: any[]) => setVaultDocs(rows.filter((r) => r.file_name))).catch(() => {});
     loadMsgs(); loadDocs(); loadChk();

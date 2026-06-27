@@ -74,7 +74,7 @@ export interface InvestmentGuidance {
 function deriveRisk(p: ProfileData): { risk: Risk; reason: string } {
   const age = p.user.age || 32;
   const deps = p.user.dependents_count || 0;
-  const stableJob = p.user.employment_type === 'salaried';
+  const stableJob = p.user.employment_type === 'salaried' || p.user.employment_type === 'both';
   let pts = 0;
   if (age < 30) pts += 2; else if (age < 40) pts += 1; else if (age >= 50) pts -= 1;
   if (deps === 0) pts += 1; else if (deps >= 3) pts -= 1;

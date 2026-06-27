@@ -89,7 +89,7 @@ export default function AdvisorPage() {
         {active.length === 0 && sent.length === 0 && <p className="text-sm text-ink-soft">No CA connected yet.</p>}
         {active.map((l: any) => (
           <div key={l.link_id} className="flex items-center justify-between gap-3 flex-wrap border-b border-paper-100 pb-3 last:border-0 last:pb-0">
-            <Link href={`/advisor/${l.link_id}`} className="min-w-0 group"><p className="font-semibold text-sm group-hover:text-pine-700">{l.ca_name} <span className="chip bg-mint-100 text-pine-800 ml-1">Connected</span> <span className="text-xs text-pine-700">— message & share →</span></p><p className="text-xs text-ink-faint">{[l.firm_name, l.city].filter(Boolean).join(' · ')}</p></Link>
+            <Link href={`/advisor/thread?id=${l.link_id}`} className="min-w-0 group"><p className="font-semibold text-sm group-hover:text-pine-700">{l.ca_name} <span className="chip bg-mint-100 text-pine-800 ml-1">Connected</span> <span className="text-xs text-pine-700">— message & share →</span></p><p className="text-xs text-ink-faint">{[l.firm_name, l.city].filter(Boolean).join(' · ')}</p></Link>
             <button onClick={() => act(`/user/ca/links/${l.link_id}`, 'del')} className="text-xs text-signal-red underline shrink-0">Disconnect</button>
           </div>
         ))}

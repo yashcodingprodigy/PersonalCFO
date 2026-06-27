@@ -23,6 +23,7 @@ const NAV = [
   { href: '/file', label: 'Prepare ITR docs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 2 4 4h-4V4ZM9 13l2 2 4-4 1.4 1.4L11 17.8 7.6 14.4 9 13Z' },
   { href: '/insurance', label: 'Insurance', icon: 'M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Z' },
   { href: '/advisor', label: 'Your CA', icon: 'M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm0 2c-2.7 0-8 1.3-8 4v3h9v-3c0-1 .4-1.9 1-2.6A12 12 0 0 0 8 13Zm8 0c-.3 0-.7 0-1.1.1A5 5 0 0 1 18 17v3h6v-3c0-2.7-5.3-4-8-4Z' },
+  { href: '/records', label: 'Monthly records', icon: 'M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 6H4v12h16V8ZM7 11h4v4H7v-4Z' },
   { href: '/statement', label: 'Statement scan', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z' },
   { href: '/vault', label: 'Document vault', icon: 'M3 5h6l2 2h10v12H3V5Zm2 2v10h14V9h-8.8l-2-2H5Z' },
   { href: '/reports', label: 'Reports', icon: 'M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z' },

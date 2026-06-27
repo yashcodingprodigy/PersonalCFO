@@ -26,6 +26,7 @@ import { analyseInsurance } from '../services/insurance';
 import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, getChecklist, setChecklistField } from '../services/caShare';
 import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS, CA_FILING_STEPS } from '../services/itr';
+import { listRecords, getRecordFile } from '../services/monthlyRecords';
 
 export const caRouter = Router();
 
@@ -222,7 +223,19 @@ caRouter.get('/clients/:id/overview', requireCa, async (req: AuthedRequest, res)
     hraExemption: computeHraExemption(p),
     insurance: { term: ins.term, health: ins.health },
     taxPack: copilot.readyPack,
+    monthlyRecords: await listRecords(link.user_id),
   });
+});
+
+// GET /ca/clients/:id/records/:rid/file — download a client's monthly-record file.
+caRouter.get('/clients/:id/records/:rid/file', requireCa, async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { caId: req.caId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const f = await getRecordFile(link.user_id, req.params.rid);
+  if (!f) return res.status(404).json({ error: 'not_found' });
+  res.setHeader('Content-Type', f.mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename="${f.fileName.replace(/"/g, '')}"`);
+  res.send(f.buffer);
 });
 
 // ── Messaging (CA side) ─────────────────────────────────────────────

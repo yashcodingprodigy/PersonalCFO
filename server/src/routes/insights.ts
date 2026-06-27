@@ -75,11 +75,14 @@ insightsRouter.get('/tax/filing/prefill', async (req: AuthedRequest, res) => {
   const items = deductionUsage(p).items;
   const used = (prefix: string) => items.filter((i) => i.section.startsWith(prefix)).reduce((s, i) => s + i.used, 0);
   const inputs: FilingInputs = {
-    grossSalary: p.user.employment_type === 'salaried' ? (p.user.annual_gross_income || 0) : 0,
+    // 'both' (salaried + business): we can't split the single profile income, so
+    // we seed it as salary (gets the standard deduction) and let the user move
+    // the business portion into Business income in the wizard.
+    grossSalary: (p.user.employment_type === 'salaried' || p.user.employment_type === 'both') ? (p.user.annual_gross_income || 0) : 0,
     interestIncome: 0,
     housePropertyIncome: 0,
     otherIncome: 0,
-    businessIncome: p.user.employment_type && p.user.employment_type !== 'salaried' && p.user.employment_type !== 'student' ? (p.user.annual_gross_income || 0) : 0,
+    businessIncome: p.user.employment_type && p.user.employment_type !== 'salaried' && p.user.employment_type !== 'student' && p.user.employment_type !== 'both' ? (p.user.annual_gross_income || 0) : 0,
     stcgEquity: 0, ltcgEquity: 0, otherCapitalGains: 0,
     ded80C: used('80C'), ded80CCD1B: used('80CCD(1B)'), ded80D: used('80D'),
     ded24b: used('24(b)'), ded80G: Number(t.donations_80g_annual) || 0, ded80TTA: 0,

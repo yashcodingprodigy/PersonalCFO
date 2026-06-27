@@ -172,6 +172,7 @@ export default function SettingsPage() {
               <select className="input" value={employment} onChange={(e) => setEmployment(e.target.value)}>
                 <option value="student">Student</option><option value="salaried">Salaried</option>
                 <option value="self_employed">Self-employed</option><option value="freelancer">Freelancer</option><option value="business">Business owner</option>
+                <option value="both">Salaried + own a business</option>
               </select>
             </div>
             <div>

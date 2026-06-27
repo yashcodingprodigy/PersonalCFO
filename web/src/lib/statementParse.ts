@@ -176,23 +176,99 @@ export async function readPdfText(file: File): Promise<string> {
   return text.replace(/\s+/g, ' ');
 }
 
-// Best-effort Form 16 parse → gross salary + total TDS (paise). Returns nulls
-// when it can't find them; the user always confirms the numbers.
-export function parseForm16(text: string): { grossSalary: number | null; tds: number | null } {
-  const money = (re: RegExp): number | null => {
-    const m = text.match(re);
+// Best-effort Form 16 parse. A real Form 16 (Part B) lays out clearly-labelled
+// totals, so we read the salary, taxable income and tax figures directly. All
+// amounts on a Form 16 carry 2 decimals (e.g. 1688816.00), so we require a
+// decimal — this avoids grabbing the section numbers (17(1), 16(ia), 80C) and
+// the formula references like (9-11). The user always confirms the numbers.
+// `grossSalary` and `tds` are kept for backward compatibility with callers.
+export interface Form16Data {
+  grossSalary: number | null;       // §17(1) salary
+  standardDeduction: number | null; // §16(ia)
+  chapter6A: number | null;         // total Chapter VI-A deductions
+  taxableIncome: number | null;     // total taxable income
+  taxOnIncome: number | null;       // tax on total income (pre-cess)
+  taxPayable: number | null;        // net tax payable (incl. cess)
+  tds: number | null;               // total TDS deducted
+}
+export function parseForm16(text: string): Form16Data {
+  // From a label, skip up to 40 chars (incl. formula refs) to the first proper
+  // 2-decimal amount; ignore 0.00 for income fields. Non-greedy so it grabs the
+  // nearest real number after the label.
+  const pick = (labelSrc: string, allowZero = false): number | null => {
+    const m = text.match(new RegExp(labelSrc + '.{0,40}?(\\d[\\d,]*\\.\\d{2})', 'i'));
     if (!m) return null;
     const n = parseFloat(m[1].replace(/,/g, ''));
+    if (!isFinite(n) || (!allowZero && n === 0)) return null;
+    return Math.round(n * 100);
+  };
+  // Part A summary row: "Total (Rs.) 1681908.00 127680.00 127680.00"
+  // → amount paid/credited, tax deducted, tax deposited.
+  const partA = text.match(/total\s*\(\s*rs\.?\s*\)[^\d]{0,8}(\d[\d,]*\.\d{2})\s+(\d[\d,]*\.\d{2})\s+(\d[\d,]*\.\d{2})/i);
+  const paFix = (s?: string) => { if (!s) return null; const n = parseFloat(s.replace(/,/g, '')); return isFinite(n) && n > 0 ? Math.round(n * 100) : null; };
+
+  const grossSalary =
+    pick('section\\s*17\\s*\\(\\s*1\\s*\\)') ||
+    pick('gross\\s*salary') ||
+    pick('total\\s*amount\\s*of\\s*salary') ||
+    paFix(partA?.[1]);
+  const standardDeduction =
+    pick('16\\s*\\(\\s*ia\\s*\\)') ||
+    pick('standard\\s*deduction');
+  const chapter6A = pick('aggregate\\s*of\\s*deductible\\s*amount\\s*under\\s*chapter');
+  const taxableIncome =
+    pick('total\\s*taxable\\s*income') ||
+    pick('total\\s*income\\s*\\(9');
+  const taxOnIncome = pick('tax\\s*on\\s*total\\s*income');
+  const taxPayable =
+    pick('net\\s*tax\\s*payable') ||
+    pick('tax\\s*payable');
+  const tds =
+    pick('total\\s*(?:amount\\s*of\\s*)?tax\\s*deducted') ||
+    pick('amount\\s*of\\s*tax\\s*deducted\\s*and\\s*deposited') ||
+    paFix(partA?.[3]) || paFix(partA?.[2]);
+  return { grossSalary, standardDeduction, chapter6A, taxableIncome, taxOnIncome, taxPayable, tds };
+}
+
+// Best-effort payslip parser. Reads the earnings/deductions from a salary slip
+// PDF's text. All figures are MONTHLY paise (the caller annualises ×12 for tax).
+// Indian payslips often print line items WITHOUT decimals or commas (e.g. "Basic
+// Pay 72100"), while totals usually carry 2 decimals ("Total Earning 138965.00")
+// — so we accept both, but cap the digit count to avoid grabbing employee IDs or
+// account numbers. Anything it can't find is null and the user confirms/edits it.
+export function parsePayslip(text: string): {
+  gross: number | null; basic: number | null; hra: number | null;
+  net: number | null; reimbursements: number | null; tds: number | null;
+} {
+  // Amount right after a label: integer or 2-decimal, ≤ 9 digits (so a 12–16
+  // digit bank/PF account number can never be mistaken for money).
+  const AMT = '([\\d,]+(?:\\.\\d{1,2})?)';
+  const money = (labelSrc: string): number | null => {
+    const m = text.match(new RegExp(labelSrc + '[^0-9-]{0,15}' + AMT, 'i'));
+    if (!m) return null;
+    const raw = m[1].replace(/,/g, '');
+    if (!/^\d{1,9}(\.\d{1,2})?$/.test(raw)) return null; // reject IDs / account nos.
+    const n = parseFloat(raw);
     return isNaN(n) ? null : Math.round(n * 100);
   };
-  const grossSalary =
-    money(/gross\s*salary[^0-9]{0,40}([\d,]+\.\d{2})/i) ||
-    money(/total\s*amount\s*of\s*salary[^0-9]{0,40}([\d,]+\.\d{2})/i) ||
-    money(/17\s*\(1\)[^0-9]{0,40}([\d,]+\.\d{2})/i);
+  const basic = money('basic(?:\\s*pay|\\s*salary)?');
+  const hra =
+    money('h\\.?\\s*r\\.?\\s*a\\.?') ||
+    money('house\\s*rent\\s*allowance');
+  const gross =
+    money('gross\\s*(?:earnings|salary|pay|emoluments)') ||
+    money('total\\s*earnings?') ||           // "Total Earning Rs. 138965.00"
+    money('total\\s*gross') ||
+    money('gross');
+  const net =
+    money('net\\s*(?:pay|salary|payable|amount|in\\s*hand)') ||  // "Net Payable Rs. 118905.00"
+    money('take\\s*home');
+  const reimbursements = money('reimbursement[s]?');
   const tds =
-    money(/total\s*(?:amount\s*of\s*)?tax\s*deducted[^0-9]{0,40}([\d,]+\.\d{2})/i) ||
-    money(/amount\s*of\s*tax\s*deducted\s*and\s*deposited[^0-9]{0,40}([\d,]+\.\d{2})/i);
-  return { grossSalary, tds };
+    money('income\\s*tax') ||               // Indian govt slips label TDS "Income Tax"
+    money('t\\.?d\\.?s\\.?') ||
+    money('tax\\s*deducted');
+  return { gross, basic, hra, net, reimbursements, tds };
 }
 
 // Best-effort capital-gains CSV parser (broker P&L export → STCG/LTCG totals).

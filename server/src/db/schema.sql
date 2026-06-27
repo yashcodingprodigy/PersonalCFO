@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   name               VARCHAR(100),
   city               VARCHAR(100),
   age                INTEGER,
-  employment_type    VARCHAR(20) CHECK (employment_type IN ('salaried','self_employed','freelancer','business','student')),
+  employment_type    VARCHAR(20) CHECK (employment_type IN ('salaried','self_employed','freelancer','business','student','both')),
   annual_gross_income BIGINT,
   monthly_take_home  BIGINT,
   dependents_count   INTEGER DEFAULT 0,
@@ -93,10 +93,11 @@ CREATE TABLE IF NOT EXISTS ca_documents (
 );
 CREATE INDEX IF NOT EXISTS idx_cadoc_link ON ca_documents(link_id, created_at);
 
--- Allow 'student' as an employment type (idempotent: drop + re-add the CHECK).
+-- Allow 'student' and 'both' (salaried + business) as employment types
+-- (idempotent: drop + re-add the CHECK).
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_employment_type_check;
 ALTER TABLE users ADD CONSTRAINT users_employment_type_check
-  CHECK (employment_type IN ('salaried','self_employed','freelancer','business','student'));
+  CHECK (employment_type IN ('salaried','self_employed','freelancer','business','student','both'));
 
 CREATE TABLE IF NOT EXISTS otp_codes (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -314,6 +315,28 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path VARCHAR(300);
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_name    VARCHAR(200);
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS mime_type    VARCHAR(100);
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS size_bytes   BIGINT;
+
+-- Monthly financial records — the recurring documents a user uploads each month
+-- (payslip, bank statement, demat/holdings, capital gains) so the app and the
+-- user's CA get the complete money-flow picture. The raw file is AES-256
+-- encrypted in Supabase Storage; `extracted` holds the user-confirmed
+-- structured data parsed from it.
+CREATE TABLE IF NOT EXISTS monthly_records (
+  record_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  period       VARCHAR(7) NOT NULL,                 -- 'YYYY-MM'
+  doc_type     VARCHAR(40) NOT NULL,                -- payslip | bank_statement | demat_holdings | capital_gains | ...
+  label        VARCHAR(160) NOT NULL,
+  file_name    VARCHAR(200),
+  mime_type    VARCHAR(100),
+  size_bytes   BIGINT,
+  storage_path VARCHAR(300),
+  extracted    JSONB NOT NULL DEFAULT '{}',         -- user-confirmed structured data
+  summary      TEXT,                                -- one-line human summary
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_monthly_user ON monthly_records(user_id, period DESC);
 
 -- Push notification device tokens (one user can have several devices).
 CREATE TABLE IF NOT EXISTS device_tokens (

@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
 import { inr } from '@/lib/format';
-import { caGet, caPost, caPatch, caDownloadFile, subscribeCaEvents, getCaTokens, clearCaTokens } from '@/lib/caApi';
+import { caGet, caPost, caPatch, caDownloadFile, subscribeCaEvents, getCaTokens } from '@/lib/caApi';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 
+// Reads the client link id from `?id=` (query param, not a path segment) so the
+// page stays a single static route — required for the Capacitor mobile build
+// (`output: 'export'`). Web + mobile share this file.
 export default function CaClient() {
   const router = useRouter();
-  const { id } = useParams<{ id: string }>();
+  const [id, setId] = useState('');
   const [ov, setOv] = useState<any>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -19,12 +22,14 @@ export default function CaClient() {
   const [draft, setDraft] = useState('');
   const chatRef = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState('');
+  useEffect(() => { try { setId(new URLSearchParams(window.location.search).get('id') || ''); } catch {} }, []);
 
   function loadMsgs() { caGet(`/ca/clients/${id}/messages`).then(setMessages).catch(() => {}); }
   function loadDocs() { caGet(`/ca/clients/${id}/documents`).then(setDocs).catch(() => {}); }
   function loadChk() { caGet(`/ca/clients/${id}/checklist`).then(setChk).catch(() => {}); }
   async function toggleChk(key: string, _field: 'sent' | 'received', value: boolean) { await caPatch(`/ca/clients/${id}/checklist`, { key, received: value }); loadChk(); }
   useEffect(() => {
+    if (!id) return;
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
     caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); loadChk(); }).catch((e) => setErr(e.message));
     const refresh = () => { loadMsgs(); loadDocs(); loadChk(); };
@@ -142,6 +147,36 @@ export default function CaClient() {
             <div className="flex justify-between"><dt className="text-ink-soft">Health</dt><dd className="tabular-nums">{inr(ov.insurance.health.current)} <span className="text-ink-faint">/ {inr(ov.insurance.health.recommended)} rec.</span></dd></div>
           </dl>
         </div>
+
+        {/* Monthly records — the client's recurring uploads (read-only) */}
+        {ov.monthlyRecords?.length > 0 && (
+          <div className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Monthly records</h2>
+            <div className="space-y-4">
+              {Object.entries(
+                (ov.monthlyRecords as any[]).reduce((acc: Record<string, any[]>, r) => { (acc[r.period] ||= []).push(r); return acc; }, {})
+              ).map(([prd, recs]) => (
+                <div key={prd}>
+                  <p className="text-xs font-bold text-ink-soft mb-1.5">{new Date(prd + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
+                  <ul className="divide-y divide-paper-100">
+                    {(recs as any[]).map((r) => (
+                      <li key={r.record_id} className="flex items-center justify-between gap-2 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{r.label}</p>
+                          {r.summary && <p className="text-[11px] text-ink-faint truncate">{r.summary}</p>}
+                        </div>
+                        {r.has_file && (
+                          <button onClick={() => caDownloadFile(`/ca/clients/${id}/records/${r.record_id}/file`, r.file_name || 'document')} className="text-xs text-pine-700 underline shrink-0">Open</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-ink-faint mt-3">Uploaded by the client and encrypted. Cross-check against Form 26AS/AIS before filing.</p>
+          </div>
+        )}
 
         {/* ITR filing workflow */}
         {chk?.filingSteps && (

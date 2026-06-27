@@ -32,7 +32,7 @@ const updateSchema = z.object({
   city: z.string().max(100).optional(),
   state: z.string().max(60).optional(),
   age: z.number().int().min(18).max(100).optional(),
-  employment_type: z.enum(['salaried', 'self_employed', 'freelancer', 'business', 'student']).optional(),
+  employment_type: z.enum(['salaried', 'self_employed', 'freelancer', 'business', 'student', 'both']).optional(),
   annual_gross_income: z.number().int().min(0).optional(),
   monthly_take_home: z.number().int().min(0).optional(),
   dependents_count: z.number().int().min(0).max(20).optional(),
