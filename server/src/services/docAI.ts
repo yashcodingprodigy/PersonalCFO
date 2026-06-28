@@ -9,9 +9,16 @@
 // the deterministic parsers (so the app still works in sandbox mode).
 import { config } from '../config';
 
+// Every document type we send to the AI reader (PDF / free-form docs). Tabular
+// CSV/Excel docs (bank/credit-card statement, demat holdings, capital gains)
+// use the deterministic parsers instead, so they're not in this union.
 export type ExpectedDoc =
-  | 'employment_contract' | 'employment_letter' | 'payslip' | 'form16'
-  | 'bank_statement' | 'demat_holdings' | 'capital_gains' | 'form26as_ais';
+  | 'employment_contract' | 'employment_letter' | 'payslip' | 'form16' | 'form16a' | 'form26as_ais'
+  | 'mutual_fund_cas' | 'dividend_statement' | 'interest_certificate'
+  | 'home_loan_certificate' | 'other_loan_statement'
+  | 'rent_receipts' | 'tax_saving_80c' | 'health_insurance_80d' | 'nps_statement' | 'donation_80g'
+  | 'insurance_policy' | 'property_papers'
+  | 'gst_returns' | 'profit_loss';
 
 export interface AIDocResult {
   documentType: string;      // what Claude thinks it actually is
@@ -30,23 +37,47 @@ export const aiAvailable = () => !!config.anthropicApiKey;
 const FIELD_GUIDE: Record<ExpectedDoc, string> = {
   payslip: 'period, employerName, grossMonthly, basicMonthly, hraMonthly, allowancesMonthly, reimbursementsMonthly, netMonthly, tdsMonthly',
   form16: 'assessmentYear, employerName, grossSalaryAnnual, standardDeduction, chapter6ADeductions, taxableIncome, taxOnIncome, taxPayable, tds',
+  form16a: 'deductorName, natureOfPayment, financialYear, amountPaid, tdsDeducted, section',
   employment_letter: 'employerName, role, ctcAnnual, basicAnnual, hraAnnual, allowancesAnnual',
   employment_contract: 'employerName, role, joiningDate, ctcAnnual, noticePeriod, probationMonths',
-  bank_statement: 'bankName, accountLast4, periodFrom, periodTo, openingBalance, closingBalance, transactionCount',
-  demat_holdings: 'brokerOrDepository, asOfDate, holdingsCount, totalValue',
-  capital_gains: 'brokerName, financialYear, shortTermGain, longTermGain, tradeCount',
   form26as_ais: 'pan, assessmentYear, totalTdsReported, totalIncomeReported',
+  mutual_fund_cas: 'source, asOfDate, folioCount, totalValue',
+  dividend_statement: 'companyOrBroker, financialYear, totalDividend, tdsDeducted',
+  interest_certificate: 'bankName, financialYear, savingsInterest, fdInterest, totalInterest, tdsDeducted',
+  home_loan_certificate: 'lenderName, financialYear, principalRepaid, interestPaid, propertyAddress',
+  other_loan_statement: 'lenderName, loanType, financialYear, interestPaid, outstanding, emi',
+  rent_receipts: 'landlordName, landlordPan, monthlyRent, totalRentPaid, period, propertyAddress',
+  tax_saving_80c: 'instrument, financialYear, amountInvested',
+  health_insurance_80d: 'insurerName, policyHolder, premiumPaid, coverAmount, financialYear',
+  nps_statement: 'pran, financialYear, employeeContribution, employerContribution, totalContribution',
+  donation_80g: 'doneeName, doneePan, financialYear, donationAmount, eligiblePercent',
+  insurance_policy: 'insurerName, policyType, policyNumber, sumAssured, annualPremium',
+  property_papers: 'documentKind, propertyAddress, considerationAmount, date',
+  gst_returns: 'gstin, returnType, period, totalTaxableValue, totalTax',
+  profit_loss: 'businessName, financialYear, revenue, expenses, netProfit',
 };
 
 const LABEL: Record<ExpectedDoc, string> = {
   payslip: 'monthly salary payslip',
   form16: 'Form 16 (TDS certificate)',
+  form16a: 'Form 16A (TDS on non-salary income)',
   employment_letter: 'salary structure / breakup letter',
   employment_contract: 'employment contract / offer letter',
-  bank_statement: 'bank account statement',
-  demat_holdings: 'demat / mutual-fund holdings report',
-  capital_gains: 'capital-gains statement',
   form26as_ais: 'Form 26AS or AIS',
+  mutual_fund_cas: 'mutual-fund Consolidated Account Statement (CAS)',
+  dividend_statement: 'dividend income statement',
+  interest_certificate: 'bank / FD interest certificate',
+  home_loan_certificate: 'home-loan interest certificate',
+  other_loan_statement: 'loan statement / interest certificate (education, personal or car loan)',
+  rent_receipts: 'rent receipts with landlord PAN (for HRA)',
+  tax_saving_80c: '80C tax-saving investment proof (PPF, ELSS, LIC, tuition, etc.)',
+  health_insurance_80d: 'health-insurance premium receipt (Section 80D)',
+  nps_statement: 'NPS contribution statement (Section 80CCD)',
+  donation_80g: 'donation receipt (Section 80G)',
+  insurance_policy: 'life or health insurance policy document',
+  property_papers: 'property sale/purchase deed or agreement',
+  gst_returns: 'GST return (GSTR-1 / GSTR-3B)',
+  profit_loss: 'profit & loss statement / balance sheet',
 };
 
 function extractJson(s: string): any {

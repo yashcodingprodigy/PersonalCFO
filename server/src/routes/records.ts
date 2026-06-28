@@ -19,15 +19,41 @@ recordsRouter.use(requireAuth);
 // The recurring document types we track each month, with the file formats we can
 // actually read reliably. (The web UI enforces these too — we keep images out of
 // the parseable types so a blurry photo can't corrupt the extracted numbers.)
+// The full recurring document set, grouped by category. Formats are enforced
+// (images are kept out of parseable types so a blurry photo can't corrupt data).
 export const RECORD_TYPES = [
-  { type: 'employment_contract', label: 'Employment contract / offer letter', formats: ['pdf'], cadence: 'once' },
-  { type: 'employment_letter', label: 'Salary structure / breakup letter', formats: ['pdf'], cadence: 'once' },
-  { type: 'payslip', label: 'Monthly payslip (incl. reimbursements)', formats: ['pdf'], cadence: 'monthly' },
-  { type: 'form16', label: 'Form 16 (annual TDS certificate)', formats: ['pdf'], cadence: 'yearly' },
-  { type: 'bank_statement', label: 'Bank statement', formats: ['pdf', 'xlsx', 'xls', 'csv'], cadence: 'monthly' },
-  { type: 'demat_holdings', label: 'Demat / mutual-fund holdings report', formats: ['xlsx', 'xls', 'csv'], cadence: 'monthly' },
-  { type: 'capital_gains', label: 'Capital-gains statement', formats: ['xlsx', 'xls', 'csv'], cadence: 'monthly' },
-  { type: 'form26as_ais', label: 'Form 26AS / AIS', formats: ['pdf'], cadence: 'quarterly' },
+  // Income & salary
+  { type: 'employment_contract', label: 'Employment contract / offer letter', formats: ['pdf'], cadence: 'once', category: 'Income & salary' },
+  { type: 'employment_letter', label: 'Salary structure / breakup letter', formats: ['pdf'], cadence: 'yearly', category: 'Income & salary' },
+  { type: 'payslip', label: 'Monthly payslip (incl. reimbursements)', formats: ['pdf'], cadence: 'monthly', category: 'Income & salary' },
+  { type: 'form16', label: 'Form 16 (annual TDS certificate)', formats: ['pdf'], cadence: 'yearly', category: 'Income & salary' },
+  { type: 'form16a', label: 'Form 16A (TDS on non-salary income)', formats: ['pdf'], cadence: 'quarterly', category: 'Income & salary' },
+  // Tax statements
+  { type: 'form26as_ais', label: 'Form 26AS / AIS', formats: ['pdf'], cadence: 'quarterly', category: 'Tax statements' },
+  // Banking & spending
+  { type: 'bank_statement', label: 'Bank statement', formats: ['pdf', 'xlsx', 'xls', 'csv'], cadence: 'monthly', category: 'Banking & spending' },
+  { type: 'credit_card_statement', label: 'Credit-card statement', formats: ['pdf', 'xlsx', 'xls', 'csv'], cadence: 'monthly', category: 'Banking & spending' },
+  // Investments
+  { type: 'demat_holdings', label: 'Demat / mutual-fund holdings report', formats: ['xlsx', 'xls', 'csv'], cadence: 'monthly', category: 'Investments' },
+  { type: 'mutual_fund_cas', label: 'Mutual-fund statement (CAS)', formats: ['pdf'], cadence: 'monthly', category: 'Investments' },
+  { type: 'capital_gains', label: 'Capital-gains statement', formats: ['xlsx', 'xls', 'csv'], cadence: 'yearly', category: 'Investments' },
+  { type: 'dividend_statement', label: 'Dividend income statement', formats: ['pdf'], cadence: 'yearly', category: 'Investments' },
+  { type: 'interest_certificate', label: 'Bank / FD interest certificate', formats: ['pdf'], cadence: 'yearly', category: 'Investments' },
+  // Loans
+  { type: 'home_loan_certificate', label: 'Home-loan interest certificate', formats: ['pdf'], cadence: 'yearly', category: 'Loans' },
+  { type: 'other_loan_statement', label: 'Other loan interest certificate (education / personal / car)', formats: ['pdf'], cadence: 'yearly', category: 'Loans' },
+  // Deductions & tax-saving proofs
+  { type: 'rent_receipts', label: 'Rent receipts + landlord PAN (HRA)', formats: ['pdf'], cadence: 'yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'tax_saving_80c', label: '80C proofs (PPF, ELSS, LIC, tuition…)', formats: ['pdf'], cadence: 'yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'health_insurance_80d', label: 'Health-insurance premium (80D)', formats: ['pdf'], cadence: 'yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'nps_statement', label: 'NPS statement (80CCD)', formats: ['pdf'], cadence: 'yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'donation_80g', label: 'Donation receipts (80G)', formats: ['pdf'], cadence: 'yearly', category: 'Deductions & tax-saving proofs' },
+  // Insurance & property
+  { type: 'insurance_policy', label: 'Life / health insurance policy', formats: ['pdf'], cadence: 'once', category: 'Insurance & property' },
+  { type: 'property_papers', label: 'Property sale / purchase deed', formats: ['pdf'], cadence: 'once', category: 'Insurance & property' },
+  // Business & self-employed
+  { type: 'gst_returns', label: 'GST return (GSTR-1 / 3B)', formats: ['pdf'], cadence: 'monthly', category: 'Business & self-employed' },
+  { type: 'profit_loss', label: 'Profit & loss / balance sheet', formats: ['pdf'], cadence: 'yearly', category: 'Business & self-employed' },
 ];
 
 recordsRouter.get('/types', (_req, res) => res.json(RECORD_TYPES));
@@ -51,7 +77,13 @@ recordsRouter.get('/tax-preview', async (req: AuthedRequest, res) => {
 
 // POST /records/ai-extract — let Claude read & validate an uploaded document.
 // The client sends the text it extracted from the file; we never store it.
-const AI_TYPES = ['employment_contract', 'employment_letter', 'payslip', 'form16', 'bank_statement', 'demat_holdings', 'capital_gains', 'form26as_ais'] as const;
+const AI_TYPES = [
+  'employment_contract', 'employment_letter', 'payslip', 'form16', 'form16a', 'form26as_ais',
+  'mutual_fund_cas', 'dividend_statement', 'interest_certificate',
+  'home_loan_certificate', 'other_loan_statement',
+  'rent_receipts', 'tax_saving_80c', 'health_insurance_80d', 'nps_statement', 'donation_80g',
+  'insurance_policy', 'property_papers', 'gst_returns', 'profit_loss',
+] as const;
 recordsRouter.post('/ai-extract', rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'recai' }), async (req: AuthedRequest, res) => {
   if (!aiAvailable()) return res.json({ available: false });
   const parsed = z.object({

@@ -82,9 +82,12 @@ unread-alerts badge, native biometric lock overlay).
   return, picks the ITR form, refund/payable, full computation, "how to file yourself" portal steps,
   downloadable computation pack. Links to rent receipts.
 - **Insurance** (`insurance`) — coverage **rings**, collapsible "what to get" recommendations, avoid list.
-- **Monthly records** (`records`) — recurring monthly-upload hub (CA-requested): month picker + cards for
-  employment contract, salary-structure letter, payslip, **Form 16**, bank statement, demat/holdings,
-  capital gains, 26AS/AIS. **Strict formats**
+- **Monthly records** (`records`) — recurring monthly-upload hub (CA-requested): month picker + **24 doc
+  types grouped into 8 categories** (Income & salary, Tax statements, Banking & spending, Investments, Loans,
+  Deductions & tax-saving proofs, Insurance & property, Business & self-employed) — payslip, Form 16/16A,
+  26AS/AIS, bank + credit-card statements, demat/MF CAS, capital gains, dividend & interest certificates,
+  home/other loan certs, rent receipts, 80C/80D/NPS/80G proofs, insurance, property deeds, GST returns, P&L.
+  Per-record **Remove (with confirm) + Replace**. **Strict formats**
   enforced (PDF text / Excel / CSV; images rejected for parseable docs so a blurry scan can't corrupt data).
   **AI reader** (`docAI.ts`, route `POST /records/ai-extract`): for PDF/free-form docs (contract, letter,
   payslip, Form 16, 26AS) the client extracts text → Claude identifies the doc, **validates it matches the

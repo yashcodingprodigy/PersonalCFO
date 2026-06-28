@@ -13,17 +13,48 @@ import {
 // `formats` is enforced on upload so a blurry photo can't corrupt the numbers.
 type DocType = {
   type: string; icon: string; label: string; sub: string;
-  formats: string[]; cadence: string; salary?: 'monthly' | 'annual';
+  formats: string[]; cadence: string; category: string; salary?: 'monthly' | 'annual';
 };
+// Categories rendered in this order. The full set mirrors what an Indian
+// taxpayer needs for a complete money picture + accurate ITR (income, TDS
+// credits, investments, deductions, loans, assets and business).
+const CATEGORIES = [
+  'Income & salary', 'Tax statements', 'Banking & spending', 'Investments',
+  'Loans', 'Deductions & tax-saving proofs', 'Insurance & property', 'Business & self-employed',
+];
 const DOC_TYPES: DocType[] = [
-  { type: 'employment_contract', icon: '📜', label: 'Employment contract / offer letter', sub: 'Your appointment letter — role, joining date and the CTC you agreed.', formats: ['pdf'], cadence: 'Once' },
-  { type: 'employment_letter', icon: '📃', label: 'Salary structure / breakup letter', sub: 'Your CTC broken into basic, HRA and allowances.', formats: ['pdf'], cadence: 'Once a year', salary: 'annual' },
-  { type: 'payslip', icon: '🧾', label: 'Monthly payslip', sub: 'Including any reimbursements. We read it to project your tax.', formats: ['pdf'], cadence: 'Every month', salary: 'monthly' },
-  { type: 'form16', icon: '📄', label: 'Form 16 (TDS certificate)', sub: 'Your employer’s year-end salary & tax certificate — the most authoritative.', formats: ['pdf'], cadence: 'Once a year', salary: 'annual' },
-  { type: 'bank_statement', icon: '🏦', label: 'Bank statement', sub: 'We read every transaction to map your money flow.', formats: ['pdf', 'xlsx', 'xls', 'csv'], cadence: 'Every month' },
-  { type: 'demat_holdings', icon: '📈', label: 'Demat / mutual-fund holdings', sub: 'A look-through of what you actually own and how diversified you are.', formats: ['xlsx', 'xls', 'csv'], cadence: 'Every month' },
-  { type: 'capital_gains', icon: '💹', label: 'Capital-gains statement', sub: 'Realised short- and long-term gains from your broker P&L.', formats: ['xlsx', 'xls', 'csv'], cadence: 'Every month' },
-  { type: 'form26as_ais', icon: '📊', label: 'Form 26AS / AIS', sub: 'The tax dept’s record of your income & TDS — to cross-check.', formats: ['pdf'], cadence: 'Each quarter' },
+  // Income & salary
+  { type: 'employment_contract', icon: '📜', label: 'Employment contract / offer letter', sub: 'Role, joining date and the CTC you agreed.', formats: ['pdf'], cadence: 'Once', category: 'Income & salary' },
+  { type: 'employment_letter', icon: '📃', label: 'Salary structure / breakup letter', sub: 'Your CTC broken into basic, HRA and allowances.', formats: ['pdf'], cadence: 'Yearly', category: 'Income & salary', salary: 'annual' },
+  { type: 'payslip', icon: '🧾', label: 'Monthly payslip', sub: 'Including reimbursements. We read it to project your tax.', formats: ['pdf'], cadence: 'Monthly', category: 'Income & salary', salary: 'monthly' },
+  { type: 'form16', icon: '📄', label: 'Form 16 (TDS certificate)', sub: 'Your employer’s year-end salary & tax certificate.', formats: ['pdf'], cadence: 'Yearly', category: 'Income & salary', salary: 'annual' },
+  { type: 'form16a', icon: '📑', label: 'Form 16A (non-salary TDS)', sub: 'TDS on FD/RD interest, professional fees, etc.', formats: ['pdf'], cadence: 'Quarterly', category: 'Income & salary' },
+  // Tax statements
+  { type: 'form26as_ais', icon: '📊', label: 'Form 26AS & AIS', sub: 'The tax dept’s record of your income & TDS — to cross-check.', formats: ['pdf'], cadence: 'Quarterly', category: 'Tax statements' },
+  // Banking & spending
+  { type: 'bank_statement', icon: '🏦', label: 'Bank statement', sub: 'We read every transaction to map your money flow.', formats: ['pdf', 'xlsx', 'xls', 'csv'], cadence: 'Monthly', category: 'Banking & spending' },
+  { type: 'credit_card_statement', icon: '💳', label: 'Credit-card statement', sub: 'Adds your card spending to the picture.', formats: ['pdf', 'xlsx', 'xls', 'csv'], cadence: 'Monthly', category: 'Banking & spending' },
+  // Investments
+  { type: 'demat_holdings', icon: '📈', label: 'Demat / MF holdings', sub: 'A look-through of what you own and how diversified you are.', formats: ['xlsx', 'xls', 'csv'], cadence: 'Monthly', category: 'Investments' },
+  { type: 'mutual_fund_cas', icon: '🗂️', label: 'Mutual-fund statement (CAS)', sub: 'CAMS/KFintech consolidated statement of all your funds.', formats: ['pdf'], cadence: 'Monthly', category: 'Investments' },
+  { type: 'capital_gains', icon: '💹', label: 'Capital-gains statement', sub: 'Realised short- and long-term gains from your broker P&L.', formats: ['xlsx', 'xls', 'csv'], cadence: 'Yearly', category: 'Investments' },
+  { type: 'dividend_statement', icon: '💰', label: 'Dividend statement', sub: 'Dividends received — taxable as other income.', formats: ['pdf'], cadence: 'Yearly', category: 'Investments' },
+  { type: 'interest_certificate', icon: '🪙', label: 'Bank / FD interest certificate', sub: 'Savings + FD interest and any TDS on it.', formats: ['pdf'], cadence: 'Yearly', category: 'Investments' },
+  // Loans
+  { type: 'home_loan_certificate', icon: '🏠', label: 'Home-loan interest certificate', sub: 'Principal (80C) and interest (24b) split — big deductions.', formats: ['pdf'], cadence: 'Yearly', category: 'Loans' },
+  { type: 'other_loan_statement', icon: '💸', label: 'Other loan certificate', sub: 'Education (80E), personal or car loan interest statement.', formats: ['pdf'], cadence: 'Yearly', category: 'Loans' },
+  // Deductions & tax-saving proofs
+  { type: 'rent_receipts', icon: '🏘️', label: 'Rent receipts + landlord PAN', sub: 'For HRA. Landlord PAN needed if rent > ₹1L/yr.', formats: ['pdf'], cadence: 'Yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'tax_saving_80c', icon: '🧮', label: '80C proofs', sub: 'PPF, ELSS, LIC, tuition fees, tax-saver FD receipts.', formats: ['pdf'], cadence: 'Yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'health_insurance_80d', icon: '🩺', label: 'Health-insurance premium (80D)', sub: 'Premium receipt for you and your family/parents.', formats: ['pdf'], cadence: 'Yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'nps_statement', icon: '🏛️', label: 'NPS statement (80CCD)', sub: 'Your NPS contributions — extra ₹50k deduction.', formats: ['pdf'], cadence: 'Yearly', category: 'Deductions & tax-saving proofs' },
+  { type: 'donation_80g', icon: '🎁', label: 'Donation receipts (80G)', sub: 'Eligible donations with the donee’s PAN.', formats: ['pdf'], cadence: 'Yearly', category: 'Deductions & tax-saving proofs' },
+  // Insurance & property
+  { type: 'insurance_policy', icon: '🛡️', label: 'Insurance policy', sub: 'Life or health policy — for your cover analysis.', formats: ['pdf'], cadence: 'Once', category: 'Insurance & property' },
+  { type: 'property_papers', icon: '🏡', label: 'Property deed / agreement', sub: 'Sale/purchase deed — needed for property capital gains.', formats: ['pdf'], cadence: 'Once', category: 'Insurance & property' },
+  // Business & self-employed
+  { type: 'gst_returns', icon: '🏢', label: 'GST return (GSTR-1 / 3B)', sub: 'For business income — turnover and tax paid.', formats: ['pdf'], cadence: 'Monthly', category: 'Business & self-employed' },
+  { type: 'profit_loss', icon: '📉', label: 'Profit & loss / balance sheet', sub: 'Your business’s yearly accounts.', formats: ['pdf'], cadence: 'Yearly', category: 'Business & self-employed' },
 ];
 
 const FMT_NAME: Record<string, string> = { pdf: 'PDF', xlsx: 'Excel', xls: 'Excel', csv: 'CSV' };
@@ -104,7 +135,13 @@ export default function MonthlyRecords() {
   // Document types we send to the AI reader (free-form / PDF docs where layout
   // varies and we also want to catch a wrong upload). Tabular CSV/Excel docs
   // (statement / holdings / capital gains) use the deterministic parsers.
-  const AI_DOCS = ['form16', 'payslip', 'employment_letter', 'employment_contract', 'form26as_ais'];
+  const AI_DOCS = [
+    'form16', 'form16a', 'payslip', 'employment_letter', 'employment_contract', 'form26as_ais',
+    'mutual_fund_cas', 'dividend_statement', 'interest_certificate',
+    'home_loan_certificate', 'other_loan_statement',
+    'rent_receipts', 'tax_saving_80c', 'health_insurance_80d', 'nps_statement', 'donation_80g',
+    'insurance_policy', 'property_papers', 'gst_returns', 'profit_loss',
+  ];
   const RUPn = (n: any) => { const x = Number(n); return isFinite(x) && x > 0 ? Math.round(x * 100) : null; }; // rupees → paise
   const taxFor = (annualGross: number) => annualGross > 0 ? get(`/records/tax-preview?annualGross=${annualGross}`).catch(() => null) : Promise.resolve(null);
 
@@ -129,11 +166,14 @@ export default function MonthlyRecords() {
       if (ai?.available && ai.result) return fromAI(dt, file, ai.result);
       return fromParser(dt, file, text); // AI off or failed → deterministic
     }
-    if (dt.type === 'bank_statement') {
+    if (dt.type === 'bank_statement' || dt.type === 'credit_card_statement') {
       const r = await parseStatementFile(file);
       const debit = r.transactions.filter((t) => t.direction === 'debit').reduce((s, t) => s + t.amount, 0);
       const credit = r.transactions.filter((t) => t.direction === 'credit').reduce((s, t) => s + t.amount, 0);
-      return { dt, file, txns: r.transactions, extracted: { count: r.transactions.length, debit, credit },
+      // Only bank statements feed the spending engine (credit-card spends would
+      // double-count against the bank debit that pays the card bill).
+      const txns = dt.type === 'bank_statement' ? r.transactions : undefined;
+      return { dt, file, txns, extracted: { count: r.transactions.length, debit, credit },
         summary: `${r.transactions.length} transactions · ${inr(credit)} in / ${inr(debit)} out`,
         note: r.warning };
     }
@@ -361,14 +401,20 @@ export default function MonthlyRecords() {
         </div>
       )}
 
-      {/* Doc cards for the selected month */}
-      <div>
-        <p className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">{monthLabel(period)}</p>
-        <div className="space-y-2">
-          {DOC_TYPES.map((dt) => {
-            const existing = forPeriod(dt.type);
-            const has = existing.length > 0;
-            return (
+      {/* Doc cards for the selected month, grouped by category */}
+      <div className="space-y-5">
+        <p className="text-sm font-bold uppercase tracking-widest text-ink-faint">{monthLabel(period)}</p>
+        {CATEGORIES.map((cat) => {
+          const items = DOC_TYPES.filter((d) => d.category === cat);
+          if (!items.length) return null;
+          return (
+            <div key={cat}>
+              <p className="text-xs font-bold text-pine-800 mb-1.5">{cat}</p>
+              <div className="space-y-2">
+                {items.map((dt) => {
+                  const existing = forPeriod(dt.type);
+                  const has = existing.length > 0;
+                  return (
               <div key={dt.type} className={`rounded-xl border p-3 ${has ? 'border-mint-500/60 bg-mint-50' : 'border-paper-200 bg-white'}`}>
                 <div className="flex items-center gap-3">
                   <span className={`grid place-items-center w-10 h-10 rounded-full text-lg shrink-0 ${has ? 'bg-mint-500 text-pine-950' : 'bg-paper-100'}`}>{has ? '✓' : dt.icon}</span>
@@ -404,10 +450,13 @@ export default function MonthlyRecords() {
                     ))}
                   </div>
                 )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       <p className="text-[11px] text-ink-faint">
