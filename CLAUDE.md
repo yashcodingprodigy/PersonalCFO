@@ -101,7 +101,10 @@ unread-alerts badge, native biometric lock overlay).
   Form 16 Part A/B totals) when `ANTHROPIC_API_KEY` is unset or the call fails. Tabular docs (statement/holdings/
   capital gains) stay on the structured CSV/Excel parsers. User **confirms** values before save (never trusted blindly). Payslip → annualised **tax-liability window** (slab-by-slab, both regimes, marginal +
   monthly TDS) via `/records/tax-preview`; bank statement → imports de-duped transactions; holdings → look-through
-  grade. Files AES-256 encrypted; visible read-only to the connected CA.
+  grade. Files AES-256 encrypted; visible read-only to the connected CA. **Every upload updates the user:**
+  whitelisted figures merge into `tax_data` (home-loan interest/principal, 80D, NPS, 80G, rent → feed the
+  deduction tracker + tax score + Actions), the score is recalculated, and a RAG memory note is saved so
+  Ask PayWatch stays current. A per-month **progress count** ("X of Y uploaded · Z to go") nudges more uploads.
 - **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → detailed spending report.
 - **Document vault** (`vault`) — track CA paperwork + expiry reminders (feeds alerts).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).

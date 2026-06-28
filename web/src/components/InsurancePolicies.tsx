@@ -143,23 +143,51 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
     <input type="date" className="input" defaultValue={val || ''} onChange={(e) => on(e.target.value || null)} />
   );
 
+  const lifeCover = policies.filter((p) => p.category === 'term_life' || p.category === 'life_endowment').reduce((s, p) => s + (p.sum_assured || 0), 0);
+  const healthCover = policies.filter((p) => p.category === 'health').reduce((s, p) => s + (p.sum_assured || 0), 0);
+  const dueSoon = policies.filter((p) => { const d = daysTo(p.renewal_date || p.expiry_date); return d != null && d <= 30; }).length;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
 
-      {/* Add by category */}
-      <div className="card p-5">
-        <p className="text-sm font-bold">Add a policy</p>
-        <p className="text-xs text-ink-faint mt-0.5 mb-3">Upload the PDF — we read the cover, premium and dates automatically and track renewals for you.</p>
-        <div className="flex flex-wrap gap-2">
-          {CATS.map((c) => (
-            <button key={c.key} onClick={() => pick(c.key)} disabled={busy}
-              className="rounded-full border border-paper-200 px-3 py-1.5 text-xs font-semibold hover:border-pine-600 disabled:opacity-50">
-              {busy && pendingCat.current === c.key ? 'Reading…' : <>{c.icon} {c.label}</>}
-            </button>
-          ))}
+      {/* Hero: add a policy by category */}
+      <div className="rounded-2xl bg-gradient-to-br from-pine-950 to-pine-900 text-white p-6">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-display text-xl font-medium">Add your insurance policies</p>
+            <p className="text-sm text-white/70 mt-1 max-w-md">Upload a PDF and AI reads the cover, premium and every date — issue, expiry, maturity and renewal — then tracks renewals so you never miss one.</p>
+          </div>
+          {policies.length > 0 && (
+            <div className="flex gap-4 text-right">
+              <div><p className="text-[10px] uppercase tracking-wider text-white/50">Policies</p><p className="font-display text-2xl font-semibold">{policies.length}</p></div>
+              {dueSoon > 0 && <div><p className="text-[10px] uppercase tracking-wider text-mint-300">Due soon</p><p className="font-display text-2xl font-semibold text-mint-300">{dueSoon}</p></div>}
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-5">
+          {CATS.map((c) => {
+            const reading = busy && pendingCat.current === c.key;
+            return (
+              <button key={c.key} onClick={() => pick(c.key)} disabled={busy}
+                className="group flex items-center gap-3 rounded-xl bg-white/10 hover:bg-white/20 ring-1 ring-white/10 px-3.5 py-3 text-left transition-colors disabled:opacity-50">
+                <span className="grid place-items-center w-9 h-9 rounded-full bg-white/15 text-lg shrink-0">{reading ? '…' : c.icon}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">{c.label}</span>
+                  <span className="block text-[10px] text-white/60 group-hover:text-mint-300">{reading ? 'Reading…' : '+ Upload PDF'}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {policies.length > 0 && (lifeCover > 0 || healthCover > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="card p-4"><p className="text-[11px] uppercase tracking-wider text-ink-faint font-bold">Life cover held</p><p className="font-display text-xl font-semibold mt-0.5">{inr(lifeCover)}</p></div>
+          <div className="card p-4"><p className="text-[11px] uppercase tracking-wider text-ink-faint font-bold">Health cover held</p><p className="font-display text-xl font-semibold mt-0.5">{inr(healthCover)}</p></div>
+        </div>
+      )}
 
       {err && <div className="rounded-lg bg-signal-red/10 border border-signal-red/30 text-signal-red text-sm px-4 py-3">{err}</div>}
 
@@ -211,30 +239,40 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
         </div>
       )}
 
+      {/* Empty state — encourage the first upload */}
+      {policies.length === 0 && !staged && (
+        <div className="card p-8 text-center border-dashed">
+          <p className="text-3xl">🛡️</p>
+          <p className="text-sm font-bold mt-2">No policies added yet</p>
+          <p className="text-xs text-ink-soft mt-1 max-w-sm mx-auto">Add even one above and PayWatch will track its renewal, fold it into your cover analysis, and sharpen your Money Score. The more you add, the more accurate your advice.</p>
+        </div>
+      )}
+
       {/* Existing policies */}
       {policies.length > 0 && (
-        <div className="card p-5">
-          <p className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Your policies ({policies.length})</p>
-          <ul className="divide-y divide-paper-100">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Your policies ({policies.length})</p>
+          <div className="space-y-2">
             {policies.map((p) => (
-              <li key={p.policy_id} className="py-3">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold flex items-center gap-2 flex-wrap">
-                      <span>{catIcon(p.category)} {p.insurer || catLabel(p.category)}</span>
+              <div key={p.policy_id} className="card p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid place-items-center w-10 h-10 rounded-full bg-paper-100 text-lg shrink-0">{catIcon(p.category)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-bold truncate">{p.insurer || catLabel(p.category)}</p>
                       <StatusBadge p={p} />
-                    </p>
+                    </div>
                     <p className="text-xs text-ink-soft mt-0.5">
                       {catLabel(p.category)}
                       {p.sum_assured ? ` · cover ${inr(p.sum_assured)}` : ''}
                       {p.premium ? ` · ${inr(p.premium)}${p.premium_frequency ? '/' + p.premium_frequency.slice(0, 2) : ''} premium` : ''}
                     </p>
                     <p className="text-[11px] text-ink-faint mt-0.5">
-                      {(p.renewal_date || p.expiry_date) ? `Renews ${fmtD(p.renewal_date || p.expiry_date)}` : 'No renewal date'}
+                      {(p.renewal_date || p.expiry_date) ? `Renews ${fmtD(p.renewal_date || p.expiry_date)}` : 'No renewal date on file'}
                       {p.maturity_date ? ` · matures ${fmtD(p.maturity_date)}` : ''}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] shrink-0">
+                  <div className="flex flex-col items-end gap-1.5 text-[11px] shrink-0">
                     {p.has_file && <button onClick={() => downloadFile(`/insurance/policies/${p.policy_id}/file`, p.file_name || 'policy')} className="text-pine-700 underline">📎 File</button>}
                     {confirmId === p.policy_id ? (
                       <span className="flex items-center gap-2">
@@ -247,9 +285,10 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
                     )}
                   </div>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
+          <p className="text-[11px] text-ink-faint mt-2">Add any other policies above for a complete cover picture — more policies mean a sharper analysis and timely renewal reminders.</p>
         </div>
       )}
     </div>

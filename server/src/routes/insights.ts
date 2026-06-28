@@ -110,6 +110,9 @@ insightsRouter.post('/insurance/policies', rateLimit({ windowMs: 60_000, max: 40
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
   const row = await createPolicy(req.userId!, parsed.data as any);
   await recalculateAndStoreScore(req.userId!, 'insurance_upload');
+  await remember(req.userId!, 'insurance_upload', `Added ${CATEGORY_LABEL[parsed.data.category] || 'insurance'}`,
+    `User uploaded a ${CATEGORY_LABEL[parsed.data.category] || parsed.data.category}${parsed.data.insurer ? ' from ' + parsed.data.insurer : ''}${parsed.data.sum_assured ? ', cover ₹' + Math.round(parsed.data.sum_assured / 100).toLocaleString('en-IN') : ''}${parsed.data.expiry_date ? ', renews ' + parsed.data.expiry_date : ''}.`
+  ).catch(() => {});
   res.status(201).json(row);
 });
 

@@ -12,6 +12,16 @@ import { listRecords, createRecord, attachRecordFile, getRecordFile, deleteRecor
 import { salaryTaxComparison } from '../services/tax';
 import { recalculateAndStoreScore } from '../services/profile';
 import { aiAvailable, analyzeDocument, ExpectedDoc } from '../services/docAI';
+import { remember } from '../services/rag';
+
+// tax_data fields an upload is allowed to set (paise) — these flow straight into
+// the deduction tracker, tax-efficiency score, tax reduction plan and actions.
+const TAX_DATA_KEYS = new Set([
+  'home_loan_interest_annual', 'home_loan_principal_annual', 'health_premium_self_annual',
+  'health_premium_parents_annual', 'nps_80ccd1b_annual', 'donations_80g_annual', 'rent_paid_monthly',
+  'elss_annual', 'ppf_annual', 'lic_premium_annual', 'school_fees_annual', 'epf_contribution_annual',
+  'basic_salary_annual', 'hra_received_annual',
+]);
 
 export const recordsRouter = Router();
 recordsRouter.use(requireAuth);
@@ -109,6 +119,9 @@ const recordSchema = z.object({
   // Optional salary breakup (annualised paise) from a payslip → improves the
   // HRA / tax engine when the user confirms it.
   applySalary: z.object({ basicAnnual: z.number().int().nonnegative(), hraAnnual: z.number().int().nonnegative() }).optional(),
+  // Optional tax_data updates (paise) from the doc — e.g. home-loan interest,
+  // 80D premium, NPS, 80G donation, rent. Server whitelists the keys.
+  applyTaxData: z.record(z.number().int().nonnegative().max(1_000_000_000_00)).optional(),
 });
 
 // POST /records — create a record's metadata + confirmed extracted data.
@@ -118,16 +131,29 @@ recordsRouter.post('/', rateLimit({ windowMs: 60_000, max: 60, keyPrefix: 'rec' 
   const d = parsed.data;
   const row = await createRecord(req.userId!, { period: d.period, doc_type: d.doc_type, label: d.label, extracted: d.extracted, summary: d.summary });
 
-  // Payslip → optionally fold the confirmed salary breakup into tax_data so the
-  // HRA exemption + regime comparison get more accurate.
-  if (d.applySalary && (d.applySalary.basicAnnual > 0 || d.applySalary.hraAnnual > 0)) {
-    const prof = await one<any>(`SELECT tax_data FROM profiles WHERE user_id = $1`, [req.userId]);
-    const t: any = prof?.tax_data || {};
-    if (d.applySalary.basicAnnual > 0) t.basic_salary_annual = d.applySalary.basicAnnual;
-    if (d.applySalary.hraAnnual > 0) t.hra_received_annual = d.applySalary.hraAnnual;
-    await query(`UPDATE profiles SET tax_data = $2::jsonb, version = version + 1, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(t)]);
-    await recalculateAndStoreScore(req.userId!, 'payslip_upload');
+  // Fold confirmed figures from the doc into tax_data so the deduction tracker,
+  // tax-efficiency score, tax reduction plan and Actions all get more accurate.
+  const updates: Record<string, number> = {};
+  if (d.applySalary?.basicAnnual) updates.basic_salary_annual = d.applySalary.basicAnnual;
+  if (d.applySalary?.hraAnnual) updates.hra_received_annual = d.applySalary.hraAnnual;
+  for (const [k, v] of Object.entries(d.applyTaxData || {})) {
+    if (TAX_DATA_KEYS.has(k) && v > 0) updates[k] = v;
   }
+  if (Object.keys(updates).length > 0) {
+    const prof = await one<any>(`SELECT tax_data FROM profiles WHERE user_id = $1`, [req.userId]);
+    const t: any = { ...(prof?.tax_data || {}), ...updates };
+    await query(
+      `INSERT INTO profiles (user_id, tax_data) VALUES ($1, $2::jsonb)
+       ON CONFLICT (user_id) DO UPDATE SET tax_data = $2::jsonb, version = profiles.version + 1, updated_at = now()`,
+      [req.userId, JSON.stringify(t)]
+    );
+  }
+  // Always recalc the score + remember the upload so guidance + Ask PayWatch
+  // reflect the user's latest documents.
+  await recalculateAndStoreScore(req.userId!, 'record_upload');
+  await remember(req.userId!, 'record_upload', `Uploaded ${d.label}`,
+    `On ${new Date().toISOString().slice(0, 10)} the user uploaded their ${d.label} for ${d.period}.${d.summary ? ' ' + d.summary : ''}`
+  ).catch(() => {});
 
   res.status(201).json(row);
 });

@@ -279,6 +279,20 @@ export default function MonthlyRecords() {
     finally { setRemoving(''); }
   }
 
+  // Map a doc's AI-read fields (whole rupees) into tax_data updates (paise) so
+  // deductions, the tax score and Actions sharpen with every upload.
+  function taxDataFor(s: Staged): Record<string, number> | undefined {
+    const f = s.extracted || {};
+    const RUP = (n: any) => { const x = Number(n); return isFinite(x) && x > 0 ? Math.round(x * 100) : 0; };
+    const td: Record<string, number> = {};
+    if (s.dt.type === 'home_loan_certificate') { if (RUP(f.interestPaid)) td.home_loan_interest_annual = RUP(f.interestPaid); if (RUP(f.principalRepaid)) td.home_loan_principal_annual = RUP(f.principalRepaid); }
+    if (s.dt.type === 'health_insurance_80d' && RUP(f.premiumPaid)) td.health_premium_self_annual = RUP(f.premiumPaid);
+    if (s.dt.type === 'nps_statement' && RUP(f.employeeContribution)) td.nps_80ccd1b_annual = Math.min(RUP(f.employeeContribution), 5000000);
+    if (s.dt.type === 'donation_80g' && RUP(f.donationAmount)) td.donations_80g_annual = RUP(f.donationAmount);
+    if (s.dt.type === 'rent_receipts' && RUP(f.monthlyRent)) td.rent_paid_monthly = RUP(f.monthlyRent);
+    return Object.keys(td).length ? td : undefined;
+  }
+
   async function confirmSave() {
     if (!staged) return;
     setSaving(true); setErr('');
@@ -286,7 +300,7 @@ export default function MonthlyRecords() {
       const rec = await post('/records', {
         period, doc_type: staged.dt.type, label: staged.dt.label,
         extracted: staged.extracted, summary: staged.summary,
-        applySalary: staged.applySalary,
+        applySalary: staged.applySalary, applyTaxData: taxDataFor(staged),
       });
       const { data, mime } = await fileToBase64(staged.file);
       await post(`/records/${rec.record_id}/file`, { file_name: staged.file.name, mime_type: mime, data }).catch(() => {});
@@ -320,6 +334,26 @@ export default function MonthlyRecords() {
           );
         })}
       </div>
+
+      {/* Per-month upload progress + encouragement */}
+      {(() => {
+        const uploaded = new Set(records.filter((r) => r.period === period).map((r) => r.doc_type)).size;
+        const total = DOC_TYPES.length;
+        const left = Math.max(0, total - uploaded);
+        const pct = Math.round((uploaded / total) * 100);
+        return (
+          <div className="rounded-2xl bg-pine-950 text-white p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-bold">{uploaded} of {total} uploaded for {monthLabel(period)}</span>
+              <span className="text-xs font-bold text-mint-300">{left} to go</span>
+            </div>
+            <div className="h-2.5 bg-white/15 rounded-full overflow-hidden"><div className="h-full bg-mint-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} /></div>
+            <p className="text-xs text-white/70 mt-2">{left === 0
+              ? '🎉 Everything’s in for this month — your tax estimate, actions and advice are as sharp as they get.'
+              : 'The more documents you add, the more accurate your tax estimate, Money Score, actions and advice become.'}</p>
+          </div>
+        );
+      })()}
 
       {err && <div className="rounded-lg bg-signal-red/10 border border-signal-red/30 text-signal-red text-sm px-4 py-3">{err}</div>}
 
