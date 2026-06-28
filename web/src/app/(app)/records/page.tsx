@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { get, post, downloadFile } from '@/lib/api';
+import { get, post, del, downloadFile } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
 import {
@@ -76,6 +76,8 @@ export default function MonthlyRecords() {
   const [busy, setBusy] = useState('');      // doc type being parsed
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [confirmId, setConfirmId] = useState('');  // record awaiting remove confirmation
+  const [removing, setRemoving] = useState('');    // record being deleted
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingType = useRef<DocType | null>(null);
 
@@ -230,6 +232,13 @@ export default function MonthlyRecords() {
     setStaged({ ...staged, tax, summary: `Gross ≈ ${inr(staged.annualGross)}/yr · est. tax ${tax ? inr(tax[tax.recommended].totalTax) : '—'}/yr` });
   }
 
+  async function removeRecord(id: string) {
+    setRemoving(id); setErr('');
+    try { await del(`/records/${id}`); setConfirmId(''); load(); }
+    catch (e: any) { setErr(e?.message || 'Could not remove the file. Please try again.'); }
+    finally { setRemoving(''); }
+  }
+
   async function confirmSave() {
     if (!staged) return;
     setSaving(true); setErr('');
@@ -376,11 +385,22 @@ export default function MonthlyRecords() {
                   </button>
                 </div>
                 {has && (
-                  <div className="mt-2 pl-12 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+                  <div className="mt-2 pl-12 space-y-1.5">
                     {existing.map((r) => (
-                      <span key={r.record_id} className="inline-flex items-center gap-2">
-                        {r.has_file && <button onClick={() => downloadFile(`/records/${r.record_id}/file`, r.file_name || 'document')} className="text-pine-700 underline">📎 {r.file_name}</button>}
-                      </span>
+                      <div key={r.record_id} className="flex items-center justify-between gap-3 text-[11px]">
+                        {r.has_file
+                          ? <button onClick={() => downloadFile(`/records/${r.record_id}/file`, r.file_name || 'document')} className="text-pine-700 underline truncate">📎 {r.file_name}</button>
+                          : <span className="text-ink-faint truncate">Saved (no file attached)</span>}
+                        {confirmId === r.record_id ? (
+                          <span className="flex items-center gap-2 shrink-0">
+                            <span className="text-ink-soft">Remove this file?</span>
+                            <button onClick={() => removeRecord(r.record_id)} disabled={removing === r.record_id} className="rounded-full bg-signal-red text-white px-3 py-0.5 font-bold disabled:opacity-50">{removing === r.record_id ? 'Removing…' : 'Yes, remove'}</button>
+                            <button onClick={() => setConfirmId('')} disabled={removing === r.record_id} className="text-ink-faint underline">Cancel</button>
+                          </span>
+                        ) : (
+                          <button onClick={() => setConfirmId(r.record_id)} className="text-signal-red underline shrink-0">Remove</button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
