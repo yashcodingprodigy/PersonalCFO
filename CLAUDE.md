@@ -88,7 +88,9 @@ unread-alerts badge, native biometric lock overlay).
   enforced (PDF text / Excel / CSV; images rejected for parseable docs so a blurry scan can't corrupt data).
   **AI reader** (`docAI.ts`, route `POST /records/ai-extract`): for PDF/free-form docs (contract, letter,
   payslip, Form 16, 26AS) the client extracts text → Claude identifies the doc, **validates it matches the
-  expected type (flags a wrong/random upload)**, and extracts fields regardless of layout. Falls back to the
+  expected type (flags a wrong/random upload)** and reports a `readable` flag, and extracts fields regardless
+  of layout. The client also flags **blurry/scanned/low-quality PDFs with no usable text layer** before the
+  AI call (near-empty extracted text → "upload a clearer file"); Claude's `readable:false` catches garbled-OCR cases. Falls back to the
   deterministic `parsePayslip`/`parseForm16` (tuned to real Indian payslips with bare-integer line items and
   Form 16 Part A/B totals) when `ANTHROPIC_API_KEY` is unset or the call fails. Tabular docs (statement/holdings/
   capital gains) stay on the structured CSV/Excel parsers. User **confirms** values before save (never trusted blindly). Payslip → annualised **tax-liability window** (slab-by-slab, both regimes, marginal +

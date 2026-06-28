@@ -62,6 +62,7 @@ interface Staged {
   note?: string;
   engine?: 'ai' | 'parser';  // who read it
   invalid?: boolean;         // AI says it isn't the expected document
+  unreadable?: boolean;      // blurry / scanned / no usable text → poor quality
   detected?: string;         // what the AI thinks it actually is
   aiReason?: string;         // why it doesn't match
   confidence?: number;       // 0..1
@@ -110,8 +111,19 @@ export default function MonthlyRecords() {
     // ── AI-first path: Claude reads the text, identifies & validates it ──
     if (AI_DOCS.includes(dt.type)) {
       const text = await readPdfText(file).catch(() => '');
+      const clean = text.replace(/\s+/g, ' ').trim();
+      // No usable text layer → a scanned image / photo / blurry low-quality PDF.
+      // Flag it as poor quality before we even reach the AI or parser.
+      if (clean.length < 60) {
+        return {
+          dt, file, extracted: {}, engine: 'parser', invalid: true, unreadable: true,
+          detected: 'unreadable',
+          aiReason: 'This file has almost no readable text — it looks like a scanned image, a photo, or a blurry/low-quality PDF. We can’t read the figures from it reliably.',
+          summary: 'Couldn’t read this file clearly.',
+        };
+      }
       let ai: any = null;
-      if (text.trim().length > 20) ai = await post('/records/ai-extract', { doc_type: dt.type, text }).catch(() => null);
+      if (clean.length > 20) ai = await post('/records/ai-extract', { doc_type: dt.type, text: clean }).catch(() => null);
       if (ai?.available && ai.result) return fromAI(dt, file, ai.result);
       return fromParser(dt, file, text); // AI off or failed → deterministic
     }
@@ -143,8 +155,9 @@ export default function MonthlyRecords() {
   // Build a staged result from Claude's structured reading of the document.
   async function fromAI(dt: DocType, file: File, r: any): Promise<Staged> {
     const f = r.fields || {};
+    const unreadable = r.readable === false;
     const meta = {
-      engine: 'ai' as const, invalid: !r.matchesExpected,
+      engine: 'ai' as const, invalid: !r.matchesExpected || unreadable, unreadable,
       detected: r.documentType, aiReason: r.reason, confidence: r.confidence,
     };
     if (dt.type === 'form16') {
@@ -272,8 +285,17 @@ export default function MonthlyRecords() {
             </span>
           </div>
 
+          {/* Poor-quality / unreadable flag (blurry scan, photo, no text layer) */}
+          {staged.invalid && staged.unreadable && (
+            <div className="rounded-lg bg-signal-red/10 border border-signal-red/40 px-3 py-2.5">
+              <p className="text-sm font-bold text-signal-red">⚠ We couldn’t read this file clearly.</p>
+              <p className="text-xs text-ink-soft mt-1">{staged.aiReason || 'It looks like a blurry or low-quality scan.'} Please upload a clearer, text-based PDF — ideally the original digital document from your payroll/HR portal or bank, not a photo or screenshot of it.</p>
+              <button onClick={() => pick(staged.dt)} className="mt-2 rounded-full bg-signal-red text-white px-4 py-1.5 text-xs font-bold">Upload a better-quality file</button>
+            </div>
+          )}
+
           {/* Wrong-document flag from the AI reader */}
-          {staged.invalid && (
+          {staged.invalid && !staged.unreadable && (
             <div className="rounded-lg bg-signal-red/10 border border-signal-red/40 px-3 py-2.5">
               <p className="text-sm font-bold text-signal-red">⚠ This doesn’t look like a {staged.dt.label.toLowerCase()}.</p>
               <p className="text-xs text-ink-soft mt-1">{staged.aiReason || (staged.detected && staged.detected !== 'other' ? `It looks more like a ${staged.detected.replace(/_/g, ' ')}.` : 'We couldn’t confirm it’s the right document.')} Please upload the correct file — or save it anyway if you’re sure.</p>

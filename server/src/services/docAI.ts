@@ -16,6 +16,7 @@ export type ExpectedDoc =
 export interface AIDocResult {
   documentType: string;      // what Claude thinks it actually is
   matchesExpected: boolean;  // does it match the type the user picked?
+  readable: boolean;         // false if the text is garbled / too poor to trust
   confidence: number;        // 0..1
   reason: string;            // short human explanation
   summary: string;           // one-line summary of the document
@@ -67,8 +68,9 @@ export async function analyzeDocument(expected: ExpectedDoc, text: string): Prom
     `{\n` +
     `  "documentType": one of ["payslip","form16","employment_letter","employment_contract","bank_statement","demat_holdings","capital_gains","form26as_ais","other"],\n` +
     `  "matchesExpected": boolean (true only if the document genuinely is a ${LABEL[expected]}),\n` +
+    `  "readable": boolean (false if the text is garbled, jumbled, fragmentary or otherwise too poor quality to read the figures reliably — e.g. a bad scan or OCR of a blurry/low-quality image),\n` +
     `  "confidence": number 0..1,\n` +
-    `  "reason": short string (why it does or doesn't match; if it doesn't, say what it looks like instead),\n` +
+    `  "reason": short string (why it does or doesn't match; if it's unreadable say so and suggest a clearer file; if it's the wrong type say what it looks like instead),\n` +
     `  "summary": short one-line description of the document,\n` +
     `  "fields": object with as many of these as you can read: ${FIELD_GUIDE[expected]}\n` +
     `}\n\n` +
@@ -76,7 +78,8 @@ export async function analyzeDocument(expected: ExpectedDoc, text: string): Prom
     `Annualise nothing yourself — report monthly figures for a payslip and annual figures for Form 16/letters as they appear. ` +
     `If a field isn't present, omit it. If the text is empty, gibberish, or clearly a different kind of document ` +
     `(an ID card, an invoice, a random article, a photo with no readable text), set matchesExpected=false and explain. ` +
-    `Never invent numbers that aren't in the text.`;
+    `If the text looks like a low-quality/blurry scan where words and numbers are jumbled or partly missing, set readable=false ` +
+    `and confidence low — do NOT guess the figures. Never invent numbers that aren't in the text.`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -101,6 +104,7 @@ export async function analyzeDocument(expected: ExpectedDoc, text: string): Prom
   return {
     documentType: String(parsed.documentType || 'other'),
     matchesExpected: parsed.matchesExpected === true,
+    readable: parsed.readable !== false, // default true unless Claude says otherwise
     confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
     reason: String(parsed.reason || '').slice(0, 400),
     summary: String(parsed.summary || '').slice(0, 200),
