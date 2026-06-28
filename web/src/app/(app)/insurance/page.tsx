@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr, inrRange } from '@/lib/format';
 import { Ring, Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
+import { InsurancePolicies } from '@/components/InsurancePolicies';
 
 const SEV_TONE: Record<string, any> = { high: 'red', medium: 'amber', low: 'gray' };
 const PRIORITY_LABEL: Record<string, string> = { high: 'Get this first', medium: 'Worth getting', low: 'Optional' };
@@ -31,7 +32,8 @@ function CoverageCard({ title, current, recommended, gap, extra }: any) {
 
 export default function InsurancePage() {
   const [ins, setIns] = useState<any>(null);
-  useEffect(() => { get('/insurance').then(setIns).catch(() => {}); }, []);
+  const loadIns = () => get('/insurance').then(setIns).catch(() => {});
+  useEffect(() => { loadIns(); }, []);
   if (!ins) return <div className="card h-96 animate-pulse mt-4" />;
 
   return (
@@ -41,7 +43,7 @@ export default function InsurancePage() {
         <p className="text-sm text-ink-soft mt-1">Measured against standard planning benchmarks — category guidance only, never specific products.</p>
       </div>
 
-      <SectionNav items={[{ id: 'coverage', label: 'Coverage' }, { id: 'get', label: 'What to get' }, { id: 'notes', label: 'Good to know' }]} />
+      <SectionNav items={[{ id: 'policies', label: 'My policies' }, { id: 'coverage', label: 'Coverage' }, { id: 'get', label: 'What to get' }, { id: 'notes', label: 'Good to know' }]} />
 
       {ins.beginnerIntro && (
         <div className="card p-5 border-l-4 border-l-mint-500"><p className="text-sm text-ink-soft leading-relaxed">{ins.beginnerIntro}</p></div>
@@ -52,6 +54,11 @@ export default function InsurancePage() {
           {ins.flags.map((f: any, i: number) => <Pill key={i} tone={SEV_TONE[f.severity]}>{f.message}</Pill>)}
         </div>
       )}
+
+      {/* My policies — upload, AI-read, expiry tracking */}
+      <Section id="policies" title="My policies">
+        <InsurancePolicies onChange={loadIns} />
+      </Section>
 
       {/* Coverage rings */}
       <Section id="coverage" title="Your coverage">

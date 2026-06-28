@@ -338,6 +338,37 @@ CREATE TABLE IF NOT EXISTS monthly_records (
 );
 CREATE INDEX IF NOT EXISTS idx_monthly_user ON monthly_records(user_id, period DESC);
 
+-- Insurance policies the user uploads. The policy PDF is AES-256 encrypted in
+-- Supabase Storage; `extracted` holds the AI-read structured data the user
+-- confirmed. Drives the insurance cover analysis and expiry/renewal alerts.
+CREATE TABLE IF NOT EXISTS insurance_policies (
+  policy_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  category      VARCHAR(30) NOT NULL,          -- term_life | health | motor | personal_accident | critical_illness | home | travel | life_endowment | other
+  insurer       VARCHAR(160),
+  plan_name     VARCHAR(200),
+  policy_number VARCHAR(80),
+  holder_name   VARCHAR(160),
+  nominee       VARCHAR(160),
+  sum_assured   BIGINT,                        -- paise (cover amount / sum insured)
+  premium       BIGINT,                        -- paise
+  premium_frequency VARCHAR(12),               -- monthly | quarterly | yearly | single
+  issue_date    DATE,
+  start_date    DATE,
+  expiry_date   DATE,
+  maturity_date DATE,
+  renewal_date  DATE,
+  status        VARCHAR(12) NOT NULL DEFAULT 'active',  -- active | lapsed
+  file_name     VARCHAR(200),
+  mime_type     VARCHAR(100),
+  size_bytes    BIGINT,
+  storage_path  VARCHAR(300),
+  extracted     JSONB NOT NULL DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_insurance_user ON insurance_policies(user_id, expiry_date);
+
 -- Push notification device tokens (one user can have several devices).
 CREATE TABLE IF NOT EXISTS device_tokens (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

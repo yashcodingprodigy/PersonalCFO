@@ -88,25 +88,42 @@ function extractJson(s: string): any {
   return JSON.parse(s.slice(start, end + 1));
 }
 
-export async function analyzeDocument(expected: ExpectedDoc, text: string): Promise<AIDocResult> {
+// Possible documentType values Claude may report for an ITR-style upload.
+const ITR_TYPE_OPTIONS = [
+  'payslip', 'form16', 'form16a', 'employment_letter', 'employment_contract', 'form26as_ais',
+  'mutual_fund_cas', 'dividend_statement', 'interest_certificate', 'home_loan_certificate',
+  'other_loan_statement', 'rent_receipts', 'tax_saving_80c', 'health_insurance_80d',
+  'nps_statement', 'donation_80g', 'insurance_policy', 'property_papers', 'gst_returns',
+  'profit_loss', 'bank_statement', 'demat_holdings', 'capital_gains', 'other',
+];
+
+// Generic AI document read used by EVERY upload surface in the app. Give it the
+// label the user expects, the field list to extract, and the set of document
+// types it may report — it identifies the doc, validates it matches, checks it's
+// readable (not a blurry scan), and extracts the fields. Throws on API failure
+// so callers can soft-fall-back to a deterministic parser / "store only".
+export async function analyzeDocumentGeneric(
+  label: string, fieldGuide: string, typeOptions: string[], text: string
+): Promise<AIDocResult> {
   const clipped = text.slice(0, 24000); // keep token use bounded
   const system =
     `You are a meticulous Indian financial-document analyst inside the PayWatch app. ` +
     `You are given the raw text extracted from a document a user uploaded. ` +
-    `The user says it is a "${LABEL[expected]}". Your job: identify what the document really is, ` +
+    `The user says it is a "${label}". Your job: identify what the document really is, ` +
     `decide whether it matches that expected type, and extract the key fields.\n\n` +
     `Respond with ONE JSON object only — no prose, no markdown fences — with exactly these keys:\n` +
     `{\n` +
-    `  "documentType": one of ["payslip","form16","employment_letter","employment_contract","bank_statement","demat_holdings","capital_gains","form26as_ais","other"],\n` +
-    `  "matchesExpected": boolean (true only if the document genuinely is a ${LABEL[expected]}),\n` +
+    `  "documentType": one of [${typeOptions.map((t) => `"${t}"`).join(',')}],\n` +
+    `  "matchesExpected": boolean (true only if the document genuinely is a ${label}),\n` +
     `  "readable": boolean (false if the text is garbled, jumbled, fragmentary or otherwise too poor quality to read the figures reliably — e.g. a bad scan or OCR of a blurry/low-quality image),\n` +
     `  "confidence": number 0..1,\n` +
     `  "reason": short string (why it does or doesn't match; if it's unreadable say so and suggest a clearer file; if it's the wrong type say what it looks like instead),\n` +
     `  "summary": short one-line description of the document,\n` +
-    `  "fields": object with as many of these as you can read: ${FIELD_GUIDE[expected]}\n` +
+    `  "fields": object with as many of these as you can read: ${fieldGuide}\n` +
     `}\n\n` +
     `Rules: All money amounts in "fields" must be plain WHOLE RUPEES as numbers (no ₹, no commas, e.g. 138965). ` +
-    `Annualise nothing yourself — report monthly figures for a payslip and annual figures for Form 16/letters as they appear. ` +
+    `All dates in "fields" must be ISO format YYYY-MM-DD. ` +
+    `Report figures as they appear (don't annualise). ` +
     `If a field isn't present, omit it. If the text is empty, gibberish, or clearly a different kind of document ` +
     `(an ID card, an invoice, a random article, a photo with no readable text), set matchesExpected=false and explain. ` +
     `If the text looks like a low-quality/blurry scan where words and numbers are jumbled or partly missing, set readable=false ` +
@@ -141,4 +158,9 @@ export async function analyzeDocument(expected: ExpectedDoc, text: string): Prom
     summary: String(parsed.summary || '').slice(0, 200),
     fields: parsed.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
   };
+}
+
+// ITR / Monthly-Records convenience wrapper over the generic reader.
+export async function analyzeDocument(expected: ExpectedDoc, text: string): Promise<AIDocResult> {
+  return analyzeDocumentGeneric(LABEL[expected], FIELD_GUIDE[expected], ITR_TYPE_OPTIONS, text);
 }

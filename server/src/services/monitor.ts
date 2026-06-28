@@ -50,6 +50,25 @@ export async function gatherSignals(userId: string): Promise<AlertSignals> {
   );
   const nomination = await one(`SELECT 1 FROM documents WHERE user_id=$1 AND slot='nomination' AND status='have' LIMIT 1`, [userId]);
 
+  // Insurance policies approaching renewal/expiry or maturity.
+  const policies = await query(
+    `SELECT category, insurer,
+            to_char(expiry_date,'YYYY-MM-DD')   AS expiry_date,
+            to_char(renewal_date,'YYYY-MM-DD')  AS renewal_date,
+            to_char(maturity_date,'YYYY-MM-DD') AS maturity_date
+       FROM insurance_policies
+      WHERE user_id=$1 AND status='active'
+        AND (expiry_date IS NOT NULL OR renewal_date IS NOT NULL OR maturity_date IS NOT NULL)`,
+    [userId]
+  );
+  const insuranceExpiries: AlertSignals['insuranceExpiries'] = [];
+  for (const p of policies) {
+    const label = `${p.insurer ? p.insurer + ' ' : ''}${String(p.category).replace(/_/g, ' ')} policy`;
+    const renewBy = p.renewal_date || p.expiry_date;
+    if (renewBy) insuranceExpiries.push({ label, category: p.category, kind: 'renewal', date: renewBy });
+    if (p.maturity_date) insuranceExpiries.push({ label, category: p.category, kind: 'maturity', date: p.maturity_date });
+  }
+
   const scores = await query(`SELECT score, calculated_at FROM score_history WHERE user_id=$1 ORDER BY calculated_at DESC LIMIT 30`, [userId]);
   let scoreDelta: number | null = null;
   if (scores.length > 1) {
@@ -61,6 +80,7 @@ export async function gatherSignals(userId: string): Promise<AlertSignals> {
     goals, spendSpikePct, spendSpikeCategory,
     newSubscriptions: subs.map((r) => r.description),
     docExpiries: expiries.map((r) => ({ label: r.label, expiry_date: r.expiry_date })),
+    insuranceExpiries,
     scoreDelta, hasNominationDoc: !!nomination,
   };
 }

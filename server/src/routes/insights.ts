@@ -21,6 +21,11 @@ import { getMarketData } from '../services/market';
 import { deductionUsage } from '../services/score';
 import { categorise } from '../adapters/aa';
 import { remember } from '../services/rag';
+import { aiAvailable, analyzeDocumentGeneric } from '../services/docAI';
+import {
+  listPolicies, createPolicy, attachPolicyFile, getPolicyFile, deletePolicy,
+  INSURANCE_CATEGORIES, INSURANCE_FIELD_GUIDE, INSURANCE_TYPE_OPTIONS, CATEGORY_LABEL,
+} from '../services/insurancePolicies';
 
 export const insightsRouter = Router();
 insightsRouter.use(requireAuth);
@@ -60,6 +65,77 @@ insightsRouter.get('/insurance', async (req: AuthedRequest, res) => {
     ...analyseInsurance(p),
     disclaimer: 'Coverage guidance uses standard planning rules (25× income for term cover). We do not recommend specific insurers or policies and earn no commission unless explicitly disclosed.',
   });
+});
+
+// ── Insurance policies — upload, AI-read, manage, expiry tracking ──────
+insightsRouter.get('/insurance/policies', async (req: AuthedRequest, res) => {
+  res.json(await listPolicies(req.userId!));
+});
+
+// AI read of an insurance policy PDF's text (validates type + extracts fields).
+insightsRouter.post('/insurance/ai-extract', rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'insai' }), async (req: AuthedRequest, res) => {
+  if (!aiAvailable()) return res.json({ available: false });
+  const parsed = z.object({ category: z.string().max(30).optional(), text: z.string().min(1).max(60_000) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  const label = parsed.data.category && CATEGORY_LABEL[parsed.data.category]
+    ? `${CATEGORY_LABEL[parsed.data.category]} policy document` : 'insurance policy document';
+  try {
+    const result = await analyzeDocumentGeneric(label, INSURANCE_FIELD_GUIDE, INSURANCE_TYPE_OPTIONS, parsed.data.text);
+    res.json({ available: true, result });
+  } catch (e: any) {
+    res.json({ available: false, error: 'ai_failed', message: String(e?.message || e).slice(0, 200) });
+  }
+});
+
+const policySchema = z.object({
+  category: z.enum([...INSURANCE_CATEGORIES] as [string, ...string[]]),
+  insurer: z.string().max(160).nullable().optional(),
+  plan_name: z.string().max(200).nullable().optional(),
+  policy_number: z.string().max(80).nullable().optional(),
+  holder_name: z.string().max(160).nullable().optional(),
+  nominee: z.string().max(160).nullable().optional(),
+  sum_assured: z.number().int().nonnegative().max(100_000_000_00).nullable().optional(),
+  premium: z.number().int().nonnegative().max(100_000_000_00).nullable().optional(),
+  premium_frequency: z.string().max(12).nullable().optional(),
+  issue_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  expiry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  maturity_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  renewal_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  extracted: z.record(z.any()).optional(),
+});
+
+insightsRouter.post('/insurance/policies', rateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'inspol' }), async (req: AuthedRequest, res) => {
+  const parsed = policySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  const row = await createPolicy(req.userId!, parsed.data as any);
+  await recalculateAndStoreScore(req.userId!, 'insurance_upload');
+  res.status(201).json(row);
+});
+
+insightsRouter.post('/insurance/policies/:id/file', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ file_name: z.string().min(1).max(200), mime_type: z.string().max(100).optional(), data: z.string().min(1) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Missing file.' });
+  try {
+    const r = await attachPolicyFile(req.userId!, req.params.id, { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data });
+    res.json(r);
+  } catch (e: any) {
+    res.status(e.code === 'not_configured' ? 503 : e.code === 'not_found' ? 404 : 400).json({ error: e.code || 'upload_failed', message: e.message });
+  }
+});
+
+insightsRouter.get('/insurance/policies/:id/file', async (req: AuthedRequest, res) => {
+  const f = await getPolicyFile(req.userId!, req.params.id);
+  if (!f) return res.status(404).json({ error: 'not_found' });
+  res.setHeader('Content-Type', f.mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename="${f.fileName.replace(/"/g, '')}"`);
+  res.send(f.buffer);
+});
+
+insightsRouter.delete('/insurance/policies/:id', async (req: AuthedRequest, res) => {
+  await deletePolicy(req.userId!, req.params.id);
+  await recalculateAndStoreScore(req.userId!, 'insurance_remove');
+  res.json({ ok: true });
 });
 
 // GET /market — educational themes + third-party financial news (no advice)

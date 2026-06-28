@@ -33,6 +33,7 @@ export interface AlertSignals {
   spendSpikeCategory: string | null;
   newSubscriptions: string[];              // descriptions seen this month, not before
   docExpiries: { label: string; expiry_date: string }[];
+  insuranceExpiries: { label: string; category: string; kind: 'renewal' | 'maturity'; date: string }[];
   scoreDelta: number | null;
   hasNominationDoc: boolean;
 }
@@ -202,6 +203,33 @@ export function generateAlerts(p: ProfileData, s: AlertSignals, now = new Date()
         body: `It renews on ${new Date(d.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}. Renew before it lapses to avoid a coverage gap.`,
         actionLabel: 'Open vault', actionHref: '/vault', dueDate: d.expiry_date,
         dedupeKey: `docexp_${d.label.slice(0, 24)}_${d.expiry_date}`,
+      });
+    }
+  }
+
+  // ── Insurance renewals / expiry / maturity ────────────────────────
+  const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  for (const e of s.insuranceExpiries) {
+    const days = Math.round((new Date(e.date).getTime() - now.getTime()) / (24 * 3600 * 1000));
+    if (e.kind === 'renewal' && days <= 30 && days >= -7) {
+      const urgent = days <= 7;
+      out.push({
+        kind: 'insurance_expiry', category: 'insurance', severity: urgent ? 'urgent' : 'warning',
+        title: days < 0 ? `Your ${e.label} has lapsed — act now` : urgent ? `Your ${e.label} expires in ${days} day${days === 1 ? '' : 's'}` : `Your ${e.label} is due for renewal`,
+        body: days < 0
+          ? `It was due on ${fmt(e.date)}. Renew immediately to restore cover — a lapse can mean fresh medical tests, a lost no-claim bonus, or (for motor) driving uninsured. Once renewed, upload the new policy so we update your cover.`
+          : `It's due on ${fmt(e.date)}${days >= 0 ? ` (${days} day${days === 1 ? '' : 's'} away)` : ''}. Renew before then to avoid a coverage gap. After you renew, upload the new policy and we'll refresh your cover automatically.`,
+        actionLabel: 'Review insurance', actionHref: '/insurance', dueDate: e.date,
+        dedupeKey: `insexp_${e.label.slice(0, 28)}_${e.date}`,
+      });
+    }
+    if (e.kind === 'maturity' && days <= 60 && days >= -7) {
+      out.push({
+        kind: 'insurance_maturity', category: 'insurance', severity: 'info',
+        title: `Your ${e.label} matures on ${fmt(e.date)}`,
+        body: `Plan ahead for the payout — where it will go, the tax on it, and whether you still need replacement cover once it ends.`,
+        actionLabel: 'Review insurance', actionHref: '/insurance', dueDate: e.date,
+        dedupeKey: `insmat_${e.label.slice(0, 28)}_${e.date}`,
       });
     }
   }

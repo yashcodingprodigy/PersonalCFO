@@ -81,7 +81,10 @@ unread-alerts badge, native biometric lock overlay).
 - **File ITR** (`file`) — guided wizard (Income → Deductions → Tax paid → Result): computes the full
   return, picks the ITR form, refund/payable, full computation, "how to file yourself" portal steps,
   downloadable computation pack. Links to rent receipts.
-- **Insurance** (`insurance`) — coverage **rings**, collapsible "what to get" recommendations, avoid list.
+- **Insurance** (`insurance`) — **My policies** (upload policy PDFs by category → AI reads cover/premium/issue/
+  expiry/maturity/renewal dates, validates the doc + flags wrong/blurry, user confirms; encrypted store; feeds
+  cover rings + score; expiry/renewal/maturity **alerts** with follow-up), coverage **rings**, collapsible
+  "what to get" recommendations, avoid list. `InsurancePolicies.tsx` component.
 - **Monthly records** (`records`) — recurring monthly-upload hub (CA-requested): month picker + **24 doc
   types grouped into 8 categories** (Income & salary, Tax statements, Banking & spending, Investments, Loans,
   Deductions & tax-saving proofs, Insurance & property, Business & self-employed) — payslip, Form 16/16A,
@@ -130,6 +133,11 @@ unread-alerts badge, native biometric lock overlay).
   heads (salary, interest, house property, equity STCG 20% / LTCG 12.5% over ₹1.25L, other, business),
   both regimes incl. rebate/surcharge/cess, reconciles TDS + advance tax → refund/payable, flags rare
   audit-needs-CA case, outputs checklist + portal walkthrough.
+- `insurancePolicies.ts` — uploaded insurance policy store (encrypted file + AI-read fields; CRUD; `syncProfileInsurance`
+  rolls active policies into `profiles.insurance.term/health` so cover analysis + score update). `docAI.ts` exposes
+  **`analyzeDocumentGeneric()`** (label + field guide + type options) used by every upload surface; `analyzeDocument`
+  is the ITR wrapper. Insurance routes live in `insights.ts` (`/insurance/policies*`, `/insurance/ai-extract`).
+  Expiry/renewal/maturity alerts: `monitor.gatherSignals` → `alerts.ts` `insuranceExpiries` (urgent ≤7d, warning ≤30d, maturity ≤60d).
 - `insurance.ts` — 25× term rule (no life cover without dependents), health sizing, personalised
   "what to get" + "what to avoid". Student-aware.
 - `investment.ts` — SEBI-compliant guidance: risk profile, target allocation, fund-**category**
@@ -182,7 +190,8 @@ routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base
 `score_history`, `actions`(+priority), `goals`, `transactions`(+**fingerprint**, partial-unique on
 user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`, `invoices`, `consents`,
 `notifications`, `documents`, **`monthly_records`**(period YYYY-MM, doc_type, encrypted file +
-`extracted` JSONB), `device_tokens`, `audit_log`, and the **CA portal**: `cas`,
+`extracted` JSONB), **`insurance_policies`**(category, insurer, sum_assured, premium, issue/expiry/maturity/
+renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, and the **CA portal**: `cas`,
 `ca_client_links`(handshake: status pending/active, initiated_by), `ca_messages`, `ca_documents`.
 
 ---

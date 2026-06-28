@@ -23,7 +23,7 @@ function profile(over: any = {}): ProfileData {
   } as ProfileData;
 }
 const noSignals = (o: Partial<AlertSignals> = {}): AlertSignals => ({
-  goals: [], spendSpikePct: null, spendSpikeCategory: null, newSubscriptions: [], docExpiries: [], scoreDelta: null, hasNominationDoc: true, ...o,
+  goals: [], spendSpikePct: null, spendSpikeCategory: null, newSubscriptions: [], docExpiries: [], insuranceExpiries: [], scoreDelta: null, hasNominationDoc: true, ...o,
 });
 const kinds = (a: { kind: string }[]) => a.map((x) => x.kind);
 
