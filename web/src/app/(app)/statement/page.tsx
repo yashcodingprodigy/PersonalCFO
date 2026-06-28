@@ -124,53 +124,156 @@ export default function StatementPage() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function Stat({ label, value, accent, sub }: { label: string; value: string; accent?: string; sub?: string }) {
   return (
     <div className="card p-5">
       <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">{label}</p>
       <p className={`font-display text-2xl font-semibold mt-1 tabular-nums ${accent || ''}`}>{value}</p>
+      {sub && <p className="text-[11px] text-ink-faint mt-0.5">{sub}</p>}
     </div>
+  );
+}
+
+const PALETTE = ['#1f6f54', '#e0a23b', '#3b82a6', '#a3577d', '#6b8e3b', '#b5654a', '#9aa0a6'];
+
+// Dependency-free SVG donut.
+function Donut({ segments, size = 184, thickness = 28 }: { segments: { label: string; value: number; color: string }[]; size?: number; thickness?: number }) {
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  const r = (size - thickness) / 2;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef0ee" strokeWidth={thickness} />
+        {segments.map((s, i) => {
+          const dash = (s.value / total) * c;
+          const el = <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={thickness} strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-offset} strokeLinecap="butt" />;
+          offset += dash;
+          return el;
+        })}
+      </g>
+    </svg>
   );
 }
 
 function Report({ report: r, imported, duplicates, onReset }: { report: any; imported: number; duplicates: number; onReset: () => void }) {
   const sr = r.totals.savingsRate;
+  const fmtD = (s: string) => s ? new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const out = r.totals.outflow || 1;
+  const top = r.byCategory.slice(0, 6);
+  const restTotal = r.byCategory.slice(6).reduce((s: number, c: any) => s + c.total, 0);
+  const segments = [
+    ...top.map((c: any, i: number) => ({ label: c.label, value: c.total, color: PALETTE[i], pct: c.pct })),
+    ...(restTotal > 0 ? [{ label: 'Other', value: restTotal, color: PALETTE[6], pct: Math.round((restTotal / out) * 100) }] : []),
+  ];
+  const split = r.split || { discretionary: 0, essential: 0, investments: 0 };
+  const sp = (v: number) => Math.round((v / out) * 100);
+
   return (
     <div className="space-y-6">
+      {/* Header: period + summary */}
       <div className="card p-5 border-l-4 border-l-mint-500 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-pine-700 mb-1">Your statement, summarised</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-pine-700 mb-1">
+            {r.period?.from ? `${fmtD(r.period.from)} – ${fmtD(r.period.to)} · ${r.period.months} month${r.period.months === 1 ? '' : 's'}` : 'Your statement'}
+          </p>
           <p className="text-sm text-ink-soft leading-relaxed">{r.summary}</p>
           {imported > 0 && <p className="text-xs text-signal-green mt-2">{imported} new transaction{imported === 1 ? '' : 's'} saved — your Money Health Score has been updated.</p>}
-          {duplicates > 0 && <p className="text-xs text-ink-faint mt-1">{duplicates} duplicate{duplicates === 1 ? '' : 's'} skipped (already imported from a previous upload).</p>}
+          {duplicates > 0 && <p className="text-xs text-ink-faint mt-1">{duplicates} duplicate{duplicates === 1 ? '' : 's'} skipped (already imported).</p>}
         </div>
         <button onClick={onReset} className="btn-secondary !py-2 text-xs shrink-0">Scan another</button>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat label="Money in" value={inr(r.totals.inflow)} accent="text-signal-green" />
-        <Stat label="Money out" value={inr(r.totals.outflow)} />
-        <Stat label="Net saved" value={inr(r.totals.net)} accent={r.totals.net >= 0 ? 'text-signal-green' : 'text-signal-red'} />
-        <Stat label="Savings rate" value={sr == null ? '—' : `${Math.round(sr * 100)}%`} accent={sr != null && sr >= 0.2 ? 'text-signal-green' : sr != null && sr < 0 ? 'text-signal-red' : ''} />
+      {/* KPI row with monthly context */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Stat label="Money in" value={inr(r.totals.inflow)} accent="text-signal-green" sub={`~${inr(r.monthly.avgInflow)}/mo`} />
+        <Stat label="Money out" value={inr(r.totals.outflow)} sub={`~${inr(r.monthly.avgOutflow)}/mo`} />
+        <Stat label="Net saved" value={inr(r.totals.net)} accent={r.totals.net >= 0 ? 'text-signal-green' : 'text-signal-red'} sub={r.totals.net >= 0 ? 'kept' : 'overspent'} />
+        <Stat label="Savings rate" value={sr == null ? '—' : `${Math.round(sr * 100)}%`} accent={sr != null && sr >= 0.2 ? 'text-signal-green' : sr != null && sr < 0 ? 'text-signal-red' : ''} sub="target 20%+" />
       </div>
 
-      {/* Where the money went */}
+      {/* Headline: where you could've saved */}
+      {r.potentialAnnualSavings > 0 && (
+        <div className="rounded-2xl bg-gradient-to-br from-pine-950 to-pine-900 text-white p-6 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-mint-300">Where you could’ve saved</p>
+            <p className="text-sm text-white/75 mt-1 max-w-md">Trimming the flexible spending below — without touching essentials — could free up roughly this much a year.</p>
+          </div>
+          <div className="text-right">
+            <p className="font-display text-3xl font-semibold text-mint-300">{inr(r.potentialAnnualSavings)}</p>
+            <p className="text-[11px] text-white/60">potential / year</p>
+          </div>
+        </div>
+      )}
+
+      {/* Spending breakdown: donut + legend */}
       <section className="card p-6">
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-4">Where your money went</h2>
-        <div className="space-y-3">
-          {r.byCategory.map((c: any) => (
-            <div key={c.category}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-semibold">{c.label} {c.discretionary && <span className="text-[10px] text-ink-faint font-normal">(flexible)</span>}</span>
-                <span className="tabular-nums text-ink-soft">{inr(c.total)} · {c.pct}%</span>
-              </div>
-              <div className="h-2 bg-paper-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${c.discretionary ? 'bg-signal-amber' : 'bg-pine-600'}`} style={{ width: `${c.pct}%` }} />
-              </div>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative shrink-0">
+            <Donut segments={segments} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-[10px] uppercase tracking-wider text-ink-faint">Spent</p>
+              <p className="font-display text-xl font-semibold">{inr(r.totals.outflow)}</p>
             </div>
-          ))}
+          </div>
+          <ul className="flex-1 w-full space-y-1.5">
+            {segments.map((s: any, i: number) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: s.color }} />
+                <span className="flex-1 truncate">{s.label}</span>
+                <span className="tabular-nums text-ink-soft">{inr(s.value)}</span>
+                <span className="tabular-nums text-ink-faint w-10 text-right">{s.pct}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Flexible vs fixed vs invested split */}
+        <div className="mt-6">
+          <div className="flex h-3 rounded-full overflow-hidden">
+            <div className="bg-signal-amber" style={{ width: `${sp(split.discretionary)}%` }} title="Flexible" />
+            <div className="bg-pine-600" style={{ width: `${sp(split.essential)}%` }} title="Essentials" />
+            <div className="bg-mint-500" style={{ width: `${sp(split.investments)}%` }} title="Invested" />
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[11px]">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-signal-amber" /> Flexible {sp(split.discretionary)}% · {inr(split.discretionary)}</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pine-600" /> Essentials {sp(split.essential)}% · {inr(split.essential)}</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-mint-500" /> Invested {sp(split.investments)}% · {inr(split.investments)}</span>
+          </div>
         </div>
       </section>
+
+      {/* Top merchants + largest expenses */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <section className="card p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Top merchants</h2>
+          {r.topMerchants?.length ? (
+            <ul className="divide-y divide-paper-100 text-sm">
+              {r.topMerchants.map((m: any, i: number) => (
+                <li key={i} className="py-2 flex justify-between gap-3">
+                  <span className="truncate">{m.description} <span className="text-[11px] text-ink-faint">×{m.count} · {m.category}</span></span>
+                  <span className="tabular-nums text-ink-soft shrink-0">{inr(m.total)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-ink-soft">No clear merchant spending found.</p>}
+        </section>
+        <section className="card p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Largest single expenses</h2>
+          {r.largestExpenses?.length ? (
+            <ul className="divide-y divide-paper-100 text-sm">
+              {r.largestExpenses.map((e: any, i: number) => (
+                <li key={i} className="py-2 flex justify-between gap-3">
+                  <span className="truncate">{e.description} <span className="text-[11px] text-ink-faint">{fmtD(e.date)} · {e.category}</span></span>
+                  <span className="tabular-nums text-ink-soft shrink-0">{inr(e.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-ink-soft">—</p>}
+        </section>
+      </div>
 
       {/* Invested */}
       <section className="card p-6">

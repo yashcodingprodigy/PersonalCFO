@@ -34,10 +34,13 @@ export interface StatementReport {
   totals: { inflow: number; outflow: number; net: number; savingsRate: number | null };
   monthly: { avgInflow: number; avgOutflow: number; avgInvested: number };
   byCategory: { category: string; label: string; total: number; pct: number; count: number; discretionary: boolean }[];
+  split: { discretionary: number; essential: number; investments: number };
+  topMerchants: { description: string; total: number; count: number; category: string }[];
   invested: { total: number; monthlyAvg: number; items: { description: string; amount: number }[] };
   recurring: { description: string; occurrences: number; avgAmount: number }[];
   largestExpenses: { date: string; description: string; amount: number; category: string }[];
   reduceSuggestions: { area: string; finding: string; potentialAnnualSaving: number; tip: string }[];
+  potentialAnnualSavings: number;
   watchOuts: { severity: 'high' | 'medium' | 'low'; message: string }[];
   positives: string[];
   summary: string;
@@ -119,6 +122,24 @@ export function analyzeStatement(txns: RawTxn[], p?: ProfileData | null): Statem
     .sort((a, b) => b.amount - a.amount).slice(0, 8)
     .map((t) => ({ date: t.date, description: t.description, amount: t.amount, category: CATEGORY_LABELS[t.category] || t.category }));
 
+  // Top merchants by spend (exclude investing / transfers / EMIs / cash so it's
+  // genuine discretionary-ish spending — "where the money actually went").
+  const merchMap = new Map<string, { sample: string; total: number; count: number; category: string }>();
+  for (const t of cats) {
+    if (t.direction !== 'debit') continue;
+    if (['investments', 'transfers', 'emi', 'atm_cash'].includes(t.category)) continue;
+    const key = merchantKey(t.description);
+    const cur = merchMap.get(key) || { sample: t.description, total: 0, count: 0, category: t.category };
+    cur.total += t.amount; cur.count += 1; merchMap.set(key, cur);
+  }
+  const topMerchants = [...merchMap.values()].sort((a, b) => b.total - a.total).slice(0, 8)
+    .map((m) => ({ description: m.sample, total: m.total, count: m.count, category: CATEGORY_LABELS[m.category] || m.category }));
+
+  // Spend split: flexible (discretionary) vs fixed/essential vs invested.
+  const discretionaryTotal = byCategory.filter((c) => c.discretionary).reduce((s, c) => s + c.total, 0);
+  const investSpend = catMap.get('investments')?.total || 0;
+  const essentialTotal = Math.max(0, outflow - discretionaryTotal - investSpend);
+
   // ── Reduce suggestions ─────────────────────────────────────────────
   const reduceSuggestions: StatementReport['reduceSuggestions'] = [];
   for (const c of byCategory.filter((c) => c.discretionary)) {
@@ -147,6 +168,7 @@ export function analyzeStatement(txns: RawTxn[], p?: ProfileData | null): Statem
     tip: 'Pay digitally where possible so spending is visible and categorised — untracked cash is where budgets quietly leak.',
   });
   reduceSuggestions.sort((a, b) => b.potentialAnnualSaving - a.potentialAnnualSaving);
+  const potentialAnnualSavings = reduceSuggestions.reduce((s, r) => s + r.potentialAnnualSaving, 0);
 
   // ── Watch-outs ─────────────────────────────────────────────────────
   const watchOuts: StatementReport['watchOuts'] = [];
@@ -177,10 +199,13 @@ export function analyzeStatement(txns: RawTxn[], p?: ProfileData | null): Statem
     totals: { inflow, outflow, net, savingsRate },
     monthly: { avgInflow: Math.round(inflow / months), avgOutflow: Math.round(outflow / months), avgInvested: Math.round(investedTotal / months) },
     byCategory,
+    split: { discretionary: discretionaryTotal, essential: essentialTotal, investments: investSpend },
+    topMerchants,
     invested: { total: investedTotal, monthlyAvg: Math.round(investedTotal / months), items: investItems.slice(0, 10) },
     recurring,
     largestExpenses,
     reduceSuggestions,
+    potentialAnnualSavings,
     watchOuts,
     positives,
     summary,

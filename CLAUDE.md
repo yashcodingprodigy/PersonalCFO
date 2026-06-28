@@ -105,7 +105,10 @@ unread-alerts badge, native biometric lock overlay).
   whitelisted figures merge into `tax_data` (home-loan interest/principal, 80D, NPS, 80G, rent → feed the
   deduction tracker + tax score + Actions), the score is recalculated, and a RAG memory note is saved so
   Ask PayWatch stays current. A per-month **progress count** ("X of Y uploaded · Z to go") nudges more uploads.
-- **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → detailed spending report.
+- **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → **spending dashboard**: period range,
+  KPIs (in/out/net/savings rate + monthly avg), SVG **donut** of categories, flexible-vs-essential-vs-invested
+  split, top merchants, largest expenses, a headline **"where you could've saved"** total + suggestions,
+  recurring payments, watch-outs/positives. `statement.ts` analyser; persists de-duped txns + recalcs score.
 - **Document vault** (`vault`) — track CA paperwork + expiry reminders (feeds alerts).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
 - **Goals** (moved up in nav; shows a dummy **Example** goal when empty), **Ask PayWatch** (`ask`, RAG
