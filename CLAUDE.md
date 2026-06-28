@@ -86,9 +86,12 @@ unread-alerts badge, native biometric lock overlay).
   employment contract, salary-structure letter, payslip, **Form 16**, bank statement, demat/holdings,
   capital gains, 26AS/AIS. **Strict formats**
   enforced (PDF text / Excel / CSV; images rejected for parseable docs so a blurry scan can't corrupt data).
-  Client-side extraction (reuses `statementParse` + `parsePayslip`/`parseForm16`, both tuned to real Indian
-  payslips with bare-integer line items and real Form 16 Part A/B totals) → user **confirms** values before save
-  (never trusted blindly). Payslip → annualised **tax-liability window** (slab-by-slab, both regimes, marginal +
+  **AI reader** (`docAI.ts`, route `POST /records/ai-extract`): for PDF/free-form docs (contract, letter,
+  payslip, Form 16, 26AS) the client extracts text → Claude identifies the doc, **validates it matches the
+  expected type (flags a wrong/random upload)**, and extracts fields regardless of layout. Falls back to the
+  deterministic `parsePayslip`/`parseForm16` (tuned to real Indian payslips with bare-integer line items and
+  Form 16 Part A/B totals) when `ANTHROPIC_API_KEY` is unset or the call fails. Tabular docs (statement/holdings/
+  capital gains) stay on the structured CSV/Excel parsers. User **confirms** values before save (never trusted blindly). Payslip → annualised **tax-liability window** (slab-by-slab, both regimes, marginal +
   monthly TDS) via `/records/tax-preview`; bank statement → imports de-duped transactions; holdings → look-through
   grade. Files AES-256 encrypted; visible read-only to the connected CA.
 - **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → detailed spending report.
@@ -161,7 +164,8 @@ active when `SUPABASE_URL`+`SUPABASE_SERVICE_KEY` set; supports new `sb_secret_`
 `actions` (+ `/:id/complete`), `insights` (mounts `/networth` `/tax` `/tax/filing/*` `/insurance`
 `/invest` **`/invest/started`** `/market` `/statements/analyze` **`/holdings/analyze`** `/transactions`
 `/spend`), `goals`, `qa`, `billing`, `compliance`, `aa`, `reports`, `alerts`, `documents`,
-**`records`** (`/records` list, `/records/types`, `/records/tax-preview`, POST `/records` + `/records/:id/file`,
+**`records`** (`/records` list, `/records/types`, `/records/tax-preview`, `/records/ai-extract` (Claude doc
+reader+validator, `docAI.ts`; soft-fails to `available:false`), POST `/records` + `/records/:id/file`,
 GET `/records/:id/file`, DELETE) — monthly financial records; CA reads them via `/ca/clients/:id/overview`
 (`monthlyRecords`) + `/ca/clients/:id/records/:rid/file`. `cron`,
 **`ca`** (`/auth/(register|login|token/refresh)`, `/me`, `/clients` connect/approve/reject/delete,

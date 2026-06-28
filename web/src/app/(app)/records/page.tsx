@@ -60,6 +60,11 @@ interface Staged {
   txns?: { date: string; description: string; amount: number; direction: 'debit' | 'credit' }[];
   form16?: any;              // parsed Form 16 figures (authoritative)
   note?: string;
+  engine?: 'ai' | 'parser';  // who read it
+  invalid?: boolean;         // AI says it isn't the expected document
+  detected?: string;         // what the AI thinks it actually is
+  aiReason?: string;         // why it doesn't match
+  confidence?: number;       // 0..1
 }
 
 export default function MonthlyRecords() {
@@ -93,35 +98,22 @@ export default function MonthlyRecords() {
     finally { setBusy(''); if (fileRef.current) fileRef.current.value = ''; }
   }
 
+  // Document types we send to the AI reader (free-form / PDF docs where layout
+  // varies and we also want to catch a wrong upload). Tabular CSV/Excel docs
+  // (statement / holdings / capital gains) use the deterministic parsers.
+  const AI_DOCS = ['form16', 'payslip', 'employment_letter', 'employment_contract', 'form26as_ais'];
+  const RUPn = (n: any) => { const x = Number(n); return isFinite(x) && x > 0 ? Math.round(x * 100) : null; }; // rupees → paise
+  const taxFor = (annualGross: number) => annualGross > 0 ? get(`/records/tax-preview?annualGross=${annualGross}`).catch(() => null) : Promise.resolve(null);
+
   // Per-type client-side extraction → a staged result for confirmation.
   async function extract(dt: DocType, file: File): Promise<Staged> {
-    if (dt.type === 'form16') {
-      const text = await readPdfText(file);
-      const f = parseForm16(text);
-      const annualGross = f.grossSalary || 0;
-      const tax = annualGross > 0 ? await get(`/records/tax-preview?annualGross=${annualGross}`).catch(() => null) : null;
-      const summary = annualGross > 0
-        ? `Gross ${inr(annualGross)}/yr${f.taxPayable ? ` · Form 16 tax ${inr(f.taxPayable)}` : ''}${f.tds ? ` · TDS ${inr(f.tds)}` : ''}`
-        : 'Stored — we couldn’t read the figures; your CA can review the file.';
-      return { dt, file, extracted: { ...f, annualGross }, summary, annualGross, tax, form16: f,
-        note: annualGross === 0 ? 'We couldn’t read the salary — type the annual gross to project tax, or just keep the file for your CA.' : undefined };
-    }
-    if (dt.type === 'payslip' || dt.type === 'employment_letter') {
-      const text = await readPdfText(file);
-      const p = parsePayslip(text);
-      const mult = dt.salary === 'monthly' ? 12 : 1;
-      const annualGross = p.gross != null ? p.gross * mult : (p.net != null ? p.net * mult : 0);
-      const applySalary = (p.basic || p.hra)
-        ? { basicAnnual: (p.basic || 0) * mult, hraAnnual: (p.hra || 0) * mult }
-        : undefined;
-      const tax = annualGross > 0 ? await get(`/records/tax-preview?annualGross=${annualGross}`).catch(() => null) : null;
-      const extracted = { ...p, salaryBasis: dt.salary, annualGross };
-      const tdsBit = p.tds ? ` · TDS ${inr(p.tds)}/mo` : '';
-      const summary = annualGross > 0
-        ? `Gross ≈ ${inr(annualGross)}/yr · est. tax ${tax ? inr(tax[tax.recommended].totalTax) : '—'}/yr${tdsBit}`
-        : 'Stored — we couldn’t read the salary; enter it to project tax.';
-      return { dt, file, extracted, summary, annualGross, applySalary, tax,
-        note: p.gross == null ? 'We couldn’t confidently read the gross — please type it in so the tax projection is right.' : undefined };
+    // ── AI-first path: Claude reads the text, identifies & validates it ──
+    if (AI_DOCS.includes(dt.type)) {
+      const text = await readPdfText(file).catch(() => '');
+      let ai: any = null;
+      if (text.trim().length > 20) ai = await post('/records/ai-extract', { doc_type: dt.type, text }).catch(() => null);
+      if (ai?.available && ai.result) return fromAI(dt, file, ai.result);
+      return fromParser(dt, file, text); // AI off or failed → deterministic
     }
     if (dt.type === 'bank_statement') {
       const r = await parseStatementFile(file);
@@ -146,6 +138,72 @@ export default function MonthlyRecords() {
     }
     // form26as_ais and any other → just store the file for the CA.
     return { dt, file, extracted: {}, summary: 'Stored securely for you and your CA.' };
+  }
+
+  // Build a staged result from Claude's structured reading of the document.
+  async function fromAI(dt: DocType, file: File, r: any): Promise<Staged> {
+    const f = r.fields || {};
+    const meta = {
+      engine: 'ai' as const, invalid: !r.matchesExpected,
+      detected: r.documentType, aiReason: r.reason, confidence: r.confidence,
+    };
+    if (dt.type === 'form16') {
+      const form16 = {
+        grossSalary: RUPn(f.grossSalaryAnnual), standardDeduction: RUPn(f.standardDeduction),
+        chapter6A: RUPn(f.chapter6ADeductions), taxableIncome: RUPn(f.taxableIncome),
+        taxOnIncome: RUPn(f.taxOnIncome), taxPayable: RUPn(f.taxPayable), tds: RUPn(f.tds),
+      };
+      const annualGross = form16.grossSalary || 0;
+      const tax = await taxFor(annualGross);
+      const summary = r.summary || (annualGross ? `Gross ${inr(annualGross)}/yr` : 'Form 16');
+      return { dt, file, extracted: { ...form16, annualGross, ai: f }, summary, annualGross, tax, form16, ...meta };
+    }
+    if (dt.type === 'payslip' || dt.type === 'employment_letter') {
+      const monthly = dt.salary === 'monthly';
+      const grossUnit = monthly ? RUPn(f.grossMonthly) : RUPn(f.ctcAnnual);
+      const netUnit = RUPn(f.netMonthly);
+      const base = grossUnit ?? netUnit;
+      const mult = monthly ? 12 : 1;
+      const annualGross = base != null ? base * mult : 0;
+      const basicUnit = RUPn(monthly ? f.basicMonthly : f.basicAnnual);
+      const hraUnit = RUPn(monthly ? f.hraMonthly : f.hraAnnual);
+      const applySalary = (basicUnit || hraUnit) ? { basicAnnual: (basicUnit || 0) * mult, hraAnnual: (hraUnit || 0) * mult } : undefined;
+      const tax = await taxFor(annualGross);
+      const tdsM = RUPn(f.tdsMonthly);
+      const summary = r.summary || (annualGross ? `Gross ≈ ${inr(annualGross)}/yr${tdsM ? ` · TDS ${inr(tdsM)}/mo` : ''}` : 'Stored');
+      return { dt, file, extracted: { ...f, annualGross }, summary, annualGross, applySalary, tax, ...meta };
+    }
+    // employment_contract, form26as_ais → informational; store with AI summary.
+    return { dt, file, extracted: { ai: f }, summary: r.summary || 'Stored securely for you and your CA.', ...meta };
+  }
+
+  // Deterministic fallback (used when the AI reader is off or errors).
+  async function fromParser(dt: DocType, file: File, text: string): Promise<Staged> {
+    if (dt.type === 'form16') {
+      const f = parseForm16(text);
+      const annualGross = f.grossSalary || 0;
+      const tax = await taxFor(annualGross);
+      const summary = annualGross > 0
+        ? `Gross ${inr(annualGross)}/yr${f.taxPayable ? ` · Form 16 tax ${inr(f.taxPayable)}` : ''}${f.tds ? ` · TDS ${inr(f.tds)}` : ''}`
+        : 'Stored — we couldn’t read the figures; your CA can review the file.';
+      return { dt, file, extracted: { ...f, annualGross }, summary, annualGross, tax, form16: f, engine: 'parser',
+        note: annualGross === 0 ? 'We couldn’t read the salary — type the annual gross to project tax, or just keep the file for your CA.' : undefined };
+    }
+    if (dt.type === 'payslip' || dt.type === 'employment_letter') {
+      const p = parsePayslip(text);
+      const mult = dt.salary === 'monthly' ? 12 : 1;
+      const annualGross = p.gross != null ? p.gross * mult : (p.net != null ? p.net * mult : 0);
+      const applySalary = (p.basic || p.hra) ? { basicAnnual: (p.basic || 0) * mult, hraAnnual: (p.hra || 0) * mult } : undefined;
+      const tax = await taxFor(annualGross);
+      const tdsBit = p.tds ? ` · TDS ${inr(p.tds)}/mo` : '';
+      const summary = annualGross > 0
+        ? `Gross ≈ ${inr(annualGross)}/yr · est. tax ${tax ? inr(tax[tax.recommended].totalTax) : '—'}/yr${tdsBit}`
+        : 'Stored — we couldn’t read the salary; enter it to project tax.';
+      return { dt, file, extracted: { ...p, salaryBasis: dt.salary, annualGross }, summary, annualGross, applySalary, tax, engine: 'parser',
+        note: p.gross == null ? 'We couldn’t confidently read the gross — please type it in so the tax projection is right.' : undefined };
+    }
+    // employment_contract / form26as_ais → just store.
+    return { dt, file, extracted: {}, summary: 'Stored securely for you and your CA.', engine: 'parser' };
   }
 
   function setGross(v: string) {
@@ -185,7 +243,7 @@ export default function MonthlyRecords() {
 
       <div>
         <h1 className="font-display text-3xl font-medium">Monthly records</h1>
-        <p className="text-sm text-ink-soft mt-1 max-w-2xl">Upload a few documents each month and PayWatch builds the complete picture of your money — income, spending, investments and tax — and shares it neatly with your CA. Everything is encrypted.</p>
+        <p className="text-sm text-ink-soft mt-1 max-w-2xl">Upload a few documents each month and PayWatch reads them with AI — understanding any format, pulling out the figures, and flagging if you’ve uploaded the wrong file. It builds the complete picture of your money and shares it neatly with your CA. Everything is encrypted.</p>
       </div>
 
       {/* Month picker */}
@@ -205,11 +263,24 @@ export default function MonthlyRecords() {
 
       {/* Staged upload — confirm before saving */}
       {staged && (
-        <div className="card p-5 border-2 border-mint-500/60 bg-mint-50 space-y-3">
+        <div className={`card p-5 border-2 space-y-3 ${staged.invalid ? 'border-signal-red/60 bg-signal-red/5' : 'border-mint-500/60 bg-mint-50'}`}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="font-bold text-sm">{staged.dt.icon} Review your {staged.dt.label.toLowerCase()}</p>
-            <span className="text-[11px] text-ink-faint">📎 {staged.file.name}</span>
+            <span className="flex items-center gap-2 text-[11px] text-ink-faint">
+              {staged.engine === 'ai' && <span className="chip bg-pine-900 text-white text-[10px]">✨ Read by AI</span>}
+              📎 {staged.file.name}
+            </span>
           </div>
+
+          {/* Wrong-document flag from the AI reader */}
+          {staged.invalid && (
+            <div className="rounded-lg bg-signal-red/10 border border-signal-red/40 px-3 py-2.5">
+              <p className="text-sm font-bold text-signal-red">⚠ This doesn’t look like a {staged.dt.label.toLowerCase()}.</p>
+              <p className="text-xs text-ink-soft mt-1">{staged.aiReason || (staged.detected && staged.detected !== 'other' ? `It looks more like a ${staged.detected.replace(/_/g, ' ')}.` : 'We couldn’t confirm it’s the right document.')} Please upload the correct file — or save it anyway if you’re sure.</p>
+              <button onClick={() => pick(staged.dt)} className="mt-2 rounded-full bg-signal-red text-white px-4 py-1.5 text-xs font-bold">Choose a different file</button>
+            </div>
+          )}
+
           <p className="text-sm text-ink-soft">{staged.summary}</p>
           {staged.note && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">⚠ {staged.note}</p>}
 
@@ -250,10 +321,12 @@ export default function MonthlyRecords() {
           )}
 
           <div className="flex items-center gap-3 pt-1">
-            <button onClick={confirmSave} disabled={saving} className="btn-primary disabled:opacity-50">{saving ? 'Saving…' : 'Confirm & save'}</button>
+            <button onClick={confirmSave} disabled={saving}
+              className={`disabled:opacity-50 ${staged.invalid ? 'rounded-full bg-ink-soft text-white px-5 py-2.5 text-sm font-bold' : 'btn-primary'}`}>
+              {saving ? 'Saving…' : staged.invalid ? 'Save anyway' : 'Confirm & save'}</button>
             <button onClick={() => setStaged(null)} disabled={saving} className="text-sm text-ink-faint underline">Cancel</button>
           </div>
-          <p className="text-[11px] text-ink-faint">🔒 The file is AES-256 encrypted before it’s stored. We never trust extracted numbers blindly — please check them above.</p>
+          <p className="text-[11px] text-ink-faint">🔒 The file is AES-256 encrypted before it’s stored. {staged.engine === 'ai' ? 'AI reads it to fill these in and checks it’s the right document — but you confirm before anything is saved.' : 'We never trust extracted numbers blindly — please check them above.'}</p>
         </div>
       )}
 

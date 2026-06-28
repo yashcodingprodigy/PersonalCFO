@@ -11,6 +11,7 @@ import { rateLimit } from '../middleware/rateLimit';
 import { listRecords, createRecord, attachRecordFile, getRecordFile, deleteRecord } from '../services/monthlyRecords';
 import { salaryTaxComparison } from '../services/tax';
 import { recalculateAndStoreScore } from '../services/profile';
+import { aiAvailable, analyzeDocument, ExpectedDoc } from '../services/docAI';
 
 export const recordsRouter = Router();
 recordsRouter.use(requireAuth);
@@ -46,6 +47,25 @@ recordsRouter.get('/tax-preview', async (req: AuthedRequest, res) => {
     ...salaryTaxComparison(Math.round(gross), Math.max(0, Math.round(ded))),
     disclaimer: 'Projected from one payslip annualised, using FY2025-26 slabs and the standard deduction only. Actual tax depends on your full-year income and deductions — verify with your CA.',
   });
+});
+
+// POST /records/ai-extract — let Claude read & validate an uploaded document.
+// The client sends the text it extracted from the file; we never store it.
+const AI_TYPES = ['employment_contract', 'employment_letter', 'payslip', 'form16', 'bank_statement', 'demat_holdings', 'capital_gains', 'form26as_ais'] as const;
+recordsRouter.post('/ai-extract', rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'recai' }), async (req: AuthedRequest, res) => {
+  if (!aiAvailable()) return res.json({ available: false });
+  const parsed = z.object({
+    doc_type: z.enum(AI_TYPES),
+    text: z.string().min(1).max(60_000),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  try {
+    const result = await analyzeDocument(parsed.data.doc_type as ExpectedDoc, parsed.data.text);
+    res.json({ available: true, result });
+  } catch (e: any) {
+    // Soft-fail: client falls back to the deterministic parser.
+    res.json({ available: false, error: 'ai_failed', message: String(e?.message || e).slice(0, 200) });
+  }
 });
 
 const recordSchema = z.object({
