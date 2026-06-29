@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { get, post, del, downloadFile } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
+import { toast, PROFILE_UPDATED } from '@/lib/toast';
 import {
   readPdfText, parsePayslip, parseForm16, parseStatementFile, parseHoldingsFile, parseCapitalGainsCsv,
 } from '@/lib/statementParse';
@@ -80,7 +81,7 @@ const monthLabel = (key: string) => {
   return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 
-interface Rec { record_id: string; period: string; doc_type: string; label: string; file_name: string | null; extracted: any; summary: string | null; has_file: boolean; created_at: string }
+interface Rec { record_id: string; period: string; doc_type: string; label: string; file_name: string | null; extracted: any; summary: string | null; has_file: boolean; created_at: string; affects?: string[] }
 
 // A staged upload waiting for the user to confirm before it's saved.
 interface Staged {
@@ -284,7 +285,7 @@ export default function MonthlyRecords() {
 
   async function removeRecord(id: string) {
     setRemoving(id); setErr('');
-    try { await del(`/records/${id}`); setConfirmId(''); load(); }
+    try { await del(`/records/${id}`); setConfirmId(''); load(); toast('Document removed — profile updated.'); }
     catch (e: any) { setErr(e?.message || 'Could not remove the file. Please try again.'); }
     finally { setRemoving(''); }
   }
@@ -319,18 +320,22 @@ export default function MonthlyRecords() {
     if (!staged) return;
     setSaving(true); setErr('');
     try {
+      // Bank statement → import transactions first (de-duplicated) and capture the
+      // fingerprints so removing this record can later un-import exactly these rows.
+      let importedFingerprints: string[] | undefined;
+      if (staged.dt.type === 'bank_statement' && staged.txns?.length) {
+        const r = await post('/statements/analyze', { transactions: staged.txns, persist: true }).catch(() => null);
+        importedFingerprints = r?.fingerprints;
+      }
       const rec = await post('/records', {
         period, doc_type: staged.dt.type, label: staged.dt.label,
         extracted: staged.extracted, summary: staged.summary,
         applySalary: staged.applySalary, applyTaxData: taxDataFor(staged),
+        importedFingerprints,
       });
       const { data, mime } = await fileToBase64(staged.file);
       await post(`/records/${rec.record_id}/file`, { file_name: staged.file.name, mime_type: mime, data }).catch(() => {});
-      // Bank statement → import the transactions (de-duplicated server-side).
-      if (staged.dt.type === 'bank_statement' && staged.txns?.length) {
-        await post('/statements/analyze', { transactions: staged.txns, persist: true }).catch(() => {});
-      }
-      setStaged(null); load();
+      setStaged(null); load(); toast(PROFILE_UPDATED);
     } catch (e: any) { setErr(e?.message || 'Could not save. Please try again.'); }
     finally { setSaving(false); }
   }
@@ -483,24 +488,32 @@ export default function MonthlyRecords() {
                   </div>
                   <button onClick={() => pick(dt)} disabled={busy === dt.type}
                     className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold disabled:opacity-50 ${has ? 'border border-paper-200 text-pine-700 hover:border-pine-600' : 'bg-pine-900 text-white hover:bg-pine-800'}`}>
-                    {busy === dt.type ? 'Reading…' : has ? 'Replace' : 'Upload'}
+                    {busy === dt.type ? 'Reading…' : has ? '+ Add another' : 'Upload'}
                   </button>
                 </div>
                 {has && (
-                  <div className="mt-2 pl-12 space-y-1.5">
+                  <div className="mt-2 pl-12 space-y-2">
                     {existing.map((r) => (
-                      <div key={r.record_id} className="flex items-center justify-between gap-3 text-[11px]">
-                        {r.has_file
-                          ? <button onClick={() => downloadFile(`/records/${r.record_id}/file`, r.file_name || 'document')} className="text-pine-700 underline truncate">📎 {r.file_name}</button>
-                          : <span className="text-ink-faint truncate">Saved (no file attached)</span>}
-                        {confirmId === r.record_id ? (
-                          <span className="flex items-center gap-2 shrink-0">
-                            <span className="text-ink-soft">Remove this file?</span>
-                            <button onClick={() => removeRecord(r.record_id)} disabled={removing === r.record_id} className="rounded-full bg-signal-red text-white px-3 py-0.5 font-bold disabled:opacity-50">{removing === r.record_id ? 'Removing…' : 'Yes, remove'}</button>
-                            <button onClick={() => setConfirmId('')} disabled={removing === r.record_id} className="text-ink-faint underline">Cancel</button>
-                          </span>
-                        ) : (
-                          <button onClick={() => setConfirmId(r.record_id)} className="text-signal-red underline shrink-0">Remove</button>
+                      <div key={r.record_id} className="text-[11px]">
+                        <div className="flex items-center justify-between gap-3">
+                          {r.has_file
+                            ? <button onClick={() => downloadFile(`/records/${r.record_id}/file`, r.file_name || 'document')} className="text-pine-700 underline truncate">📎 {r.file_name}</button>
+                            : <span className="text-ink-faint truncate">Saved (no file attached)</span>}
+                          {confirmId !== r.record_id && <button onClick={() => setConfirmId(r.record_id)} className="text-signal-red underline shrink-0">Remove</button>}
+                        </div>
+                        {confirmId === r.record_id && (
+                          <div className="mt-1.5 rounded-lg bg-signal-red/10 border border-signal-red/30 px-3 py-2.5">
+                            <p className="font-bold text-signal-red">Remove this {r.label.toLowerCase()}?</p>
+                            {r.affects && r.affects.length > 0 ? (
+                              <p className="text-ink-soft mt-1 leading-relaxed">This document fed data into your profile. Removing it will <strong>reverse and update</strong>: {r.affects.join(', ')}. Your Money Score and tax figures will be recalculated.</p>
+                            ) : (
+                              <p className="text-ink-soft mt-1">This will delete the stored file.</p>
+                            )}
+                            <div className="flex gap-2 mt-2">
+                              <button onClick={() => removeRecord(r.record_id)} disabled={removing === r.record_id} className="rounded-full bg-signal-red text-white px-3 py-1 font-bold disabled:opacity-50">{removing === r.record_id ? 'Removing…' : (r.affects && r.affects.length > 0 ? 'Yes, remove & update' : 'Yes, remove')}</button>
+                              <button onClick={() => setConfirmId('')} disabled={removing === r.record_id} className="text-ink-faint underline">Cancel</button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     ))}

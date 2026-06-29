@@ -23,7 +23,7 @@ import { computeScore, deductionUsage } from '../services/score';
 import { computeNetWorth } from '../services/networth';
 import { taxCopilot, compareRegimes, computeHraExemption } from '../services/tax';
 import { analyseInsurance } from '../services/insurance';
-import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, getChecklist, setChecklistField } from '../services/caShare';
+import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, deleteDoc, getChecklist, setChecklistField } from '../services/caShare';
 import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS, CA_FILING_STEPS } from '../services/itr';
 import { listRecords, getRecordFile } from '../services/monthlyRecords';
@@ -296,4 +296,11 @@ caRouter.get('/clients/:id/documents/:docId/file', requireCa, async (req: Authed
   res.setHeader('Content-Type', f.mimeType);
   res.setHeader('Content-Disposition', `attachment; filename="${f.fileName.replace(/"/g, '')}"`);
   res.send(f.buffer);
+});
+caRouter.delete('/clients/:id/documents/:docId', requireCa, async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { caId: req.caId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  await deleteDoc(link.link_id, req.params.docId);
+  publish(link.user_id);
+  res.json({ ok: true });
 });

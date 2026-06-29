@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
-import { listRecords, createRecord, attachRecordFile, getRecordFile, deleteRecord } from '../services/monthlyRecords';
+import { listRecords, createRecord, attachRecordFile, getRecordFile, deleteRecord, getRecordContribution } from '../services/monthlyRecords';
 import { salaryTaxComparison } from '../services/tax';
 import { recalculateAndStoreScore } from '../services/profile';
 import { aiAvailable, analyzeDocument, ExpectedDoc } from '../services/docAI';
@@ -129,6 +129,9 @@ const recordSchema = z.object({
   // Optional tax_data updates (paise) from the doc — e.g. home-loan interest,
   // 80D premium, NPS, 80G donation, rent. Server whitelists the keys.
   applyTaxData: z.record(z.number().int().nonnegative().max(1_000_000_000_00)).optional(),
+  // Fingerprints of transactions a bank-statement upload imported (so a delete
+  // can remove exactly those rows).
+  importedFingerprints: z.array(z.string().max(80)).max(5000).optional(),
 });
 
 // POST /records — create a record's metadata + confirmed extracted data.
@@ -136,25 +139,31 @@ recordsRouter.post('/', rateLimit({ windowMs: 60_000, max: 60, keyPrefix: 'rec' 
   const parsed = recordSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
   const d = parsed.data;
-  const row = await createRecord(req.userId!, { period: d.period, doc_type: d.doc_type, label: d.label, extracted: d.extracted, summary: d.summary });
 
   // Fold confirmed figures from the doc into tax_data so the deduction tracker,
   // tax-efficiency score, tax reduction plan and Actions all get more accurate.
+  // Capture the PREVIOUS value of each key so a delete can restore it exactly.
   const updates: Record<string, number> = {};
   if (d.applySalary?.basicAnnual) updates.basic_salary_annual = d.applySalary.basicAnnual;
   if (d.applySalary?.hraAnnual) updates.hra_received_annual = d.applySalary.hraAnnual;
   for (const [k, v] of Object.entries(d.applyTaxData || {})) {
     if (TAX_DATA_KEYS.has(k) && v > 0) updates[k] = v;
   }
+  const contributionTax: Record<string, { prev: number | null; set: number }> = {};
   if (Object.keys(updates).length > 0) {
     const prof = await one<any>(`SELECT tax_data FROM profiles WHERE user_id = $1`, [req.userId]);
-    const t: any = { ...(prof?.tax_data || {}), ...updates };
+    const cur: any = prof?.tax_data || {};
+    for (const [k, v] of Object.entries(updates)) contributionTax[k] = { prev: cur[k] ?? null, set: v };
+    const t: any = { ...cur, ...updates };
     await query(
       `INSERT INTO profiles (user_id, tax_data) VALUES ($1, $2::jsonb)
        ON CONFLICT (user_id) DO UPDATE SET tax_data = $2::jsonb, version = profiles.version + 1, updated_at = now()`,
       [req.userId, JSON.stringify(t)]
     );
   }
+  const contribution = { taxData: contributionTax, txnFingerprints: d.importedFingerprints || [] };
+  const row = await createRecord(req.userId!, { period: d.period, doc_type: d.doc_type, label: d.label, extracted: d.extracted, summary: d.summary, contribution });
+
   // Always recalc the score + remember the upload so guidance + Ask PayWatch
   // reflect the user's latest documents.
   await recalculateAndStoreScore(req.userId!, 'record_upload');
@@ -188,6 +197,32 @@ recordsRouter.get('/:id/file', async (req: AuthedRequest, res) => {
 });
 
 recordsRouter.delete('/:id', async (req: AuthedRequest, res) => {
+  // Reverse-track: undo exactly what this record contributed.
+  const contribution = await getRecordContribution(req.userId!, req.params.id);
+  if (!contribution) return res.status(404).json({ error: 'not_found' });
+
+  // 1) Restore the tax_data values this record overwrote — but only if a LATER
+  //    record hasn't since changed them (then the later record owns that field).
+  const tax = contribution.taxData || {};
+  if (Object.keys(tax).length > 0) {
+    const prof = await one<any>(`SELECT tax_data FROM profiles WHERE user_id = $1`, [req.userId]);
+    const t: any = { ...(prof?.tax_data || {}) };
+    let changed = false;
+    for (const [k, info] of Object.entries<any>(tax)) {
+      if (t[k] === info.set) {                       // still the value we set?
+        if (info.prev === null || info.prev === undefined) delete t[k];
+        else t[k] = info.prev;
+        changed = true;
+      }
+    }
+    if (changed) await query(`UPDATE profiles SET tax_data = $2::jsonb, version = version + 1, updated_at = now() WHERE user_id = $1`, [req.userId, JSON.stringify(t)]);
+  }
+
+  // 2) Remove exactly the transactions this statement imported.
+  const fps: string[] = contribution.txnFingerprints || [];
+  if (fps.length > 0) await query(`DELETE FROM transactions WHERE user_id = $1 AND fingerprint = ANY($2::text[])`, [req.userId, fps]);
+
   await deleteRecord(req.userId!, req.params.id);
-  res.json({ ok: true });
+  await recalculateAndStoreScore(req.userId!, 'record_removed').catch(() => {});
+  res.json({ ok: true, reversed: { taxFields: Object.keys(tax).length, transactions: fps.length } });
 });

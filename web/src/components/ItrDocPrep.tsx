@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { get, post } from '@/lib/api';
+import { get, post, del } from '@/lib/api';
 import { fileToBase64 } from '@/components/CaThread';
+import { toast, PROFILE_UPDATED } from '@/lib/toast';
 
 // Keys match the shared CA checklist + the vault slots used here.
 const DOCS = [
@@ -26,6 +27,7 @@ export function ItrDocPrep() {
   const [cas, setCas] = useState<any[]>([]);
   const [openMenu, setOpenMenu] = useState('');
   const [sendMenu, setSendMenu] = useState('');
+  const [confirmKey, setConfirmKey] = useState('');
   const [busy, setBusy] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const pending = useRef<{ key: string; name: string } | null>(null);
@@ -48,12 +50,18 @@ export function ItrDocPrep() {
       if (!ex) ex = await post('/documents', { slot: p.key, label: p.name, status: 'have' });
       const { data, mime } = await fileToBase64(file);
       await post(`/documents/${ex.id}/file`, { file_name: file.name, mime_type: mime, data });
-      load();
+      load(); toast(PROFILE_UPDATED);
     } catch { /* ignore */ } finally { setBusy(''); if (fileRef.current) fileRef.current.value = ''; }
   }
   async function fetchFromVault(key: string, name: string, sourceId: string) {
     setBusy(key); setOpenMenu('');
-    try { await post(`/documents/${sourceId}/copy`, { to_slot: key, to_label: name }); load(); }
+    try { await post(`/documents/${sourceId}/copy`, { to_slot: key, to_label: name }); load(); toast(PROFILE_UPDATED); }
+    catch { /* ignore */ } finally { setBusy(''); }
+  }
+  async function removeDoc(key: string) {
+    const vf = vaultFor(key); if (!vf) return;
+    setBusy(key); setConfirmKey(''); setOpenMenu('');
+    try { await del(`/documents/${vf.id}`); load(); toast('Document removed — profile updated.'); }
     catch { /* ignore */ } finally { setBusy(''); }
   }
   async function sendToCa(key: string, name: string, linkId: string) {
@@ -122,6 +130,21 @@ export function ItrDocPrep() {
                           <button key={v.id} onClick={() => fetchFromVault(d.key, d.name, v.id)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-paper-50 truncate">📁 {v.label || v.file_name}</button>
                         ))}
                       </div>
+                      {vf && (
+                        <div className="border-t border-paper-100 mt-1 pt-1">
+                          {confirmKey === d.key ? (
+                            <div className="px-3 py-1.5 text-xs flex items-center justify-between gap-2">
+                              <span className="text-ink-soft">Remove this file?</span>
+                              <span className="flex gap-2 shrink-0">
+                                <button onClick={() => removeDoc(d.key)} className="rounded-full bg-signal-red text-white px-2.5 py-0.5 font-bold">Yes</button>
+                                <button onClick={() => setConfirmKey('')} className="text-ink-faint underline">No</button>
+                              </span>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmKey(d.key)} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-signal-red/5 text-signal-red">🗑 Remove file</button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 

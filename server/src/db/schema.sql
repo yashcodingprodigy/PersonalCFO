@@ -333,10 +333,12 @@ CREATE TABLE IF NOT EXISTS monthly_records (
   storage_path VARCHAR(300),
   extracted    JSONB NOT NULL DEFAULT '{}',         -- user-confirmed structured data
   summary      TEXT,                                -- one-line human summary
+  contribution JSONB NOT NULL DEFAULT '{}',         -- what this record changed (for reversal on delete)
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_monthly_user ON monthly_records(user_id, period DESC);
+ALTER TABLE monthly_records ADD COLUMN IF NOT EXISTS contribution JSONB NOT NULL DEFAULT '{}';
 
 -- Insurance policies the user uploads. The policy PDF is AES-256 encrypted in
 -- Supabase Storage; `extracted` holds the AI-read structured data the user

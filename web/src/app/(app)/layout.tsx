@@ -7,6 +7,7 @@ import { Wordmark } from '@/components/Logo';
 import { get, post, swr, clearTokens, getTokens, del } from '@/lib/api';
 import { isNative, initNative, unlock, registerPush } from '@/lib/native';
 import { Walkthrough } from '@/components/Walkthrough';
+import { Toaster } from '@/components/Toaster';
 
 const ASK_ICON = 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z';
 
@@ -215,6 +216,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="hidden sm:inline">Ask PayWatch</span>
         </Link>
       )}
+
+      {/* Global toast notifications (e.g. "Profile updated") */}
+      <Toaster />
 
       {/* Guided first-run tour (persists across navigation) */}
       {!locked && <Walkthrough />}

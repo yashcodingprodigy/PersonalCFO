@@ -5,6 +5,7 @@ import { get, post, del, downloadFile } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
 import { readPdfText } from '@/lib/statementParse';
+import { toast, PROFILE_UPDATED } from '@/lib/toast';
 
 // Insurance categories the user can upload. Mirrors the server enum.
 const CATS: { key: string; icon: string; label: string }[] = [
@@ -125,14 +126,14 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
       const rec = await post('/insurance/policies', body);
       const { data, mime } = await fileToBase64(staged.file);
       await post(`/insurance/policies/${rec.policy_id}/file`, { file_name: staged.file.name, mime_type: mime, data }).catch(() => {});
-      setStaged(null); load(); onChange?.();
+      setStaged(null); load(); onChange?.(); toast(PROFILE_UPDATED);
     } catch (e: any) { setErr(e?.message || 'Could not save the policy.'); }
     finally { setSaving(false); }
   }
 
   async function remove(id: string) {
     setRemoving(id); setErr('');
-    try { await del(`/insurance/policies/${id}`); setConfirmId(''); load(); onChange?.(); }
+    try { await del(`/insurance/policies/${id}`); setConfirmId(''); load(); onChange?.(); toast('Policy removed — profile updated.'); }
     catch (e: any) { setErr(e?.message || 'Could not remove.'); }
     finally { setRemoving(''); }
   }

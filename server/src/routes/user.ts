@@ -6,7 +6,7 @@ import { rateLimit } from '../middleware/rateLimit';
 import { recalculateAndStoreScore, loadProfileData } from '../services/profile';
 import { remember } from '../services/rag';
 import { ensureUserConnectCode, requestLink } from '../services/caLink';
-import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, getChecklist, setChecklistField } from '../services/caShare';
+import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, getDocFile, deleteDoc, getChecklist, setChecklistField } from '../services/caShare';
 import { getVaultFile } from '../services/vault';
 import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS } from '../services/itr';
@@ -218,4 +218,11 @@ userRouter.get('/ca/links/:id/documents/:docId/file', async (req: AuthedRequest,
   res.setHeader('Content-Type', f.mimeType);
   res.setHeader('Content-Disposition', `attachment; filename="${f.fileName.replace(/"/g, '')}"`);
   res.send(f.buffer);
+});
+userRouter.delete('/ca/links/:id/documents/:docId', async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  await deleteDoc(link.link_id, req.params.docId);
+  publish(link.ca_id);
+  res.json({ ok: true });
 });

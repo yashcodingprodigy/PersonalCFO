@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { attachVaultFile, getVaultFile } from '../services/vault';
+import { recalculateAndStoreScore } from '../services/profile';
 
 export const documentsRouter = Router();
 documentsRouter.use(requireAuth);
@@ -97,6 +98,7 @@ documentsRouter.post('/:id/file', async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Missing file.' });
   try {
     const r = await attachVaultFile(req.userId!, req.params.id, { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data });
+    await recalculateAndStoreScore(req.userId!, 'vault_upload').catch(() => {});
     res.json(r);
   } catch (e: any) {
     res.status(e.code === 'not_configured' ? 503 : e.code === 'not_found' ? 404 : 400).json({ error: e.code || 'upload_failed', message: e.message });

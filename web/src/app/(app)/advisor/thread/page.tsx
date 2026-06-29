@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get, post, patch, downloadFile, subscribeEvents } from '@/lib/api';
+import { get, post, patch, del, downloadFile, subscribeEvents } from '@/lib/api';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 
@@ -49,6 +49,7 @@ export default function AdvisorThread() {
   async function send(text: string) { await post(`/user/ca/links/${id}/messages`, { body: text }); loadMsgs(); }
   async function upload(file: File) { const { data, mime } = await fileToBase64(file); await post(`/user/ca/links/${id}/documents`, { file_name: file.name, mime_type: mime, data }); loadDocs(); }
   async function download(docId: string) { const d = docs.find((x) => x.document_id === docId); await downloadFile(`/user/ca/links/${id}/documents/${docId}/file`, d?.file_name || 'document'); }
+  async function removeDoc(docId: string) { await del(`/user/ca/links/${id}/documents/${docId}`); loadDocs(); }
   async function sendFromVault(vaultId: string) { try { await post(`/user/ca/links/${id}/documents/from-vault`, { vault_id: vaultId }); setShowVault(false); loadDocs(); } catch (e: any) { setErr(e.message); } }
 
   return (
@@ -60,7 +61,7 @@ export default function AdvisorThread() {
       </div>
       {err && <p className="text-sm text-signal-red">{err}</p>}
 
-      <CaThread role="user" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} initialDraft={draft} />
+      <CaThread role="user" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} onDelete={removeDoc} initialDraft={draft} />
 
       {/* Send a file straight from the vault */}
       <div className="card p-5">

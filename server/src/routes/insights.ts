@@ -236,10 +236,11 @@ insightsRouter.post('/statements/analyze', rateLimit({ windowMs: 60_000, max: 20
 
   let imported = 0;
   let duplicates = 0;
+  let fingerprints: string[] = [];
   if (parsed.data.persist) {
     // Atomic import: either every (non-duplicate) row lands, or none do.
     const counts = await withTransaction(async (q) => {
-      let ins = 0, dup = 0;
+      let ins = 0, dup = 0; const fps: string[] = [];
       for (const t of parsed.data.transactions) {
         const fp = txnFingerprint(req.userId!, t);
         // ON CONFLICT DO NOTHING against the partial unique index → re-uploading
@@ -251,18 +252,20 @@ insightsRouter.post('/statements/analyze', rateLimit({ windowMs: 60_000, max: 20
            RETURNING txn_id`,
           [req.userId, t.date, t.description, t.amount, t.direction, categorise(t.description), fp]
         );
-        if (inserted.length > 0) ins++; else dup++;
+        if (inserted.length > 0) { ins++; fps.push(fp); } else dup++;
       }
-      return { ins, dup };
+      return { ins, dup, fps };
     });
-    imported = counts.ins; duplicates = counts.dup;
+    imported = counts.ins; duplicates = counts.dup; fingerprints = counts.fps;
     if (imported > 0) {
       await recalculateAndStoreScore(req.userId!, 'statement_import');
       await remember(req.userId!, 'statement_upload', 'Uploaded a bank statement', `User imported ${imported} new transactions from a bank statement on ${new Date().toISOString().slice(0, 10)}.`);
     }
   }
 
-  res.json({ report, imported, duplicates });
+  // fingerprints let a Monthly-Records bank-statement deletion remove exactly the
+  // rows it imported (reverse-tracking).
+  res.json({ report, imported, duplicates, fingerprints });
 });
 
 // POST /holdings/analyze — portfolio look-through from an uploaded holdings file.

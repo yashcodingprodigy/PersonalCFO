@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wordmark } from '@/components/Logo';
 import { inr } from '@/lib/format';
-import { caGet, caPost, caPatch, caDownloadFile, subscribeCaEvents, getCaTokens } from '@/lib/caApi';
+import { caGet, caPost, caPatch, caDel, caDownloadFile, subscribeCaEvents, getCaTokens } from '@/lib/caApi';
 import { CaThread, fileToBase64, type Msg, type Doc } from '@/components/CaThread';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 
@@ -41,6 +41,7 @@ export default function CaClient() {
   async function send(text: string) { await caPost(`/ca/clients/${id}/messages`, { body: text }); loadMsgs(); }
   async function upload(file: File) { const { data, mime } = await fileToBase64(file); await caPost(`/ca/clients/${id}/documents`, { file_name: file.name, mime_type: mime, data }); loadDocs(); }
   async function download(docId: string) { const d = docs.find((x) => x.document_id === docId); await caDownloadFile(`/ca/clients/${id}/documents/${docId}/file`, d?.file_name || 'document'); }
+  async function removeDoc(docId: string) { await caDel(`/ca/clients/${id}/documents/${docId}`); loadDocs(); }
   function requestDoc(_key: string, name: string) {
     setDraft(`Hi, could you please share your ${name} for the ITR? 🙏`);
     chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -266,7 +267,7 @@ export default function CaClient() {
         {chk?.documents && <ChecklistPanel role="ca" documents={chk.documents} state={chk.state || {}} onToggle={toggleChk} onRequest={requestDoc} />}
 
         <div ref={chatRef}>
-          <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} initialDraft={draft} />
+          <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} onDelete={removeDoc} initialDraft={draft} />
         </div>
       </div>
     </main>

@@ -49,6 +49,10 @@ export async function addDoc(linkId: string, uploadedBy: 'ca' | 'user', file: { 
     [linkId, uploadedBy, safe, file.mimeType || null, bytes.length, path]
   );
 }
+// Delete a shared document from the link (either party can remove).
+export async function deleteDoc(linkId: string, docId: string) {
+  await query(`DELETE FROM ca_documents WHERE document_id = $1 AND link_id = $2`, [docId, linkId]);
+}
 // Fetch + decrypt a document for streaming back to the authorised party.
 export async function getDocFile(linkId: string, docId: string): Promise<{ buffer: Buffer; fileName: string; mimeType: string } | null> {
   const d = await one<any>(`SELECT storage_path, file_name, mime_type FROM ca_documents WHERE document_id = $1 AND link_id = $2`, [docId, linkId]);

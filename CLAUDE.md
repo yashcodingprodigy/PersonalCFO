@@ -108,11 +108,19 @@ unread-alerts badge, native biometric lock overlay).
   whitelisted figures merge into `tax_data` (home-loan interest/principal, 80D, NPS, 80G, rent → feed the
   deduction tracker + tax score + Actions), the score is recalculated, and a RAG memory note is saved so
   Ask PayWatch stays current. A per-month **progress count** ("X of Y uploaded · Z to go") nudges more uploads.
+  **Reverse-on-delete:** each record stores a `contribution` JSONB (prev tax_data values it overwrote + the
+  bank-statement txn fingerprints it imported). Deleting warns the user with the exact **affected areas**
+  (`affects[]` from listRecords), then restores prev tax_data (only if still the value it set — later records
+  win) + removes those transactions + recalcs. (Insurance delete already auto-reverses via `syncProfileInsurance`.)
 - **Statement scan** (`statement`) — client-side CSV/Excel/PDF parse → **spending dashboard**: period range,
   KPIs (in/out/net/savings rate + monthly avg), SVG **donut** of categories, flexible-vs-essential-vs-invested
   split, top merchants, largest expenses, a headline **"where you could've saved"** total + suggestions,
   recurring payments, watch-outs/positives. `statement.ts` analyser; persists de-duped txns + recalcs score.
-- **Document vault** (`vault`) — track CA paperwork + expiry reminders (feeds alerts).
+- **Document vault** (`vault`) — store **multiple encrypted files per slot** (e.g. several rent receipts),
+  each with download + **Remove (confirm)** + renewal reminders (feeds alerts). Upload recalcs score.
+- **Uploads everywhere** (records, insurance, vault, ITR-prep) → server **recalculates score** + a global
+  **"Profile updated" toast** (`lib/toast` + `Toaster` in app layout); every remove asks for confirmation.
+  CA-thread documents are removable too (`DELETE …/documents/:docId` both sides).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
 - **Goals** (moved up in nav; shows a dummy **Example** goal when empty), **Ask PayWatch** (`ask`, RAG
   Q&A — renamed from "Ask your CFO"; can **create goals from chat**; topical scope guard rejects

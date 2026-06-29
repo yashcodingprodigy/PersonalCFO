@@ -8,15 +8,18 @@ export interface Doc { document_id: string; uploaded_by: 'ca' | 'user'; file_nam
 function fmtSize(b?: number) { if (!b) return ''; if (b > 1e6) return `${(b / 1e6).toFixed(1)} MB`; return `${Math.round(b / 1024)} KB`; }
 
 // Shared messaging + document panel used by both the CA and the user sides.
-export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, initialDraft }: {
+export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, onDelete, initialDraft }: {
   role: 'ca' | 'user';
   messages: Msg[];
   onSend: (text: string) => Promise<void>;
   docs: Doc[];
   onUpload: (file: File) => Promise<void>;
   onDownload: (docId: string) => void;
+  onDelete?: (docId: string) => Promise<void>;
   initialDraft?: string;
 }) {
+  const [confirmDoc, setConfirmDoc] = useState('');
+  const [delBusy, setDelBusy] = useState('');
   const [text, setText] = useState(initialDraft || '');
   const [drafted, setDrafted] = useState(false); // highlight a freshly-applied draft
   const lastDraft = useRef('');
@@ -99,7 +102,17 @@ export function CaThread({ role, messages, onSend, docs, onUpload, onDownload, i
                     <button onClick={() => onDownload(d.document_id)} className="text-sm text-pine-700 hover:underline truncate block text-left">{d.file_name}</button>
                     <p className="text-[11px] text-ink-faint">{d.uploaded_by === role ? 'You' : d.uploaded_by === 'ca' ? 'Your CA' : 'Client'} · {fmtSize(d.size_bytes)} · {new Date(d.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                   </div>
-                  <button onClick={() => onDownload(d.document_id)} className="text-xs text-ink-soft underline shrink-0">Open</button>
+                  <div className="flex items-center gap-2 text-xs shrink-0">
+                    <button onClick={() => onDownload(d.document_id)} className="text-ink-soft underline">Open</button>
+                    {onDelete && (confirmDoc === d.document_id ? (
+                      <span className="flex items-center gap-1.5">
+                        <button onClick={async () => { setDelBusy(d.document_id); try { await onDelete(d.document_id); } finally { setDelBusy(''); setConfirmDoc(''); } }} disabled={delBusy === d.document_id} className="rounded-full bg-signal-red text-white px-2.5 py-0.5 font-bold disabled:opacity-50">{delBusy === d.document_id ? '…' : 'Yes'}</button>
+                        <button onClick={() => setConfirmDoc('')} className="text-ink-faint underline">No</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setConfirmDoc(d.document_id)} className="text-signal-red underline">Remove</button>
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>

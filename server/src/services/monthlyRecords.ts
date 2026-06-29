@@ -25,25 +25,59 @@ export interface RecordRow {
 }
 
 const PUBLIC_COLS = `record_id, period, doc_type, label, file_name, mime_type, size_bytes,
-  extracted, summary, (storage_path IS NOT NULL) AS has_file, created_at`;
+  extracted, summary, contribution, (storage_path IS NOT NULL) AS has_file, created_at`;
 
-export async function listRecords(userId: string): Promise<RecordRow[]> {
-  return query<RecordRow>(
+// Friendly names for the figures a record changed → shown in the delete warning.
+const TAXDATA_FRIENDLY: Record<string, string> = {
+  salary_gross: 'gross salary', tds_salary: 'salary TDS', tds_other: 'other TDS',
+  basic_salary_annual: 'salary breakup', hra_received_annual: 'salary breakup',
+  interest_income: 'interest income', dividend_income: 'dividend income',
+  stcg_equity: 'capital gains', ltcg_equity: 'capital gains', stcl: 'capital gains', ltcl: 'capital gains',
+  stcg_other: 'capital gains', ltcg_other: 'capital gains', other_capital_gains: 'capital gains',
+  home_loan_interest_annual: 'home-loan interest (24b)', home_loan_principal_annual: 'home-loan principal (80C)',
+  health_premium_self_annual: '80D health deduction', nps_80ccd1b_annual: 'NPS deduction (80CCD-1B)',
+  donations_80g_annual: '80G donation', rent_paid_monthly: 'HRA rent', employer_nps_annual: 'employer NPS',
+  education_loan_interest_annual: '80E education-loan', other_income: 'other income',
+  business_income: 'business income', house_property_income: 'house property',
+};
+
+// Human list of what removing a record will change (from its stored contribution).
+export function affectsFromContribution(c: any): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const k of Object.keys(c?.taxData || {})) {
+    const f = TAXDATA_FRIENDLY[k] || 'tax data';
+    if (!seen.has(f)) { seen.add(f); out.push(f); }
+  }
+  const fps = c?.txnFingerprints || [];
+  if (fps.length) out.push(`${fps.length} imported transaction${fps.length === 1 ? '' : 's'}`);
+  return out;
+}
+
+export async function listRecords(userId: string): Promise<(RecordRow & { affects: string[] })[]> {
+  const rows = await query<any>(
     `SELECT ${PUBLIC_COLS} FROM monthly_records WHERE user_id = $1 ORDER BY period DESC, created_at DESC`,
     [userId]
   );
+  return rows.map((r) => ({ ...r, affects: affectsFromContribution(r.contribution) }));
 }
 
 export async function createRecord(
   userId: string,
-  d: { period: string; doc_type: string; label: string; extracted?: any; summary?: string | null }
+  d: { period: string; doc_type: string; label: string; extracted?: any; summary?: string | null; contribution?: any }
 ): Promise<RecordRow> {
   return one<RecordRow>(
-    `INSERT INTO monthly_records (user_id, period, doc_type, label, extracted, summary)
-     VALUES ($1,$2,$3,$4,$5::jsonb,$6)
+    `INSERT INTO monthly_records (user_id, period, doc_type, label, extracted, summary, contribution)
+     VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7::jsonb)
      RETURNING ${PUBLIC_COLS}`,
-    [userId, d.period, d.doc_type, d.label, JSON.stringify(d.extracted || {}), d.summary || null]
+    [userId, d.period, d.doc_type, d.label, JSON.stringify(d.extracted || {}), d.summary || null, JSON.stringify(d.contribution || {})]
   ) as Promise<RecordRow>;
+}
+
+// Fetch a record's contribution (for reversal on delete).
+export async function getRecordContribution(userId: string, recordId: string): Promise<any | null> {
+  const r = await one<any>(`SELECT contribution FROM monthly_records WHERE record_id = $1 AND user_id = $2`, [recordId, userId]);
+  return r ? (r.contribution || {}) : null;
 }
 
 export async function attachRecordFile(
