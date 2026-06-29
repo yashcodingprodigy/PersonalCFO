@@ -86,8 +86,16 @@ unread-alerts badge, native biometric lock overlay).
   computed form/regime/refund. Plus the `ItrDocPrep` doc-gathering checklist.
 - **Insurance** (`insurance`) — **My policies** (upload policy PDFs by category → AI reads cover/premium/issue/
   expiry/maturity/renewal dates, validates the doc + flags wrong/blurry, user confirms; encrypted store; feeds
-  cover rings + score; expiry/renewal/maturity **alerts** with follow-up), coverage **rings**, collapsible
-  "what to get" recommendations, avoid list. `InsurancePolicies.tsx` component.
+  cover rings + score; expiry/renewal/maturity **alerts** with follow-up), **Find & compare plans** marketplace
+  (`/insurance/market`), coverage **rings**, collapsible "what to get" recommendations, avoid list.
+  `InsurancePolicies.tsx` component.
+- **Insurance marketplace** (`insurance/market`) — PolicyBazaar-style browse → compare → guided buy across
+  **all categories** (term life, health, personal accident, critical illness, motor, home, travel). Real
+  insurers/plans/features/claim-ratios in `insuranceCatalog.ts`; `insuranceMarket.ts` ranks plans for the user's
+  profile (cover need, age, family, smoker) with a transparent score + "best fit" reasons and an **indicative
+  premium** (NOT a live quote). Compare 2–3 side-by-side; **buy = compliant hand-off** to the insurer's own
+  site via an interstitial disclaimer. Routes `/insurance/market/categories`, `/insurance/market/plans`.
+  **GOING LIVE NEEDS A LICENCE — see §8.**
 - **Monthly records** (`records`) — recurring monthly-upload hub (CA-requested): month picker + **24 doc
   types grouped into 8 categories** (Income & salary, Tax statements, Banking & spending, Investments, Loans,
   Deductions & tax-saving proofs, Insurance & property, Business & self-employed) — payslip, Form 16/16A,
@@ -161,6 +169,11 @@ unread-alerts badge, native biometric lock overlay).
   **`analyzeDocumentGeneric()`** (label + field guide + type options) used by every upload surface; `analyzeDocument`
   is the ITR wrapper. Insurance routes live in `insights.ts` (`/insurance/policies*`, `/insurance/ai-extract`).
   Expiry/renewal/maturity alerts: `monitor.gatherSignals` → `alerts.ts` `insuranceExpiries` (urgent ≤7d, warning ≤30d, maturity ≤60d).
+- `insuranceCatalog.ts` — curated DB of **real** plans across all categories (insurer, plan, claim ratio,
+  public features, `basePerLakh` for the indicative premium, insurer `buyUrl`). Educational; `verifyNote`
+  surfaced in UI. `insuranceMarket.ts` — `estimatePremium()` (indicative, per category) + `rankPlans()`
+  (transparent score: claim ratio + price vs cheapest + preferred-tag match → "best fit" + reasons). Routes in
+  `insights.ts`: `/insurance/market/categories`, `/insurance/market/plans`.
 - `insurance.ts` — 25× term rule (no life cover without dependents), health sizing, personalised
   "what to get" + "what to avoid". Student-aware.
 - `investment.ts` — SEBI-compliant guidance: risk profile, target allocation, fund-**category**
@@ -302,6 +315,23 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - **RBI Account Aggregator:** live bank data needs **FIU** registration (Sahamati + Finvu). Keep
   `AA_PROVIDER=mock` + statement-upload until then.
 - **Payments:** Razorpay is the PA; PayWatch is a merchant (needs Razorpay KYC, not a PA licence).
+- **Insurance marketplace — the IRDAI boundary (CRITICAL, track at every step):**
+  - **What we do now (no licence needed):** show *educational* comparison of real plans, our own *indicative*
+    premium estimates (clearly labelled, NOT insurer quotes), and a *hand-off* to the insurer's own website to
+    actually buy. We do NOT solicit, quote live, collect premium, or earn commission.
+  - **To show LIVE quotes + sell/buy inside the app + earn commission, PayWatch must become an IRDAI-registered
+    insurance intermediary** — either an **Insurance Web Aggregator** (IRDAI (Insurance Web Aggregators)
+    Regulations) or an **Insurance Broker** (broker licence, higher bar but can place business with any insurer
+    & earn brokerage), or a **Corporate Agent** (tie up with up to 9 life / 9 general / 9 health insurers).
+    PolicyBazaar runs via **PB Fintech's licensed broking entity** (Policybazaar Insurance Brokers Pvt Ltd).
+  - **Plus, per insurer:** a signed **API/partner integration** (quote + buy APIs are given only to licensed
+    intermediaries under contract) — there is no public free cross-insurer quote API. The catalogue's indicative
+    premiums get swapped for these live quotes once integrated; the UI hand-off becomes in-app checkout. **No
+    rebuild of the engine/UI needed — only the data source + the buy step change.**
+  - **Selling staff:** the licensed entity needs qualified persons / **PoSP** (Point of Sales Persons) or a
+    Principal Officer, plus the usual KYC/anti-mis-selling, grievance and disclosure obligations.
+  - Until licensed, keep premiums labelled "indicative", keep the buy as an external hand-off, and never imply
+    PayWatch sells insurance or is paid by insurers.
 
 ---
 
@@ -341,7 +371,10 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 6. **ERI registration** (Income Tax Dept) — unlocks true one-click e-filing from the app.
 7. **Razorpay live KYC** — for live subscriptions.
 8. **AA / FIU** (Sahamati + Finvu) — only when moving off mock bank data.
-9. **Legal review** — Terms / Privacy / Disclosures + the SEBI & tax boundaries.
+9. **IRDAI insurance-intermediary registration** (Web Aggregator / Broker / Corporate Agent) + per-insurer
+   API tie-ups + PoSP/Principal Officer — to turn the insurance marketplace's indicative premiums into live
+   quotes and the buy hand-off into in-app purchase (with brokerage). See §8. Engine/UI already built for it.
+10. **Legal review** — Terms / Privacy / Disclosures + the SEBI, tax & IRDAI boundaries.
 
 > NONE of §8–9 is legal advice. Engage a CA (entity, GST, audit, ERI) and a lawyer (DPDP, SEBI/tax
 > boundary, terms). Verify every rule against the current official source before acting.

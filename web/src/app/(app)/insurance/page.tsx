@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr, inrRange } from '@/lib/format';
@@ -54,6 +55,15 @@ export default function InsurancePage() {
           {ins.flags.map((f: any, i: number) => <Pill key={i} tone={SEV_TONE[f.severity]}>{f.message}</Pill>)}
         </div>
       )}
+
+      {/* Marketplace CTA — find & compare real plans, guided to buy */}
+      <Link href="/insurance/market" className="card p-5 flex items-center justify-between gap-3 bg-gradient-to-br from-pine-950 to-pine-900 text-white hover:shadow-lift transition-all">
+        <div>
+          <p className="font-bold">Find &amp; compare plans →</p>
+          <p className="text-xs text-white/70 mt-0.5 max-w-md">See real plans from top insurers, ranked for your profile with indicative premiums — then get guided to buy on the insurer’s site.</p>
+        </div>
+        <span className="text-3xl shrink-0">🛒</span>
+      </Link>
 
       {/* My policies — upload, AI-read, expiry tracking */}
       <Section id="policies" title="My policies">

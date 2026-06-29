@@ -26,6 +26,8 @@ import {
   listPolicies, createPolicy, attachPolicyFile, getPolicyFile, deletePolicy,
   INSURANCE_CATEGORIES, INSURANCE_FIELD_GUIDE, INSURANCE_TYPE_OPTIONS, CATEGORY_LABEL,
 } from '../services/insurancePolicies';
+import { CATALOG, CATEGORY_LABEL as MARKET_CAT_LABEL, verifyNote, PlanCategory } from '../services/insuranceCatalog';
+import { rankPlans } from '../services/insuranceMarket';
 
 export const insightsRouter = Router();
 insightsRouter.use(requireAuth);
@@ -139,6 +141,52 @@ insightsRouter.delete('/insurance/policies/:id', async (req: AuthedRequest, res)
   await deletePolicy(req.userId!, req.params.id);
   await recalculateAndStoreScore(req.userId!, 'insurance_remove');
   res.json({ ok: true });
+});
+
+// ── Insurance marketplace (educational compare + guided buy hand-off) ──
+// Per-category cover defaults from the user's profile / needs analysis.
+function defaultCover(category: PlanCategory, p: any, ins: any): number {
+  switch (category) {
+    case 'term_life': return ins.term.recommended || 10000000_00;
+    case 'health': return ins.health.recommended || 1000000_00;
+    case 'personal_accident': return Math.min(Math.max((p.user.annual_gross_income || 0) * 10, 5000000_00), 20000000_00);
+    case 'critical_illness': return 1500000_00;
+    case 'motor': return Number(p.assets?.vehicle) || 600000_00;
+    case 'home': return Number(p.assets?.property) || 4000000_00;
+    case 'travel': return 5000000_00;
+    default: return 1000000_00;
+  }
+}
+
+// Landing: categories with the user's recommended cover, current cover & gap.
+insightsRouter.get('/insurance/market/categories', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  const ins = analyseInsurance(p);
+  const cats = (Object.keys(MARKET_CAT_LABEL) as PlanCategory[]).map((category) => ({
+    category, label: MARKET_CAT_LABEL[category],
+    planCount: CATALOG.filter((c) => c.category === category).length,
+    recommendedCover: defaultCover(category, p, ins),
+    currentCover: category === 'term_life' ? ins.term.current : category === 'health' ? ins.health.current : null,
+    gap: category === 'term_life' ? ins.term.gap : category === 'health' ? ins.health.gap : null,
+  }));
+  res.json({ categories: cats, verifyNote });
+});
+
+// Ranked plans for a category, with indicative premiums for this user.
+insightsRouter.get('/insurance/market/plans', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  const category = String(req.query.category || 'term_life') as PlanCategory;
+  if (!MARKET_CAT_LABEL[category]) return res.status(400).json({ error: 'invalid_category' });
+  const ins = analyseInsurance(p);
+  const age = Math.min(80, Math.max(18, Number(req.query.age) || p.user.age || 32));
+  const familySize = Math.min(8, Math.max(1, Number(req.query.family) || 1 + (p.user.dependents_count || 0)));
+  const smoker = req.query.smoker === '1' || req.query.smoker === 'true';
+  const recommendedCover = defaultCover(category, p, ins);
+  const cover = Math.max(0, Number(req.query.cover) || recommendedCover);
+  const ctx = { age, cover, familySize, smoker };
+  res.json({ category, label: MARKET_CAT_LABEL[category], cover, recommendedCover, ctx, plans: rankPlans(category, ctx), verifyNote });
 });
 
 // GET /market — educational themes + third-party financial news (no advice)
