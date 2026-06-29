@@ -183,8 +183,10 @@ unread-alerts badge, native biometric lock overlay).
 - `market.ts` — educational themes + live news via keyless Google News RSS (fails soft).
 - `alerts.ts` — alert generators; `monitor.ts` — shared regenerate/gatherSignals (used by route + cron).
 - `goals.ts`, `cfo-ai.ts` (RAG Q&A — scope guard `checkScope()`, `parseGoalIntent()` for chat goal
-  creation, model `claude-sonnet-4`), `rag.ts` (Postgres FTS, **47-doc** seeded KB, incremental seed),
-  `profile.ts` (load ProfileData + recalc).
+  creation, model `claude-sonnet-4`; **context includes the user's active goals AND uploaded insurance
+  policies with exact expiry/renewal/maturity dates** so "when does my insurance expire?" answers from real
+  data — both in the Claude prompt and the rules fallback), `rag.ts` (Postgres FTS, **47-doc** seeded KB,
+  incremental seed), `profile.ts` (load ProfileData + recalc).
 - `caLink.ts` (connect-code gen + `requestLink` handshake), `caShare.ts` (messaging + documents for an
   active link). `db/index.ts` exports **`withTransaction()`** (ACID) — used by statement import + AA refresh.
 

@@ -187,10 +187,26 @@ COMPLIANCE — never break (legal requirements):
 }
 
 // ── Deterministic fallback engine ───────────────────────────────────
-function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[]): string {
+function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[], insPolicies: any[] = []): string {
   const q = question.toLowerCase();
   const score = computeScore(p);
   const parts: string[] = [];
+
+  // Insurance expiry / renewal — answer straight from the uploaded policies.
+  if (/insur|policy|policies|term|health|motor|car|bike/.test(q) && /expir|renew|lapse|due|when|maturit/.test(q)) {
+    if (insPolicies.length === 0) {
+      parts.push("I don't see any insurance policies uploaded yet. Add them under **Insurance → My policies** (upload the PDF) and I'll track every renewal and maturity date for you, plus warn you in Alerts before any lapses.");
+    } else {
+      const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const lines = insPolicies.map((x) => {
+        const cat = String(x.category).replace(/_/g, ' ');
+        const renew = x.renewal_date || x.expiry_date;
+        return `- **${cat}**${x.insurer ? ` (${x.insurer})` : ''}: ${renew ? `renews/expires **${fmt(renew)}**` : 'no renewal date recorded'}${x.maturity_date ? `, matures ${fmt(x.maturity_date)}` : ''}`;
+      });
+      parts.push(`Here are your policy dates on file:\n\n${lines.join('\n')}\n\nI'll remind you in Alerts before any of these are due. If a date looks wrong, re-upload the policy under Insurance.`);
+    }
+    return parts.join('\n\n');
+  }
 
   if (/regime|old.*new|new.*old/.test(q) && /tax/.test(q)) {
     const cmp = compareRegimes(p);
@@ -259,6 +275,33 @@ export async function answerQuestion(
     }
   } catch { /* goals are best-effort context */ }
 
+  // The user's uploaded insurance policies + their exact dates, so questions like
+  // "when does my insurance expire?" are answerable from real data.
+  let insPolicies: any[] = [];
+  try {
+    const pols = await query<any>(
+      `SELECT category, insurer, sum_assured, premium, premium_frequency,
+              to_char(issue_date,'YYYY-MM-DD')   AS issue_date,
+              to_char(expiry_date,'YYYY-MM-DD')  AS expiry_date,
+              to_char(renewal_date,'YYYY-MM-DD') AS renewal_date,
+              to_char(maturity_date,'YYYY-MM-DD') AS maturity_date
+         FROM insurance_policies WHERE user_id = $1 AND status = 'active'
+        ORDER BY renewal_date NULLS LAST, expiry_date NULLS LAST LIMIT 20`,
+      [userId]
+    );
+    insPolicies = pols;
+    if (pols.length) {
+      userContext += '\nInsurance policies on file (use these exact dates/figures):\n' + pols.map((p2) => {
+        const cat = String(p2.category).replace(/_/g, ' ');
+        const renew = p2.renewal_date || p2.expiry_date;
+        return `- ${cat}${p2.insurer ? ` (${p2.insurer})` : ''}: cover ${inr(Number(p2.sum_assured) || 0)}`
+          + `${p2.premium ? `, premium ${inr(Number(p2.premium))}/${p2.premium_frequency || 'yr'}` : ''}`
+          + `${renew ? `, renews/expires on ${renew}` : ', no renewal date recorded'}`
+          + `${p2.maturity_date ? `, matures on ${p2.maturity_date}` : ''}`;
+      }).join('\n');
+    }
+  } catch { /* insurance context is best-effort */ }
+
   let content: string;
   let engine: 'claude' | 'rules';
   if (config.anthropicApiKey) {
@@ -267,11 +310,11 @@ export async function answerQuestion(
       engine = 'claude';
     } catch (e) {
       console.error('[cfo-ai] Claude API failed, using rules engine:', e);
-      content = rulesAnswer(question, p, docs);
+      content = rulesAnswer(question, p, docs, insPolicies);
       engine = 'rules';
     }
   } else {
-    content = rulesAnswer(question, p, docs);
+    content = rulesAnswer(question, p, docs, insPolicies);
     engine = 'rules';
   }
 
