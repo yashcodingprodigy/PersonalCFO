@@ -182,6 +182,14 @@ export default function CaClient() {
                 </div>
               </div>
               <p className="text-xs text-ink-soft mt-2">{ff.form.why}</p>
+              {ff.carryForward && (ff.carryForward.businessLoss || ff.carryForward.housePropertyLoss || ff.carryForward.stcl || ff.carryForward.ltcl) > 0 && (
+                <p className="text-[11px] text-ink-soft mt-2">Carry-forward losses: {[
+                  ff.carryForward.stcl > 0 && `STCL ${inr(ff.carryForward.stcl)}`,
+                  ff.carryForward.ltcl > 0 && `LTCL ${inr(ff.carryForward.ltcl)}`,
+                  ff.carryForward.housePropertyLoss > 0 && `HP ${inr(ff.carryForward.housePropertyLoss)}`,
+                  ff.carryForward.businessLoss > 0 && `Business ${inr(ff.carryForward.businessLoss)}`,
+                ].filter(Boolean).join(' · ')}</p>
+              )}
               {ff.needsCA?.required && <p className="text-[11px] text-signal-amber mt-2">{ff.needsCA.reason}</p>}
             </div>
           );

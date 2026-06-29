@@ -23,8 +23,11 @@ const TAX_DATA_KEYS = new Set([
   'basic_salary_annual', 'hra_received_annual',
   // income heads + taxes paid → feed the comprehensive tax computation
   'salary_gross', 'interest_income', 'dividend_income', 'other_income', 'house_property_income',
-  'business_income', 'stcg_equity', 'ltcg_equity', 'other_capital_gains',
-  'tds_salary', 'tds_other', 'advance_tax', 'employer_nps_annual', 'education_loan_interest_annual',
+  'business_income', 'business_depreciation', 'stcg_equity', 'ltcg_equity', 'other_capital_gains',
+  'stcg_other', 'ltcg_other', 'tds_salary', 'tds_other', 'advance_tax', 'employer_nps_annual',
+  'education_loan_interest_annual',
+  // capital losses (current year) + brought-forward losses
+  'stcl', 'ltcl', 'carry_fwd_stcl', 'carry_fwd_ltcl', 'carry_fwd_hp_loss', 'carry_fwd_business_loss',
 ]);
 
 export const recordsRouter = Router();

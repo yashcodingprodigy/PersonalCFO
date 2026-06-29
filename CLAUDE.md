@@ -141,9 +141,13 @@ unread-alerts badge, native biometric lock overlay).
 - `taxFiling.ts` — **ITR engine**: `assembleFilingInputs(p)` builds complete inputs from profile + tax_data
   (all heads + TDS that uploads folded in); `fullFiling(p)` = the full computed return (used by `/tax/full`,
   the wizard prefill, and the CA overview). `prepareFiling()` picks ITR-1/2/3/4, computes full return across all
-  heads (salary, interest, house property, equity STCG 20% / LTCG 12.5% over ₹1.25L, other, business),
-  both regimes incl. rebate/surcharge/cess, reconciles TDS + advance tax → refund/payable, flags rare
-  audit-needs-CA case, outputs checklist + portal walkthrough.
+  heads (salary, interest, house property, equity STCG 20% / LTCG 12.5% over ₹1.25L, non-equity STCG@slab /
+  LTCG 12.5%, business), both regimes incl. rebate/surcharge/cess. **Full set-off & carry-forward engine**
+  (`computeReturn`): STCL→STCG&LTCG / LTCL→LTCG only; house-property loss ≤₹2L vs other heads; business loss
+  vs non-salary heads (+ **depreciation**); brought-forward losses consumed; unused losses carried forward
+  (surfaced in `carryForward` + `setOffNotes`). **Surcharge capped 15% on CG + marginal relief** near thresholds.
+  Reconciles TDS + advance tax → refund/payable, flags rare audit-needs-CA case, outputs checklist + portal
+  walkthrough. Heavily unit-tested (`engines.test.ts` set-off/loss/depreciation/marginal-relief cases).
 - `insurancePolicies.ts` — uploaded insurance policy store (encrypted file + AI-read fields; CRUD; `syncProfileInsurance`
   rolls active policies into `profiles.insurance.term/health` so cover analysis + score update). `docAI.ts` exposes
   **`analyzeDocumentGeneric()`** (label + field guide + type options) used by every upload surface; `analyzeDocument`
@@ -340,9 +344,10 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **140 assertions** across `test/*.ts` (the script loops
+- **Test suite:** `cd server && npm test` runs **149 assertions** across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
-  form branches, surcharge, investment risk logic, goals), `services` (alerts, statement analyser,
+  form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property
+  & business loss / depreciation**, investment risk logic, goals), `services` (alerts, statement analyser,
   actions, insurance, tax copilot, investment guardrails), `branches` (recurring/reduce, growth levers,
   edge bands), `guardrails` (SEBI block/allow patterns + AI context), `middleware` (rate-limit + JWT auth
   with mocked req/res), `webparsers` (date/money/Form-16 + payslip extraction from `web/src/lib/statementParse`,

@@ -36,21 +36,30 @@ function slabTax(taxable: number, slabs: { upTo: number; rate: number }[]): numb
   }
   return tax;
 }
-function surcharge(taxable: number, baseTax: number, regime: 'old' | 'new'): number {
-  const r = taxable > 50000000_00 ? (regime === 'new' ? 0.25 : 0.37)
+// Surcharge RATE on income tax, by total-income slab. Surcharge on capital-gains
+// tax (111A / 112A / 112) is separately capped at 15% — handled in computeReturn.
+function surchargeRate(taxable: number, regime: 'old' | 'new'): number {
+  return taxable > 50000000_00 ? (regime === 'new' ? 0.25 : 0.37)
     : taxable > 20000000_00 ? 0.25 : taxable > 10000000_00 ? 0.15 : taxable > 5000000_00 ? 0.10 : 0;
-  return baseTax * r;
 }
 
 export interface FilingInputs {
   grossSalary: number;            // paise, gross salary (Form 16 part B)
   interestIncome: number;         // savings + FD interest
-  housePropertyIncome: number;    // net (can be negative; loss capped at -2L)
+  housePropertyIncome: number;    // net (signed; current-year loss set off ≤ ₹2L, rest carries forward)
   otherIncome: number;            // dividends, misc
-  businessIncome: number;         // proprietor/professional net profit
-  stcgEquity: number;             // short-term capital gain on listed equity (sec 111A)
-  ltcgEquity: number;             // long-term capital gain on listed equity (sec 112A)
-  otherCapitalGains: number;      // taxed at slab (simplified)
+  businessIncome: number;         // proprietor/professional profit BEFORE depreciation
+  depreciation?: number;          // business depreciation — subtracted from businessIncome
+  stcgEquity: number;             // short-term capital gain on listed equity (sec 111A, 20%)
+  ltcgEquity: number;             // long-term capital gain on listed equity (sec 112A, 12.5%, ₹1.25L exempt)
+  otherCapitalGains: number;      // short-term non-equity (debt/property/gold) taxed at slab
+  stcgOther?: number;             // additional short-term non-equity at slab (merged with otherCapitalGains)
+  ltcgOther?: number;             // long-term non-equity (sec 112, 12.5%)
+  // current-year capital losses (positive magnitudes)
+  stcl?: number;                  // short-term capital loss
+  ltcl?: number;                  // long-term capital loss
+  // brought-forward losses from prior years (positive magnitudes)
+  broughtFwdSTCL?: number; broughtFwdLTCL?: number; broughtFwdHPLoss?: number; broughtFwdBusinessLoss?: number;
   // deductions (old regime)
   ded80C: number; ded80CCD1B: number; ded80D: number; ded24b: number; ded80G: number; ded80TTA: number; ded80E: number; hraExempt: number;
   employerNps: number;            // 80CCD(2) — valid in both regimes
@@ -74,6 +83,9 @@ export interface RegimeReturn {
   totalTax: number;
   taxesPaid: number;
   refundOrPayable: number;      // positive = refund, negative = payable
+  headIncome: { salary: number; houseProperty: number; business: number; otherSources: number; capitalGains: number };
+  carryForward: { businessLoss: number; housePropertyLoss: number; stcl: number; ltcl: number };
+  setOffNotes: string[];
 }
 
 export interface ItrFiling {
@@ -83,52 +95,138 @@ export interface ItrFiling {
   old: RegimeReturn;
   new: RegimeReturn;
   needsCA: { required: boolean; reason: string | null };
+  carryForward: { businessLoss: number; housePropertyLoss: number; stcl: number; ltcl: number };
+  setOffNotes: string[];
   checklist: string[];
   portalSteps: string[];
   disclaimer: string;
 }
 
-function computeRegime(inp: FilingInputs, regime: 'old' | 'new'): RegimeReturn {
-  const std = regime === 'new' ? NEW_STD : OLD_STD;
-  const salaryAfterStd = Math.max(0, inp.grossSalary - std);
-  const houseProp = Math.max(-200000_00, inp.housePropertyIncome); // loss capped at ₹2L
-  const normalIncome = salaryAfterStd + inp.interestIncome + houseProp + inp.otherIncome + inp.businessIncome + inp.otherCapitalGains;
-  const grossTotalIncome = normalIncome + inp.stcgEquity + inp.ltcgEquity;
+const HP_LOSS_SETOFF_CAP = 200000_00; // ₹2L inter-head set-off cap on house-property loss
 
-  let deductions = inp.employerNps; // valid both regimes
-  if (regime === 'old') {
-    deductions += inp.ded80C + inp.ded80CCD1B + inp.ded80D + inp.ded24b + inp.ded80G + inp.ded80TTA + inp.ded80E + inp.hraExempt;
+// Full computation for one regime, implementing the Income-Tax Act's set-off and
+// carry-forward rules across heads — the part that actually protects people's money:
+//  • Capital losses: STCL sets off against STCG & LTCG; LTCL only against LTCG; unused carries fwd 8 yrs (CG only).
+//  • House-property loss: set off against any head ≤ ₹2L this year; excess carries fwd (HP income only).
+//  • Business loss: set off against any head EXCEPT salary; excess carries fwd (business only). Depreciation reduces business income.
+//  • Surcharge on capital-gains tax capped at 15%.
+function computeReturn(inp: FilingInputs, regime: 'old' | 'new'): RegimeReturn {
+  const n0 = (x?: number) => Math.max(0, Math.round(Number(x) || 0));
+  const notes: string[] = [];
+  const std = regime === 'new' ? NEW_STD : OLD_STD;
+  const salary = Math.max(0, n0(inp.grossSalary) - std);
+
+  // ── Capital-gains intra-head set-off ──────────────────────────────
+  let sE = n0(inp.stcgEquity);                               // 20%   (111A)
+  let sSlab = n0(inp.otherCapitalGains) + n0(inp.stcgOther); // slab  (short-term non-equity)
+  let lE = n0(inp.ltcgEquity);                               // 12.5% (112A, ₹1.25L exempt)
+  let lO = n0(inp.ltcgOther);                                // 12.5% (112)
+  let stclPool = n0(inp.stcl) + n0(inp.broughtFwdSTCL);
+  let ltclPool = n0(inp.ltcl) + n0(inp.broughtFwdLTCL);
+  const eat = (pool: number, gain: number): [number, number] => { const t = Math.min(pool, gain); return [pool - t, gain - t]; };
+  // LTCL can ONLY offset LTCG — use it first so it isn't wasted.
+  [ltclPool, lE] = eat(ltclPool, lE);
+  [ltclPool, lO] = eat(ltclPool, lO);
+  // STCL offsets short-term (slab, then equity) and then any remaining long-term.
+  [stclPool, sSlab] = eat(stclPool, sSlab);
+  [stclPool, sE] = eat(stclPool, sE);
+  [stclPool, lE] = eat(stclPool, lE);
+  [stclPool, lO] = eat(stclPool, lO);
+  const carrySTCL = stclPool, carryLTCL = ltclPool;
+  if (n0(inp.stcl) + n0(inp.ltcl) > 0 || carrySTCL > 0 || carryLTCL > 0) notes.push('Capital losses set off against capital gains per the Act (STCL vs STCG/LTCG, LTCL vs LTCG only).');
+
+  // ── House property (loss ≤ ₹2L vs other heads; b/f loss vs HP only) ──
+  let hp = Math.round(Number(inp.housePropertyIncome) || 0);
+  let bfHP = n0(inp.broughtFwdHPLoss);
+  let carryHP = 0;
+  if (hp > 0) { const u = Math.min(hp, bfHP); hp -= u; carryHP = bfHP - u; }
+  else if (hp < 0) {
+    const loss = -hp; const setoff = Math.min(loss, HP_LOSS_SETOFF_CAP); hp = -setoff; carryHP = (loss - setoff) + bfHP;
+    if (loss > HP_LOSS_SETOFF_CAP) notes.push(`House-property loss set off against other income is capped at ₹2L this year; ${inrW(loss - HP_LOSS_SETOFF_CAP)} carries forward.`);
+  } else carryHP = bfHP;
+
+  // ── Business (depreciation reduces it; loss vs non-salary heads) ──
+  let bizNet = n0(inp.businessIncome) - n0(inp.depreciation);
+  let bfBL = n0(inp.broughtFwdBusinessLoss);
+  let bizPositive = 0, bizLoss = 0, carryBL = bfBL;
+  if (bizNet > 0) { const u = Math.min(bizNet, bfBL); bizPositive = bizNet - u; carryBL = bfBL - u; }
+  else if (bizNet < 0) { bizLoss = -bizNet; }
+  if (n0(inp.depreciation) > 0) notes.push(`Depreciation of ${inrW(n0(inp.depreciation))} reduced business income.`);
+
+  // ── Other sources ──
+  let otherSrc = n0(inp.interestIncome) + n0(inp.otherIncome);
+
+  // ── Current-year business loss: inter-head set-off (NOT against salary) ──
+  if (bizLoss > 0) {
+    const absorb = (avail: number): number => { const t = Math.min(bizLoss, avail); bizLoss -= t; return avail - t; };
+    otherSrc = absorb(otherSrc);
+    if (hp > 0) hp = absorb(hp);
+    sSlab = absorb(sSlab); sE = absorb(sE); lE = absorb(lE); lO = absorb(lO);
+    carryBL += bizLoss; bizLoss = 0;
+    notes.push('Business loss set off against non-salary income (it cannot reduce salary); any balance carries forward.');
   }
+
+  // ── Normal (slab) income & deductions ──
+  const normalIncome = salary + otherSrc + hp + sSlab + bizPositive; // hp may be negative (≤ ₹2L)
+  let deductions = n0(inp.employerNps);
+  if (regime === 'old') deductions += n0(inp.ded80C) + n0(inp.ded80CCD1B) + n0(inp.ded80D) + n0(inp.ded24b) + n0(inp.ded80G) + n0(inp.ded80TTA) + n0(inp.ded80E) + n0(inp.hraExempt);
+  deductions = Math.min(deductions, Math.max(0, normalIncome)); // VI-A can't exceed normal income or create a loss
   const totalIncome = Math.max(0, normalIncome - deductions);
 
-  // Normal slab tax
   let slab = slabTax(totalIncome, regime === 'new' ? NEW_SLABS : OLD_SLABS);
-  // 87A rebate (normal-rate tax only)
   let rebate = 0;
   if (totalIncome <= (regime === 'new' ? NEW_REBATE_TAXABLE : OLD_REBATE_TAXABLE)) { rebate = slab; slab = 0; }
 
-  // Capital-gains special rates (no rebate)
-  const stcgTax = Math.max(0, inp.stcgEquity) * 0.20;                                  // sec 111A (FY24-25 onwards)
-  const ltcgTaxable = Math.max(0, inp.ltcgEquity - LTCG_EQUITY_EXEMPT);
-  const ltcgTax = ltcgTaxable * 0.125;                                                 // sec 112A
+  // Capital-gains special-rate tax (no 87A rebate).
+  const stcgTax = sE * 0.20;
+  const ltcgTax = Math.max(0, lE - LTCG_EQUITY_EXEMPT) * 0.125 + lO * 0.125;
   const capitalGainsTax = Math.round(stcgTax + ltcgTax);
 
-  const preCess = slab + capitalGainsTax;
-  const sur = surcharge(totalIncome + inp.stcgEquity + inp.ltcgEquity, preCess, regime);
-  const cess = Math.round((preCess + sur) * CESS);
-  const totalTax = Math.round(preCess + sur + cess);
+  // Surcharge: full rate on normal tax, capped at 15% on the capital-gains tax.
+  const incomeForSurcharge = totalIncome + sE + lE + lO;
+  const rate = surchargeRate(incomeForSurcharge, regime);
+  let slabSur = slab * rate;
+  // Marginal relief: surcharge can't make (tax + surcharge) on income just over a
+  // threshold exceed the tax at the threshold plus the income above it. Applied to
+  // the slab portion (the standard high-earner case; flagged when special-rate CG present).
+  if (rate > 0) {
+    // Surcharge thresholds (paise): ₹50L, ₹1Cr, ₹2Cr, ₹5Cr.
+    const T = [5000000_00, 10000000_00, 20000000_00, 50000000_00].filter((x) => totalIncome > x).pop();
+    if (T && (sE + lE + lO) === 0) {
+      const reliefCap = slabTax(T, regime === 'new' ? NEW_SLABS : OLD_SLABS) + (totalIncome - T);
+      if (slab + slabSur > reliefCap) { slabSur = Math.max(0, reliefCap - slab); notes.push('Marginal relief on surcharge applied.'); }
+    }
+  }
+  const sur = Math.round(slabSur + capitalGainsTax * Math.min(rate, 0.15));
+  const preCess = slab + capitalGainsTax + sur;
+  const cess = Math.round(preCess * CESS);
+  const totalTax = Math.round(preCess + cess);
 
-  const taxesPaid = inp.tdsSalary + inp.tdsOther + inp.advanceTax;
+  const grossTotalIncome = normalIncome + sE + lE + lO;
+  const taxesPaid = n0(inp.tdsSalary) + n0(inp.tdsOther) + n0(inp.advanceTax);
+
   return {
-    regime, salaryAfterStd, grossTotalIncome, deductions, totalIncome,
+    regime, salaryAfterStd: salary, grossTotalIncome, deductions, totalIncome,
     slabTax: Math.round(slab), rebate: Math.round(rebate), capitalGainsTax,
-    surcharge: Math.round(sur), cess, totalTax, taxesPaid,
-    refundOrPayable: taxesPaid - totalTax,
+    surcharge: sur, cess, totalTax, taxesPaid, refundOrPayable: taxesPaid - totalTax,
+    headIncome: { salary, houseProperty: hp, business: bizPositive, otherSources: otherSrc, capitalGains: sE + sSlab + lE + lO },
+    carryForward: { businessLoss: carryBL, housePropertyLoss: carryHP, stcl: carrySTCL, ltcl: carryLTCL },
+    setOffNotes: notes,
   };
 }
 
+// Compact ₹ for set-off notes.
+function inrW(paise: number): string {
+  const r = Math.round(paise / 100);
+  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
+  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
+  return `₹${r.toLocaleString('en-IN')}`;
+}
+
 function pickForm(inp: FilingInputs, totalIncome: number): ItrFiling['form'] {
-  const hasCG = inp.stcgEquity > 0 || inp.ltcgEquity > 0 || inp.otherCapitalGains > 0;
+  const hasCG = (inp.stcgEquity || 0) > 0 || (inp.ltcgEquity || 0) > 0 || (inp.otherCapitalGains || 0) > 0
+    || (inp.stcgOther || 0) > 0 || (inp.ltcgOther || 0) > 0
+    || (inp.stcl || 0) > 0 || (inp.ltcl || 0) > 0 || (inp.broughtFwdSTCL || 0) > 0 || (inp.broughtFwdLTCL || 0) > 0;
   const over50 = inp.totalIncomeOver50L || totalIncome > 5000000_00;
   if (inp.businessIncome > 0 && inp.presumptiveBusiness && !hasCG && !over50) {
     return { code: 'ITR-4', name: 'Sugam', why: 'You have presumptive business/professional income (44AD/44ADA) and income under ₹50L.' };
@@ -164,9 +262,18 @@ export function assembleFilingInputs(p: ProfileData): FilingInputs {
     housePropertyIncome: Number(t.house_property_income) || 0,
     otherIncome: (Number(t.dividend_income) || 0) + (Number(t.other_income) || 0),
     businessIncome,
+    depreciation: Number(t.business_depreciation) || 0,
     stcgEquity: Number(t.stcg_equity) || 0,
     ltcgEquity: Number(t.ltcg_equity) || 0,
     otherCapitalGains: Number(t.other_capital_gains) || 0,
+    stcgOther: Number(t.stcg_other) || 0,
+    ltcgOther: Number(t.ltcg_other) || 0,
+    stcl: Number(t.stcl) || 0,
+    ltcl: Number(t.ltcl) || 0,
+    broughtFwdSTCL: Number(t.carry_fwd_stcl) || 0,
+    broughtFwdLTCL: Number(t.carry_fwd_ltcl) || 0,
+    broughtFwdHPLoss: Number(t.carry_fwd_hp_loss) || 0,
+    broughtFwdBusinessLoss: Number(t.carry_fwd_business_loss) || 0,
     ded80C: used('80C'), ded80CCD1B: used('80CCD(1B)'), ded80D: used('80D'), ded24b: used('24(b)'),
     ded80G: Number(t.donations_80g_annual) || 0, ded80TTA: 0, ded80E: Number(t.education_loan_interest_annual) || 0,
     hraExempt: computeHraExemption(p), employerNps: Number(t.employer_nps_annual) || 0,
@@ -183,8 +290,8 @@ export function fullFiling(p: ProfileData): ItrFiling & { inputs: FilingInputs }
 }
 
 export function prepareFiling(inp: FilingInputs, fy: string): ItrFiling {
-  const oldR = computeRegime(inp, 'old');
-  const newR = computeRegime(inp, 'new');
+  const oldR = computeReturn(inp, 'old');
+  const newR = computeReturn(inp, 'new');
   const recommendedRegime = oldR.totalTax <= newR.totalTax ? 'old' : 'new';
   const chosen = recommendedRegime === 'old' ? oldR : newR;
   const form = pickForm(inp, chosen.totalIncome);
@@ -197,6 +304,8 @@ export function prepareFiling(inp: FilingInputs, fy: string): ItrFiling {
 
   return {
     fy, form, recommendedRegime, old: oldR, new: newR, needsCA,
+    carryForward: chosen.carryForward,
+    setOffNotes: chosen.setOffNotes,
     checklist: [
       'PAN & Aadhaar (linked)',
       'Form 16 from your employer',

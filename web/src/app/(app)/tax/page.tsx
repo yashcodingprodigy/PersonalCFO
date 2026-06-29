@@ -143,6 +143,14 @@ function FullBreakdown({ f }: { f: any }) {
       `TOTAL TAX:                          ${R(rec.totalTax)}`, '',
       `Taxes already paid (TDS+advance):   ${R(rec.taxesPaid)}`,
       `${refund >= 0 ? 'REFUND DUE' : 'TAX PAYABLE'}:                         ${R(Math.abs(refund))}`, '',
+      ...(f.carryForward && (f.carryForward.businessLoss || f.carryForward.housePropertyLoss || f.carryForward.stcl || f.carryForward.ltcl) > 0 ? [
+        'LOSSES CARRIED FORWARD',
+        f.carryForward.stcl > 0 ? `  Short-term capital loss:           ${R(f.carryForward.stcl)}` : '',
+        f.carryForward.ltcl > 0 ? `  Long-term capital loss:            ${R(f.carryForward.ltcl)}` : '',
+        f.carryForward.housePropertyLoss > 0 ? `  House-property loss:               ${R(f.carryForward.housePropertyLoss)}` : '',
+        f.carryForward.businessLoss > 0 ? `  Business loss:                     ${R(f.carryForward.businessLoss)}` : '',
+        '',
+      ] : []),
       f.needsCA?.required ? `NOTE: ${f.needsCA.reason}` : '',
       'Estimate for self-filing — cross-check against Form 26AS / AIS before filing.',
     ];
@@ -198,6 +206,30 @@ function FullBreakdown({ f }: { f: any }) {
           <p className="text-[11px] text-ink-faint mt-2">Old regime tax {inr(other.totalTax)} · {f.recommendedRegime} regime saves {inr(Math.abs(other.totalTax - rec.totalTax))}.</p>
         </div>
       </div>
+
+      {/* Losses set off this year + carried forward */}
+      {(f.setOffNotes?.length > 0 || (f.carryForward && (f.carryForward.businessLoss || f.carryForward.housePropertyLoss || f.carryForward.stcl || f.carryForward.ltcl) > 0)) && (
+        <div className="card p-5 mt-3">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Losses &amp; set-off</h3>
+          {f.setOffNotes?.length > 0 && (
+            <ul className="space-y-1.5 text-xs text-ink-soft leading-relaxed mb-3">
+              {f.setOffNotes.map((n: string, i: number) => <li key={i} className="flex gap-2"><span className="text-mint-500 font-bold shrink-0">·</span>{n}</li>)}
+            </ul>
+          )}
+          {f.carryForward && (f.carryForward.businessLoss || f.carryForward.housePropertyLoss || f.carryForward.stcl || f.carryForward.ltcl) > 0 && (
+            <>
+              <p className="text-xs font-bold text-ink-soft mb-1.5">Carried forward to next year (offset future income of the same type):</p>
+              <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                {f.carryForward.stcl > 0 && <li className="flex justify-between"><span className="text-ink-soft">Short-term capital loss</span><span className="tabular-nums">{inr(f.carryForward.stcl)}</span></li>}
+                {f.carryForward.ltcl > 0 && <li className="flex justify-between"><span className="text-ink-soft">Long-term capital loss</span><span className="tabular-nums">{inr(f.carryForward.ltcl)}</span></li>}
+                {f.carryForward.housePropertyLoss > 0 && <li className="flex justify-between"><span className="text-ink-soft">House-property loss</span><span className="tabular-nums">{inr(f.carryForward.housePropertyLoss)}</span></li>}
+                {f.carryForward.businessLoss > 0 && <li className="flex justify-between"><span className="text-ink-soft">Business loss</span><span className="tabular-nums">{inr(f.carryForward.businessLoss)}</span></li>}
+              </ul>
+              <p className="text-[11px] text-ink-faint mt-2">Capital & business losses carry forward up to 8 years (only against the same income type); house-property loss too. File before the due date to keep them.</p>
+            </>
+          )}
+        </div>
+      )}
 
       {f.needsCA?.required && <div className="card p-4 mt-3 border-l-4 border-l-signal-amber text-sm text-ink-soft">{f.needsCA.reason}</div>}
 

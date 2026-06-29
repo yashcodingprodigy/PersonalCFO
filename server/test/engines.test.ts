@@ -129,6 +129,61 @@ check('Employer NPS (80CCD-2) deducts in the NEW regime too', () => {
   assert(f.new.deductions >= 1 * L);
 });
 
+console.log('\nCAPITAL LOSS SET-OFF & CARRY-FORWARD');
+check('STCL sets off against STCG (equity) before tax', () => {
+  const noLoss = prepareFiling(baseInputs({ grossSalary: 12 * L, stcgEquity: 2 * L }), '2025-26');
+  const withLoss = prepareFiling(baseInputs({ grossSalary: 12 * L, stcgEquity: 2 * L, stcl: 2 * L }), '2025-26');
+  assert(withLoss.new.capitalGainsTax < noLoss.new.capitalGainsTax); // loss wipes the STCG
+  assert.strictEqual(withLoss.new.capitalGainsTax, 0);
+});
+check('LTCL can offset LTCG but NOT STCG', () => {
+  // LTCL vs STCG must NOT reduce STCG tax (LTCL only offsets LTCG).
+  const f = prepareFiling(baseInputs({ grossSalary: 12 * L, stcgEquity: 2 * L, ltcl: 2 * L }), '2025-26');
+  assert(f.new.capitalGainsTax > 0); // STCG still taxed
+  assert.strictEqual(f.carryForward.ltcl, 2 * L); // LTCL carried forward, unused
+});
+check('STCL only partly used → remainder carries forward', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 12 * L, stcgEquity: 1 * L, stcl: 3 * L }), '2025-26');
+  assert.strictEqual(f.new.capitalGainsTax, 0);
+  assert.strictEqual(f.carryForward.stcl, 2 * L); // 3L − 1L used
+});
+check('Brought-forward LTCL offsets this year LTCG', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 12 * L, ltcgEquity: 4 * L, broughtFwdLTCL: 2 * L }), '2025-26');
+  // LTCG 4L − 2L b/f loss = 2L, minus 1.25L exempt = 0.75L @ 12.5%
+  assert(Math.abs(f.new.capitalGainsTax - Math.round(0.75 * L * 0.125)) < 100);
+});
+
+console.log('\nHOUSE-PROPERTY / BUSINESS LOSS RULES');
+check('House-property loss beyond ₹2L carries forward', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 20 * L, housePropertyIncome: -5 * L }), '2025-26');
+  assert.strictEqual(f.carryForward.housePropertyLoss, 3 * L); // 5L − 2L cap
+});
+check('Business loss does NOT reduce salary, carries forward', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 20 * L, businessIncome: 0, depreciation: 5 * L }), '2025-26');
+  // depreciation makes business −5L; no non-salary income to absorb → all carries fwd; salary untouched
+  assert.strictEqual(f.carryForward.businessLoss, 5 * L);
+  const noLoss = prepareFiling(baseInputs({ grossSalary: 20 * L }), '2025-26');
+  assert.strictEqual(f.new.totalIncome, noLoss.new.totalIncome); // salary not reduced by business loss
+});
+check('Business loss DOES set off against interest income', () => {
+  const f = prepareFiling(baseInputs({ grossSalary: 12 * L, interestIncome: 3 * L, depreciation: 2 * L }), '2025-26');
+  assert.strictEqual(f.carryForward.businessLoss, 0); // 2L loss absorbed by 3L interest
+});
+check('Depreciation reduces business income', () => {
+  const a = prepareFiling(baseInputs({ businessIncome: 10 * L }), '2025-26');
+  const b = prepareFiling(baseInputs({ businessIncome: 10 * L, depreciation: 4 * L }), '2025-26');
+  assert(b.new.totalIncome < a.new.totalIncome);
+});
+check('Marginal relief caps surcharge just over ₹50L', () => {
+  // At income a touch over ₹50L, surcharge with marginal relief must be far less
+  // than a naive 10% of the whole tax.
+  const f = prepareFiling(baseInputs({ grossSalary: 52 * L }), '2025-26');
+  // taxable ≈ 51.25L → surcharge applies, but marginal relief makes it LESS than a
+  // naive 10% of the slab tax.
+  const naive = Math.round(f.new.slabTax * 0.10);
+  assert(f.new.surcharge > 0 && f.new.surcharge < naive);
+});
+
 console.log('\nINVESTMENT RISK LOGIC');
 check('Young, no dependents, salaried → aggressive (derived)', () => {
   const g = buildInvestmentGuidance(profile({ user: { age: 25, dependents_count: 0, employment_type: 'salaried', annual_gross_income: 12 * L, monthly_take_home: 100000_00 }, monthlyExpenses: 50000_00 }));

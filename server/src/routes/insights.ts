@@ -166,9 +166,12 @@ insightsRouter.get('/tax/full', async (req: AuthedRequest, res) => {
 // POST /tax/filing/compute — full ITR computation from (edited) inputs
 insightsRouter.post('/tax/filing/compute', rateLimit({ windowMs: 60_000, max: 60, keyPrefix: 'filing' }), async (req: AuthedRequest, res) => {
   const num = z.number().int().min(0).max(1_000_000_000_00);
+  const opt = num.optional();
   const schema = z.object({
     grossSalary: num, interestIncome: num, housePropertyIncome: z.number().int(), otherIncome: num, businessIncome: num,
-    stcgEquity: num, ltcgEquity: num, otherCapitalGains: num,
+    depreciation: opt,
+    stcgEquity: num, ltcgEquity: num, otherCapitalGains: num, stcgOther: opt, ltcgOther: opt,
+    stcl: opt, ltcl: opt, broughtFwdSTCL: opt, broughtFwdLTCL: opt, broughtFwdHPLoss: opt, broughtFwdBusinessLoss: opt,
     ded80C: num, ded80CCD1B: num, ded80D: num, ded24b: num, ded80G: num, ded80TTA: num, ded80E: num, hraExempt: num,
     employerNps: num, tdsSalary: num, tdsOther: num, advanceTax: num,
     presumptiveBusiness: z.boolean().optional(), residentOrdinary: z.boolean().optional(),

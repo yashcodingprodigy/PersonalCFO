@@ -292,7 +292,12 @@ export default function MonthlyRecords() {
     if (s.dt.type === 'rent_receipts' && RUP(f.monthlyRent)) td.rent_paid_monthly = RUP(f.monthlyRent);
     // Income heads + TDS → feed the comprehensive tax breakdown.
     // capital_gains comes from the deterministic CSV parser → already in PAISE.
-    if (s.dt.type === 'capital_gains') { if (Number(f.stcg) > 0) td.stcg_equity = Math.round(Number(f.stcg)); if (Number(f.ltcg) > 0) td.ltcg_equity = Math.round(Number(f.ltcg)); }
+    // Negative net = a capital LOSS (feeds set-off / carry-forward).
+    if (s.dt.type === 'capital_gains') {
+      const st = Math.round(Number(f.stcg) || 0), lt = Math.round(Number(f.ltcg) || 0);
+      if (st > 0) td.stcg_equity = st; else if (st < 0) td.stcl = -st;
+      if (lt > 0) td.ltcg_equity = lt; else if (lt < 0) td.ltcl = -lt;
+    }
     if (s.dt.type === 'interest_certificate') { if (RUP(f.totalInterest)) td.interest_income = RUP(f.totalInterest); if (RUP(f.tdsDeducted)) td.tds_other = RUP(f.tdsDeducted); }
     if (s.dt.type === 'dividend_statement') { if (RUP(f.totalDividend)) td.dividend_income = RUP(f.totalDividend); if (RUP(f.tdsDeducted)) td.tds_other = RUP(f.tdsDeducted); }
     if (s.dt.type === 'form16') { if (RUP(f.grossSalaryAnnual)) td.salary_gross = RUP(f.grossSalaryAnnual); if (RUP(f.tds)) td.tds_salary = RUP(f.tds); }
