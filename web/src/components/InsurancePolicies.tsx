@@ -67,6 +67,8 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
   const [removing, setRemoving] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingCat = useRef('');
+  const stagedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (staged) setTimeout(() => stagedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }, [staged]);
 
   function load() { get('/insurance/policies').then(setPolicies).catch(() => {}); }
   useEffect(() => { load(); }, []);
@@ -100,7 +102,8 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
           unreadable: ai.result.readable === false, detected: ai.result.documentType, aiReason: ai.result.reason,
         });
       } else {
-        setStaged({ category: cat, file, engine: 'manual' });
+        setStaged({ category: cat, file, engine: 'manual',
+          summary: 'The AI reader is busy right now — fill in the details below and save (or re-upload in a minute for auto-read).' });
       }
     } catch (e: any) { setErr(e?.message || 'Could not read that file.'); }
     finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
@@ -193,7 +196,7 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
 
       {/* Staged confirm */}
       {staged && (
-        <div className={`card p-5 border-2 space-y-3 ${staged.invalid ? 'border-signal-red/60 bg-signal-red/5' : 'border-mint-500/60 bg-mint-50'}`}>
+        <div ref={stagedRef} className={`card p-5 border-2 space-y-3 scroll-mt-20 ${staged.invalid ? 'border-signal-red/60 bg-signal-red/5' : 'border-mint-500/60 bg-mint-50'}`}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="font-bold text-sm">{catIcon(staged.category)} Review your {catLabel(staged.category).toLowerCase()} policy</p>
             <span className="flex items-center gap-2 text-[11px] text-ink-faint">

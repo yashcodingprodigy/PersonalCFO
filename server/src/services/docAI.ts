@@ -129,21 +129,34 @@ export async function analyzeDocumentGeneric(
     `If the text looks like a low-quality/blurry scan where words and numbers are jumbled or partly missing, set readable=false ` +
     `and confidence low — do NOT guess the figures. Never invent numbers that aren't in the text.`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': config.anthropicApiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: config.anthropicModel,
-      max_tokens: 900,
-      system,
-      messages: [{ role: 'user', content: `Document text:\n"""\n${clipped}\n"""` }],
-    }),
-  });
-  if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
+  // Hard timeout so a slow / hung / rate-limited Anthropic call can never freeze
+  // the upload — on timeout we throw and the caller soft-falls-back to the
+  // deterministic parser (or "store only") so the upload always completes.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  let res: any;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.anthropicModel,
+        max_tokens: 900,
+        system,
+        messages: [{ role: 'user', content: `Document text:\n"""\n${clipped}\n"""` }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    throw new Error(e?.name === 'AbortError' ? 'AI reader timed out' : `AI reader unreachable: ${e?.message || e}`);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) throw new Error(`Claude API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data: any = await res.json();
   const raw = data.content?.[0]?.text || '';
   const parsed = extractJson(raw);

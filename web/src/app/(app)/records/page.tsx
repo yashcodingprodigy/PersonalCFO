@@ -111,6 +111,10 @@ export default function MonthlyRecords() {
   const [removing, setRemoving] = useState('');    // record being deleted
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingType = useRef<DocType | null>(null);
+  const stagedRef = useRef<HTMLDivElement>(null);
+  // The review panel renders at the top; the doc cards are a long list. Scroll the
+  // panel into view whenever a file is staged so it never looks like nothing happened.
+  useEffect(() => { if (staged) setTimeout(() => stagedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }, [staged]);
 
   function load() { get('/records').then(setRecords).catch(() => {}); }
   useEffect(() => { load(); }, []);
@@ -164,7 +168,13 @@ export default function MonthlyRecords() {
       let ai: any = null;
       if (clean.length > 20) ai = await post('/records/ai-extract', { doc_type: dt.type, text: clean }).catch(() => null);
       if (ai?.available && ai.result) return fromAI(dt, file, ai.result);
-      return fromParser(dt, file, text); // AI off or failed → deterministic
+      // AI off / busy / rate-limited → deterministic parser (or store-only). Tell
+      // the user it fell back so it never looks "stuck".
+      const r = await fromParser(dt, file, text);
+      if (clean.length > 20 && (!ai || ai.available === false)) {
+        r.note = r.note || 'The AI reader is busy right now — saved with a basic read. You can edit the figures below, or re-upload in a minute for full extraction.';
+      }
+      return r;
     }
     if (dt.type === 'bank_statement' || dt.type === 'credit_card_statement') {
       const r = await parseStatementFile(file);
@@ -371,7 +381,7 @@ export default function MonthlyRecords() {
 
       {/* Staged upload — confirm before saving */}
       {staged && (
-        <div className={`card p-5 border-2 space-y-3 ${staged.invalid ? 'border-signal-red/60 bg-signal-red/5' : 'border-mint-500/60 bg-mint-50'}`}>
+        <div ref={stagedRef} className={`card p-5 border-2 space-y-3 scroll-mt-20 ${staged.invalid ? 'border-signal-red/60 bg-signal-red/5' : 'border-mint-500/60 bg-mint-50'}`}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="font-bold text-sm">{staged.dt.icon} Review your {staged.dt.label.toLowerCase()}</p>
             <span className="flex items-center gap-2 text-[11px] text-ink-faint">
