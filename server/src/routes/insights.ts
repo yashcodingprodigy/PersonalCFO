@@ -11,8 +11,8 @@ import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { loadProfileData, recalculateAndStoreScore } from '../services/profile';
 import { computeNetWorth, projectMonthsToTarget, growthProjection } from '../services/networth';
-import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot, computeHraExemption } from '../services/tax';
-import { prepareFiling, FilingInputs } from '../services/taxFiling';
+import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot } from '../services/tax';
+import { prepareFiling, FilingInputs, assembleFilingInputs, fullFiling } from '../services/taxFiling';
 import { analyseInsurance } from '../services/insurance';
 import { buildInvestmentGuidance } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
@@ -146,31 +146,21 @@ insightsRouter.get('/market', async (_req: AuthedRequest, res) => {
   res.json(await getMarketData());
 });
 
-// GET /tax/filing/prefill — best-guess ITR inputs from the user's profile
+// GET /tax/filing/prefill — ITR inputs assembled from the user's full data
+// (profile + everything uploads have folded into tax_data).
 insightsRouter.get('/tax/filing/prefill', async (req: AuthedRequest, res) => {
   const p = await loadProfileData(req.userId!);
   if (!p) return res.status(404).json({ error: 'not_found' });
-  const t = p.tax_data || {};
-  const items = deductionUsage(p).items;
-  const used = (prefix: string) => items.filter((i) => i.section.startsWith(prefix)).reduce((s, i) => s + i.used, 0);
-  const inputs: FilingInputs = {
-    // 'both' (salaried + business): we can't split the single profile income, so
-    // we seed it as salary (gets the standard deduction) and let the user move
-    // the business portion into Business income in the wizard.
-    grossSalary: (p.user.employment_type === 'salaried' || p.user.employment_type === 'both') ? (p.user.annual_gross_income || 0) : 0,
-    interestIncome: 0,
-    housePropertyIncome: 0,
-    otherIncome: 0,
-    businessIncome: p.user.employment_type && p.user.employment_type !== 'salaried' && p.user.employment_type !== 'student' && p.user.employment_type !== 'both' ? (p.user.annual_gross_income || 0) : 0,
-    stcgEquity: 0, ltcgEquity: 0, otherCapitalGains: 0,
-    ded80C: used('80C'), ded80CCD1B: used('80CCD(1B)'), ded80D: used('80D'),
-    ded24b: used('24(b)'), ded80G: Number(t.donations_80g_annual) || 0, ded80TTA: 0,
-    ded80E: Number(t.education_loan_interest_annual) || 0, hraExempt: computeHraExemption(p),
-    employerNps: Number(t.employer_nps_annual) || 0,
-    tdsSalary: 0, tdsOther: 0, advanceTax: 0,
-    presumptiveBusiness: false, residentOrdinary: true, foreignAssets: false, isDirector: false, multipleHouseProperties: false,
-  };
-  res.json({ fy: currentFY(), inputs });
+  res.json({ fy: currentFY(), inputs: assembleFilingInputs(p) });
+});
+
+// GET /tax/full — the complete computed return from the user's whole picture:
+// every income head, both regimes, ITR form, TDS reconciliation, refund/payable.
+// CA-usable. This powers the comprehensive breakdown on the tax page.
+insightsRouter.get('/tax/full', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  res.json(fullFiling(p));
 });
 
 // POST /tax/filing/compute — full ITR computation from (edited) inputs

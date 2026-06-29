@@ -21,6 +21,10 @@ const TAX_DATA_KEYS = new Set([
   'health_premium_parents_annual', 'nps_80ccd1b_annual', 'donations_80g_annual', 'rent_paid_monthly',
   'elss_annual', 'ppf_annual', 'lic_premium_annual', 'school_fees_annual', 'epf_contribution_annual',
   'basic_salary_annual', 'hra_received_annual',
+  // income heads + taxes paid → feed the comprehensive tax computation
+  'salary_gross', 'interest_income', 'dividend_income', 'other_income', 'house_property_income',
+  'business_income', 'stcg_equity', 'ltcg_equity', 'other_capital_gains',
+  'tds_salary', 'tds_other', 'advance_tax', 'employer_nps_annual', 'education_loan_interest_annual',
 ]);
 
 export const recordsRouter = Router();

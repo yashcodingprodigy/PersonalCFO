@@ -27,6 +27,7 @@ import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, g
 import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS, CA_FILING_STEPS } from '../services/itr';
 import { listRecords, getRecordFile } from '../services/monthlyRecords';
+import { fullFiling } from '../services/taxFiling';
 
 export const caRouter = Router();
 
@@ -223,6 +224,7 @@ caRouter.get('/clients/:id/overview', requireCa, async (req: AuthedRequest, res)
     hraExemption: computeHraExemption(p),
     insurance: { term: ins.term, health: ins.health },
     taxPack: copilot.readyPack,
+    fullFiling: fullFiling(p),
     monthlyRecords: await listRecords(link.user_id),
   });
 });

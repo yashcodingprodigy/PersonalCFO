@@ -46,6 +46,36 @@ export default function CaClient() {
     chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // CA-side client summary report (download as text).
+  function downloadReport() {
+    if (!ov) return;
+    const R = (v: number) => `₹${Math.round((v || 0) / 100).toLocaleString('en-IN')}`;
+    const ff = ov.fullFiling; const rec = ff ? (ff.recommendedRegime === 'old' ? ff.old : ff.new) : null;
+    const L = [
+      `PayWatch — Client Summary (CA copy)`, `Client: ${ov.client.name} · ${ov.client.mobile}`,
+      `${[ov.client.city, ov.client.state].filter(Boolean).join(', ')} · ${ov.client.employment_type || ''} · ${ov.client.dependents || 0} dependents`,
+      `Generated: ${new Date().toLocaleString('en-IN')}`, '',
+      `Money Health Score: ${ov.score}/100`,
+      `Net worth: ${R(ov.netWorth)} (assets ${R(ov.totalAssets)}, liabilities ${R(ov.totalLiabilities)})`,
+      `Income: gross ${R(ov.income.annualGross)}/yr, take-home ${R(ov.income.monthlyTakeHome)}/mo`, '',
+    ];
+    if (ff && rec) {
+      L.push(`TAX — FY ${ff.fy} · ${ff.form.code} (${ff.form.name}) · ${ff.recommendedRegime} regime`,
+        `  Gross total income:   ${R(rec.grossTotalIncome)}`,
+        `  Total deductions:     ${R(rec.deductions)}`,
+        `  Taxable income:       ${R(rec.totalIncome)}`,
+        `  Total tax:            ${R(rec.totalTax)}`,
+        `  Taxes paid:           ${R(rec.taxesPaid)}`,
+        `  ${rec.refundOrPayable >= 0 ? 'Refund due' : 'Tax payable'}:           ${R(Math.abs(rec.refundOrPayable))}`,
+        ff.needsCA?.required ? `  NOTE: ${ff.needsCA.reason}` : '', '');
+    }
+    L.push(`Insurance — term ${R(ov.insurance.term.current)} / rec ${R(ov.insurance.term.recommended)}; health ${R(ov.insurance.health.current)} / rec ${R(ov.insurance.health.recommended)}`,
+      `Monthly records on file: ${(ov.monthlyRecords || []).length}`, '',
+      `Computed from the client's self-reported data + uploads. Verify against Form 26AS/AIS before filing.`);
+    const blob = new Blob([L.filter((x: any) => x !== undefined).join('\n')], { type: 'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `client-summary-${(ov.client.name || 'client').replace(/\s+/g, '-')}.txt`; a.click();
+  }
+
   if (err) return <main className="min-h-screen bg-paper p-8"><p className="text-signal-red text-sm">{err}</p><Link href="/ca" className="text-sm text-pine-700 underline">← Back</Link></main>;
   if (!ov) return <main className="min-h-screen bg-paper animate-pulse" />;
   const tp = ov.taxPack;
@@ -58,10 +88,13 @@ export default function CaClient() {
       </header>
 
       <div className="max-w-4xl mx-auto px-5 py-8 space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-medium">{ov.client.name}</h1>
-          <p className="text-sm text-ink-soft mt-1">{[[ov.client.city, ov.client.state].filter(Boolean).join(', '), ov.client.age ? `${ov.client.age} yrs` : '', ov.client.employment_type?.replace(/_/g, ' '), ov.client.dependents ? `${ov.client.dependents} dependents` : 'no dependents', ov.client.mobile].filter(Boolean).join(' · ')}</p>
-          <p className="text-xs text-ink-faint mt-0.5">{[ov.client.email, ov.client.risk_appetite && `${ov.client.risk_appetite} risk profile`].filter(Boolean).join(' · ')}</p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="font-display text-3xl font-medium">{ov.client.name}</h1>
+            <p className="text-sm text-ink-soft mt-1">{[[ov.client.city, ov.client.state].filter(Boolean).join(', '), ov.client.age ? `${ov.client.age} yrs` : '', ov.client.employment_type?.replace(/_/g, ' '), ov.client.dependents ? `${ov.client.dependents} dependents` : 'no dependents', ov.client.mobile].filter(Boolean).join(' · ')}</p>
+            <p className="text-xs text-ink-faint mt-0.5">{[ov.client.email, ov.client.risk_appetite && `${ov.client.risk_appetite} risk profile`].filter(Boolean).join(' · ')}</p>
+          </div>
+          <button onClick={downloadReport} className="rounded-full bg-pine-900 text-white px-4 py-2 text-xs font-bold hover:bg-pine-800 shrink-0">Download client summary</button>
         </div>
 
         {/* Snapshot */}
@@ -120,6 +153,39 @@ export default function CaClient() {
           )}
           <p className="text-[11px] text-ink-faint mt-3">Computed from the client’s self-entered data. Verify against Form 26AS/AIS before filing.</p>
         </div>
+
+        {/* Full ITR computation — all income heads */}
+        {ov.fullFiling && (() => {
+          const ff = ov.fullFiling; const rec = ff.recommendedRegime === 'old' ? ff.old : ff.new; const i = ff.inputs;
+          const rows: [string, number][] = ([
+            ['Salary (gross)', i.grossSalary], ['Interest', i.interestIncome], ['House property', i.housePropertyIncome],
+            ['Other (dividends)', i.otherIncome], ['Business', i.businessIncome], ['STCG (equity)', i.stcgEquity],
+            ['LTCG (equity)', i.ltcgEquity], ['Other capital gains', i.otherCapitalGains],
+          ] as [string, number][]).filter(([, v]) => v);
+          return (
+            <div className="card p-6">
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Full ITR computation</h2>
+                <span className="chip bg-pine-900 text-white">{ff.form.code} · {ff.form.name}</span>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                <div>
+                  {rows.map(([l, v]) => <div key={l} className="flex justify-between"><span className="text-ink-soft">{l}</span><span className="tabular-nums">{inr(v)}</span></div>)}
+                  <div className="flex justify-between font-semibold border-t border-paper-100 pt-1 mt-1"><span>Gross total income</span><span className="tabular-nums">{inr(rec.grossTotalIncome)}</span></div>
+                  <div className="flex justify-between"><span className="text-ink-soft">Deductions ({ff.recommendedRegime})</span><span className="tabular-nums">−{inr(rec.deductions)}</span></div>
+                </div>
+                <div>
+                  <div className="flex justify-between"><span className="text-ink-soft">Taxable income</span><span className="tabular-nums">{inr(rec.totalIncome)}</span></div>
+                  <div className="flex justify-between"><span className="text-ink-soft">Total tax</span><span className="tabular-nums">{inr(rec.totalTax)}</span></div>
+                  <div className="flex justify-between"><span className="text-ink-soft">Taxes paid</span><span className="tabular-nums">−{inr(rec.taxesPaid)}</span></div>
+                  <div className="flex justify-between font-semibold border-t border-paper-100 pt-1 mt-1"><span>{rec.refundOrPayable >= 0 ? 'Refund due' : 'Tax payable'}</span><span className={`tabular-nums ${rec.refundOrPayable >= 0 ? 'text-signal-green' : 'text-signal-red'}`}>{inr(Math.abs(rec.refundOrPayable))}</span></div>
+                </div>
+              </div>
+              <p className="text-xs text-ink-soft mt-2">{ff.form.why}</p>
+              {ff.needsCA?.required && <p className="text-[11px] text-signal-amber mt-2">{ff.needsCA.reason}</p>}
+            </div>
+          );
+        })()}
 
         {/* Assets & liabilities */}
         <div className="grid sm:grid-cols-2 gap-6">

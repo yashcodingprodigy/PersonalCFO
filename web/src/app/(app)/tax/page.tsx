@@ -107,9 +107,113 @@ function TaxCopilot({ c }: { c: any }) {
   );
 }
 
+// Comprehensive, CA-usable computation across every income head.
+function FullBreakdown({ f }: { f: any }) {
+  const i = f.inputs;
+  const rec = f.recommendedRegime === 'old' ? f.old : f.new;
+  const other = f.recommendedRegime === 'old' ? f.new : f.old;
+  const R = (v: number) => `₹${Math.round(v / 100).toLocaleString('en-IN')}`;
+  const incomeRows: [string, number][] = ([
+    ['Salary (gross)', i.grossSalary], ['Interest income', i.interestIncome],
+    ['House property', i.housePropertyIncome], ['Other (dividends, etc.)', i.otherIncome],
+    ['Business / profession', i.businessIncome], ['Short-term capital gains (equity)', i.stcgEquity],
+    ['Long-term capital gains (equity)', i.ltcgEquity], ['Other capital gains', i.otherCapitalGains],
+  ] as [string, number][]).filter(([, v]) => v);
+  const dedRows: [string, number][] = ((f.recommendedRegime === 'old' ? [
+    ['80C', i.ded80C], ['80CCD(1B) NPS', i.ded80CCD1B], ['80D health', i.ded80D],
+    ['24(b) home-loan interest', i.ded24b], ['80G donations', i.ded80G], ['80E education loan', i.ded80E],
+    ['HRA exemption', i.hraExempt], ['Employer NPS 80CCD(2)', i.employerNps],
+  ] : [['Employer NPS 80CCD(2)', i.employerNps]]) as [string, number][]).filter(([, v]) => v);
+  const refund = rec.refundOrPayable;
+
+  function download() {
+    const L: string[] = [
+      `PayWatch — Full Tax Computation (FY ${f.fy})`, `Generated: ${new Date().toLocaleString('en-IN')}`, '',
+      `ITR form: ${f.form.code} (${f.form.name}) — ${f.form.why}`, `Recommended regime: ${f.recommendedRegime.toUpperCase()}`, '',
+      'INCOME', ...incomeRows.map(([l, v]) => `  ${l.padEnd(36)} ${R(v)}`),
+      `  ${'Gross total income'.padEnd(36)} ${R(rec.grossTotalIncome)}`, '',
+      'DEDUCTIONS', ...dedRows.map(([l, v]) => `  ${l.padEnd(36)} ${R(v)}`),
+      `  ${'Total deductions'.padEnd(36)} ${R(rec.deductions)}`, '',
+      `Taxable income (slab):              ${R(rec.totalIncome)}`,
+      `Tax on slab income:                 ${R(rec.slabTax)}`,
+      `Less 87A rebate:                    ${R(rec.rebate)}`,
+      `Capital-gains tax (special rates):  ${R(rec.capitalGainsTax)}`,
+      `Surcharge:                          ${R(rec.surcharge)}`,
+      `Health & education cess (4%):       ${R(rec.cess)}`,
+      `TOTAL TAX:                          ${R(rec.totalTax)}`, '',
+      `Taxes already paid (TDS+advance):   ${R(rec.taxesPaid)}`,
+      `${refund >= 0 ? 'REFUND DUE' : 'TAX PAYABLE'}:                         ${R(Math.abs(refund))}`, '',
+      f.needsCA?.required ? `NOTE: ${f.needsCA.reason}` : '',
+      'Estimate for self-filing — cross-check against Form 26AS / AIS before filing.',
+    ];
+    const blob = new Blob([L.filter((x) => x !== undefined).join('\n')], { type: 'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `paywatch-tax-computation-${f.fy}.txt`; a.click();
+  }
+
+  return (
+    <Section id="computation" title="Your full tax computation" hint="Every income head, both regimes, ready for you or your CA.">
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <span className="chip bg-pine-900 text-white">{f.form.code} · {f.form.name}</span>
+        <span className="text-xs text-ink-soft">{f.form.why}</span>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* Income + deductions */}
+        <div className="card p-6">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Income</h3>
+          <ul className="text-sm space-y-1.5">
+            {incomeRows.length ? incomeRows.map(([l, v]) => (
+              <li key={l} className="flex justify-between"><span className="text-ink-soft">{l}</span><span className="tabular-nums">{inr(v)}</span></li>
+            )) : <li className="text-ink-faint">No income recorded yet — upload your payslip/Form 16 and other documents.</li>}
+            <li className="flex justify-between font-semibold border-t border-paper-100 pt-1.5 mt-1.5"><span>Gross total income</span><span className="tabular-nums">{inr(rec.grossTotalIncome)}</span></li>
+          </ul>
+          {dedRows.length > 0 && (
+            <>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint mt-4 mb-2">Deductions ({f.recommendedRegime} regime)</h3>
+              <ul className="text-sm space-y-1.5">
+                {dedRows.map(([l, v]) => <li key={l} className="flex justify-between"><span className="text-ink-soft">{l}</span><span className="tabular-nums">−{inr(v)}</span></li>)}
+                <li className="flex justify-between font-semibold border-t border-paper-100 pt-1.5 mt-1.5"><span>Total deductions</span><span className="tabular-nums">−{inr(rec.deductions)}</span></li>
+              </ul>
+            </>
+          )}
+        </div>
+
+        {/* Tax computation */}
+        <div className="card p-6">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">Tax ({f.recommendedRegime} regime)</h3>
+          <ul className="text-sm space-y-1.5">
+            <li className="flex justify-between"><span className="text-ink-soft">Taxable income (slab)</span><span className="tabular-nums">{inr(rec.totalIncome)}</span></li>
+            <li className="flex justify-between"><span className="text-ink-soft">Tax on slab income</span><span className="tabular-nums">{inr(rec.slabTax)}</span></li>
+            {rec.rebate > 0 && <li className="flex justify-between"><span className="text-ink-soft">Less: 87A rebate</span><span className="tabular-nums text-signal-green">−{inr(rec.rebate)}</span></li>}
+            {rec.capitalGainsTax > 0 && <li className="flex justify-between"><span className="text-ink-soft">Capital-gains tax (special)</span><span className="tabular-nums">{inr(rec.capitalGainsTax)}</span></li>}
+            {rec.surcharge > 0 && <li className="flex justify-between"><span className="text-ink-soft">Surcharge</span><span className="tabular-nums">{inr(rec.surcharge)}</span></li>}
+            <li className="flex justify-between"><span className="text-ink-soft">Health & education cess</span><span className="tabular-nums">{inr(rec.cess)}</span></li>
+            <li className="flex justify-between font-semibold border-t border-paper-100 pt-1.5 mt-1.5"><span>Total tax</span><span className="tabular-nums">{inr(rec.totalTax)}</span></li>
+            <li className="flex justify-between"><span className="text-ink-soft">Taxes paid (TDS + advance)</span><span className="tabular-nums">−{inr(rec.taxesPaid)}</span></li>
+          </ul>
+          <div className={`mt-3 rounded-xl p-4 ${refund >= 0 ? 'bg-signal-green/10' : 'bg-signal-red/10'}`}>
+            <p className="text-[11px] uppercase tracking-wider font-bold text-ink-faint">{refund >= 0 ? 'Refund due' : 'Tax payable'}</p>
+            <p className={`font-display text-2xl font-semibold ${refund >= 0 ? 'text-signal-green' : 'text-signal-red'}`}>{inr(Math.abs(refund))}</p>
+          </div>
+          <p className="text-[11px] text-ink-faint mt-2">Old regime tax {inr(other.totalTax)} · {f.recommendedRegime} regime saves {inr(Math.abs(other.totalTax - rec.totalTax))}.</p>
+        </div>
+      </div>
+
+      {f.needsCA?.required && <div className="card p-4 mt-3 border-l-4 border-l-signal-amber text-sm text-ink-soft">{f.needsCA.reason}</div>}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button onClick={download} className="rounded-full bg-pine-900 text-white px-5 py-2 text-sm font-bold hover:bg-pine-800">Download computation (for your CA)</button>
+        <Link href="/file" className="rounded-full border border-paper-200 text-pine-700 px-5 py-2 text-sm font-bold hover:border-pine-600">Prepare & file my ITR →</Link>
+      </div>
+      <p className="text-[11px] text-ink-faint mt-2">Computed from your profile + uploaded documents. Upload more under <Link href="/records" className="text-pine-700 underline">Monthly records</Link> to make this exact. Estimate for self-filing — verify against Form 26AS/AIS.</p>
+    </Section>
+  );
+}
+
 export default function TaxPage() {
   const [tax, setTax] = useState<any>(null);
-  useEffect(() => { get('/tax').then(setTax).catch(() => {}); }, []);
+  const [full, setFull] = useState<any>(null);
+  useEffect(() => { get('/tax').then(setTax).catch(() => {}); get('/tax/full').then(setFull).catch(() => {}); }, []);
   if (!tax) return <div className="card h-96 animate-pulse mt-4" />;
 
   const { comparison: c, deductions: d } = tax;
@@ -124,7 +228,9 @@ export default function TaxPage() {
         <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · updated for the latest Finance Act.</p>
       </div>
 
-      <SectionNav items={[{ id: 'regime', label: 'Regime' }, { id: 'copilot', label: 'Copilot' }, { id: 'reduce', label: 'Reduce tax' }, { id: 'deductions', label: 'Deductions' }, { id: 'calendar', label: 'Calendar' }, { id: 'docs', label: 'Docs & terms' }]} />
+      <SectionNav items={[{ id: 'computation', label: 'Full computation' }, { id: 'regime', label: 'Regime' }, { id: 'copilot', label: 'Copilot' }, { id: 'reduce', label: 'Reduce tax' }, { id: 'deductions', label: 'Deductions' }, { id: 'calendar', label: 'Calendar' }, { id: 'docs', label: 'Docs & terms' }]} />
+
+      {full && <FullBreakdown f={full} />}
 
       {noTax && (
         <div className="card p-5 border-l-4 border-l-signal-green">

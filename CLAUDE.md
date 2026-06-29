@@ -75,12 +75,15 @@ unread-alerts badge, native biometric lock overlay).
 - **Your CA** (`advisor`) — connect to a Chartered Accountant: your connect code, enter a CA code,
   approve/decline requests, disconnect. Active CA → `/advisor/[id]` (messaging + document sharing). See §11.
 - **Markets & news** (`markets`) — **news first**, then educational investment themes (keyless RSS).
-- **Tax** (`tax`) — regime comparison, "how to reduce your tax" (collapsible steps), **Tax Copilot**
-  (advance-tax timeline, proof calendar, harvesting, CA-ready pack), deduction tracker, calendar,
-  docs + glossary. Section nav.
-- **File ITR** (`file`) — guided wizard (Income → Deductions → Tax paid → Result): computes the full
-  return, picks the ITR form, refund/payable, full computation, "how to file yourself" portal steps,
-  downloadable computation pack. Links to rent receipts.
+- **Tax** (`tax`) — **Full computation** section (`GET /tax/full` → `fullFiling`): comprehensive CA-usable
+  breakdown across **every income head** (salary, interest, house property, dividends, business, STCG/LTCG),
+  deductions, both regimes, ITR form + why, TDS reconciliation, refund/payable, downloadable for the CA.
+  Then regime comparison, "how to reduce your tax", **Tax Copilot** (advance-tax timeline, proof calendar,
+  harvesting, CA-ready pack), deduction tracker, calendar, docs + glossary. Section nav.
+- **Prepare ITR docs** (`file`) — two paths: hand to CA, or **File it yourself** (`/file/self`): a detailed
+  beginner step-by-step guide (gather docs → AIS/26AS → which ITR form (1/2/3/4 explained) → portal login →
+  filing → verify against computation → pay/refund → submit & e-verify), personalised with the user's
+  computed form/regime/refund. Plus the `ItrDocPrep` doc-gathering checklist.
 - **Insurance** (`insurance`) — **My policies** (upload policy PDFs by category → AI reads cover/premium/issue/
   expiry/maturity/renewal dates, validates the doc + flags wrong/blurry, user confirms; encrypted store; feeds
   cover rings + score; expiry/renewal/maturity **alerts** with follow-up), coverage **rings**, collapsible
@@ -135,7 +138,9 @@ unread-alerts badge, native biometric lock overlay).
 - `tax.ts` — FY2025-26 old vs new regime, deductions, HRA, `taxReductionPlan()` (beginner steps + rupee
   impact + capital-gains explainer + checklist + glossary), `taxCopilot()` (advance-tax schedule, proof
   checklist, harvesting, CA-ready pack), `marginalRate()`, `computeHraExemption()`.
-- `taxFiling.ts` — **ITR engine**: `prepareFiling()` picks ITR-1/2/3/4, computes full return across all
+- `taxFiling.ts` — **ITR engine**: `assembleFilingInputs(p)` builds complete inputs from profile + tax_data
+  (all heads + TDS that uploads folded in); `fullFiling(p)` = the full computed return (used by `/tax/full`,
+  the wizard prefill, and the CA overview). `prepareFiling()` picks ITR-1/2/3/4, computes full return across all
   heads (salary, interest, house property, equity STCG 20% / LTCG 12.5% over ₹1.25L, other, business),
   both regimes incl. rebate/surcharge/cess, reconciles TDS + advance tax → refund/payable, flags rare
   audit-needs-CA case, outputs checklist + portal walkthrough.
@@ -364,6 +369,8 @@ A second account type (Chartered Accountants) alongside users. Built across phas
   enters the other's code → `ca_client_links` row `pending` (`initiated_by`); the **other** party approves
   → `active`. If both have requested, it auto-activates. Reject/disconnect DELETEs the row (re-linkable).
 - **Sharing (`caShare.ts`, active links only):** `ca_messages` (in-app chat) and `ca_documents`
-  (Supabase Storage, signed URLs, ≤8 MB). CA's read-only client view computes score/net-worth/tax-pack
-  live from the client's profile. Documents need `SUPABASE_*` env + a private `ca-documents` bucket.
+  (Supabase Storage, signed URLs, ≤8 MB). CA's read-only client view computes score/net-worth/tax-pack +
+  **full ITR computation** (`fullFiling`, all income heads) live from the client's profile, shows the client's
+  monthly records, and offers a **downloadable client-summary report**. Documents need `SUPABASE_*` env + a
+  private `ca-documents` bucket.
 - **Demo:** no CA seed yet; create one via the signup flow (OTP from logs / `424242` locally).

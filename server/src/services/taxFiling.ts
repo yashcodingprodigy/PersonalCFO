@@ -10,6 +10,9 @@
 // (u/s 44AB) and CA certifications legally still need a CA — that's a small
 // subset of cases, flagged below.
 
+import { ProfileData, deductionUsage } from './score';
+import { computeHraExemption, currentFY } from './tax';
+
 const CESS = 0.04;
 
 // FY 2025-26 slabs (paise).
@@ -137,6 +140,46 @@ function pickForm(inp: FilingInputs, totalIncome: number): ItrFiling['form'] {
     return { code: 'ITR-2', name: 'ITR-2', why: 'You have capital gains / income over ₹50L / more than one house property / foreign assets — beyond the simple ITR-1.' };
   }
   return { code: 'ITR-1', name: 'Sahaj', why: 'Resident with salary, one house property and interest income, total income under ₹50L — the simplest return.' };
+}
+
+// Assemble a complete set of filing inputs from EVERYTHING we know about the
+// user — profile income + all the figures uploads have folded into tax_data
+// (salary & TDS from Form 16, interest, dividends, house property, capital
+// gains, deductions). This is what makes the tax breakdown comprehensive and
+// CA-usable rather than salary-only.
+export function assembleFilingInputs(p: ProfileData): FilingInputs {
+  const t: any = p.tax_data || {};
+  const items = deductionUsage(p).items;
+  const used = (prefix: string) => items.filter((i) => i.section.startsWith(prefix)).reduce((s, i) => s + i.used, 0);
+  const emp = p.user.employment_type;
+  const isSalaried = emp === 'salaried' || emp === 'both';
+  const isBiz = !!emp && emp !== 'salaried' && emp !== 'student' && emp !== 'both';
+
+  const grossSalary = Number(t.salary_gross) || (isSalaried ? (p.user.annual_gross_income || 0) : 0);
+  const businessIncome = Number(t.business_income) || (isBiz ? (p.user.annual_gross_income || 0) : 0);
+
+  return {
+    grossSalary,
+    interestIncome: Number(t.interest_income) || 0,
+    housePropertyIncome: Number(t.house_property_income) || 0,
+    otherIncome: (Number(t.dividend_income) || 0) + (Number(t.other_income) || 0),
+    businessIncome,
+    stcgEquity: Number(t.stcg_equity) || 0,
+    ltcgEquity: Number(t.ltcg_equity) || 0,
+    otherCapitalGains: Number(t.other_capital_gains) || 0,
+    ded80C: used('80C'), ded80CCD1B: used('80CCD(1B)'), ded80D: used('80D'), ded24b: used('24(b)'),
+    ded80G: Number(t.donations_80g_annual) || 0, ded80TTA: 0, ded80E: Number(t.education_loan_interest_annual) || 0,
+    hraExempt: computeHraExemption(p), employerNps: Number(t.employer_nps_annual) || 0,
+    tdsSalary: Number(t.tds_salary) || 0, tdsOther: Number(t.tds_other) || 0, advanceTax: Number(t.advance_tax) || 0,
+    residentOrdinary: true, foreignAssets: false, isDirector: false, multipleHouseProperties: false,
+    presumptiveBusiness: emp === 'freelancer' || emp === 'self_employed',
+  };
+}
+
+// One call: the full computed return from the user's complete data.
+export function fullFiling(p: ProfileData): ItrFiling & { inputs: FilingInputs } {
+  const inputs = assembleFilingInputs(p);
+  return { ...prepareFiling(inputs, currentFY()), inputs };
 }
 
 export function prepareFiling(inp: FilingInputs, fy: string): ItrFiling {
