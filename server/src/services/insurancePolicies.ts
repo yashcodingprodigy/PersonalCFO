@@ -94,6 +94,30 @@ export async function deletePolicy(userId: string, policyId: string) {
   await syncProfileInsurance(userId);
 }
 
+// ── In-app insurance applications (corporate-agent journey, intent capture) ──
+const APP_COLS = `application_id, plan_id, category, insurer, plan_name, cover, premium_indicative,
+  applicant, status, created_at`;
+
+export async function listApplications(userId: string) {
+  return query(`SELECT ${APP_COLS} FROM insurance_applications WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
+}
+
+export async function createApplication(userId: string, d: {
+  plan_id?: string | null; category: string; insurer?: string | null; plan_name?: string | null;
+  cover?: number | null; premium_indicative?: number | null; applicant?: any;
+}) {
+  return one(
+    `INSERT INTO insurance_applications (user_id, plan_id, category, insurer, plan_name, cover, premium_indicative, applicant)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING ${APP_COLS}`,
+    [userId, d.plan_id || null, d.category, d.insurer || null, d.plan_name || null,
+     d.cover ?? null, d.premium_indicative ?? null, JSON.stringify(d.applicant || {})]
+  );
+}
+
+export async function withdrawApplication(userId: string, applicationId: string) {
+  await query(`DELETE FROM insurance_applications WHERE application_id = $1 AND user_id = $2`, [applicationId, userId]);
+}
+
 // Roll active policies up into profiles.insurance.term / .health so the existing
 // cover analysis (analyseInsurance) and the Money Score reflect what the user
 // actually holds. Other keys in the insurance JSON are preserved.

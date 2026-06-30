@@ -371,6 +371,26 @@ CREATE TABLE IF NOT EXISTS insurance_policies (
 );
 CREATE INDEX IF NOT EXISTS idx_insurance_user ON insurance_policies(user_id, expiry_date);
 
+-- In-app insurance applications (CRED-style corporate-agent journey). Until the
+-- IRDAI corporate-agent licence + insurer APIs are live, an application only
+-- CAPTURES the user's intent — no premium is collected and no policy is issued.
+-- status: submitted → (in_review → issued / declined) | withdrawn.
+CREATE TABLE IF NOT EXISTS insurance_applications (
+  application_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  plan_id            VARCHAR(40),
+  category           VARCHAR(30) NOT NULL,
+  insurer            VARCHAR(160),
+  plan_name          VARCHAR(200),
+  cover              BIGINT,                          -- paise
+  premium_indicative BIGINT,                          -- paise / year
+  applicant          JSONB NOT NULL DEFAULT '{}',     -- name, dob, mobile, email, extras (no premium taken)
+  status             VARCHAR(16) NOT NULL DEFAULT 'submitted',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_insapp_user ON insurance_applications(user_id, created_at DESC);
+
 -- Push notification device tokens (one user can have several devices).
 CREATE TABLE IF NOT EXISTS device_tokens (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

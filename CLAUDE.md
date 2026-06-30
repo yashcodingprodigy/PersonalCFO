@@ -315,23 +315,26 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - **RBI Account Aggregator:** live bank data needs **FIU** registration (Sahamati + Finvu). Keep
   `AA_PROVIDER=mock` + statement-upload until then.
 - **Payments:** Razorpay is the PA; PayWatch is a merchant (needs Razorpay KYC, not a PA licence).
-- **Insurance marketplace — the IRDAI boundary (CRITICAL, track at every step):**
-  - **What we do now (no licence needed):** show *educational* comparison of real plans, our own *indicative*
-    premium estimates (clearly labelled, NOT insurer quotes), and a *hand-off* to the insurer's own website to
-    actually buy. We do NOT solicit, quote live, collect premium, or earn commission.
-  - **To show LIVE quotes + sell/buy inside the app + earn commission, PayWatch must become an IRDAI-registered
-    insurance intermediary** — either an **Insurance Web Aggregator** (IRDAI (Insurance Web Aggregators)
-    Regulations) or an **Insurance Broker** (broker licence, higher bar but can place business with any insurer
-    & earn brokerage), or a **Corporate Agent** (tie up with up to 9 life / 9 general / 9 health insurers).
-    PolicyBazaar runs via **PB Fintech's licensed broking entity** (Policybazaar Insurance Brokers Pvt Ltd).
-  - **Plus, per insurer:** a signed **API/partner integration** (quote + buy APIs are given only to licensed
-    intermediaries under contract) — there is no public free cross-insurer quote API. The catalogue's indicative
-    premiums get swapped for these live quotes once integrated; the UI hand-off becomes in-app checkout. **No
-    rebuild of the engine/UI needed — only the data source + the buy step change.**
-  - **Selling staff:** the licensed entity needs qualified persons / **PoSP** (Point of Sales Persons) or a
-    Principal Officer, plus the usual KYC/anti-mis-selling, grievance and disclosure obligations.
-  - Until licensed, keep premiums labelled "indicative", keep the buy as an external hand-off, and never imply
-    PayWatch sells insurance or is paid by insurers.
+- **Insurance — CHOSEN PATH: Corporate Agent, end-to-end in-app (CRED model).** Decided with the owner.
+  PayWatch will become an **IRDAI Corporate Agent** (₹50L capital/net worth; can tie up with **up to 9 insurers
+  per line** — life/general/health) and deliver the whole journey *inside the app* (compare → buy → manage →
+  renew → claims assist), with policies underwritten by partner insurers — like CRED. (Alternatives weighed:
+  Direct Broker = ₹75L capital + ₹50L net worth, any insurer, higher burden; Insurance Web Aggregator. Bima
+  Sugam — IRDAI's unified marketplace rail, phasing in from ~Dec 2025, zero-commission — is the long-term rail
+  to design toward.)
+  - **Licence + partner checkpoints (track at every step):** (a) incorporate + ₹50L net worth; (b) IRDAI
+    corporate-agent registration + board-approved open-architecture policy; (c) Principal Officer + specified
+    persons / PoSP, KYC, anti-mis-selling, grievance officer; (d) signed tie-ups + **quote/issue APIs** with the
+    partner insurers (no public free cross-insurer API exists). Interim, a faster route is **partnering with an
+    existing licensed broker/embedded-insurance provider** who supplies quotes/issuance/servicing under their
+    licence — gets end-to-end live sooner without our own licence.
+  - **What's built now (no licence yet):** real-plan catalogue + best-fit ranking + **indicative** premiums +
+    an **in-app application flow** that captures the user's intent (`insurance_applications`) and shows it as
+    *"submitted — issuance activating soon."* **We do NOT collect premium or issue a policy yet** (that needs the
+    licence + insurer API). When live: swap indicative premiums → live quotes, and the application submit →
+    real KYC + payment + issuance. **No UI/engine rebuild — only the data source + the issue/pay step change.**
+  - Until licensed: premiums stay "indicative", no premium is collected, applications are intent only, and the
+    UI says policies are arranged "through our IRDAI-licensed insurer partners (activating soon)."
 
 ---
 
@@ -371,9 +374,11 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 6. **ERI registration** (Income Tax Dept) — unlocks true one-click e-filing from the app.
 7. **Razorpay live KYC** — for live subscriptions.
 8. **AA / FIU** (Sahamati + Finvu) — only when moving off mock bank data.
-9. **IRDAI insurance-intermediary registration** (Web Aggregator / Broker / Corporate Agent) + per-insurer
-   API tie-ups + PoSP/Principal Officer — to turn the insurance marketplace's indicative premiums into live
-   quotes and the buy hand-off into in-app purchase (with brokerage). See §8. Engine/UI already built for it.
+9. **IRDAI Corporate-Agent registration (CHOSEN)** — ₹50L net worth + board-approved open-architecture policy +
+   Principal Officer/PoSP + tie-ups & quote/issue APIs with partner insurers (≤9/line). Turns the in-app
+   application flow into real KYC+payment+issuance and the indicative premiums into live quotes. Interim
+   accelerator: partner with an existing licensed broker/embedded-insurance provider. See §8. UI/engine already
+   built for it (only data source + issue/pay step change).
 10. **Legal review** — Terms / Privacy / Disclosures + the SEBI, tax & IRDAI boundaries.
 
 > NONE of §8–9 is legal advice. Engage a CA (entity, GST, audit, ERI) and a lawyer (DPDP, SEBI/tax

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { get, post, del, downloadFile } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
@@ -60,7 +61,9 @@ function StatusBadge({ p }: { p: Policy }) {
 }
 
 export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
+  const router = useRouter();
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [apps, setApps] = useState<any[]>([]);
   const [staged, setStaged] = useState<Staged | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -72,8 +75,14 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
   const stagedRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (staged) setTimeout(() => stagedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }, [staged]);
 
-  function load() { get('/insurance/policies').then(setPolicies).catch(() => {}); }
+  function load() {
+    get('/insurance/policies').then(setPolicies).catch(() => {});
+    get('/insurance/applications').then(setApps).catch(() => {});
+  }
   useEffect(() => { load(); }, []);
+  async function withdrawApp(id: string) {
+    try { await del(`/insurance/applications/${id}`); load(); toast('Application withdrawn.'); } catch { /* ignore */ }
+  }
 
   function pick(cat: string) { pendingCat.current = cat; setErr(''); fileRef.current?.click(); }
 
@@ -279,6 +288,7 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
                   </div>
                   <div className="flex flex-col items-end gap-1.5 text-[11px] shrink-0">
                     {p.has_file && <button onClick={() => downloadFile(`/insurance/policies/${p.policy_id}/file`, p.file_name || 'policy')} className="text-pine-700 underline">📎 File</button>}
+                    <button onClick={() => router.push(`/insurance/market?category=${p.category}`)} className="text-pine-700 underline">Renew</button>
                     {confirmId === p.policy_id ? (
                       <span className="flex items-center gap-2">
                         <span className="text-ink-soft">Remove?</span>
@@ -293,7 +303,30 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-ink-faint mt-2">Add any other policies above for a complete cover picture — more policies mean a sharper analysis and timely renewal reminders.</p>
+          <p className="text-[11px] text-ink-faint mt-2">Need to claim or renew? <strong>Renew</strong> re-opens the marketplace for that cover. A full in-app claims &amp; servicing desk (with our insurer partner) is activating soon.</p>
+        </div>
+      )}
+
+      {/* Applications in progress (in-app corporate-agent journey) */}
+      {apps.length > 0 && (
+        <div>
+          <p className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Your applications ({apps.length})</p>
+          <div className="space-y-2">
+            {apps.map((a) => (
+              <div key={a.application_id} className="card p-4 flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold flex items-center gap-2 flex-wrap">
+                    <span className={`grid place-items-center w-8 h-8 rounded-full text-base ${insCatColor(a.category).bg}`}>{catIcon(a.category)}</span>
+                    {a.insurer || catLabel(a.category)} <span className="font-normal text-ink-soft">· {a.plan_name || catLabel(a.category)}</span>
+                  </p>
+                  <p className="text-xs text-ink-soft mt-0.5">{a.cover ? `cover ${inr(a.cover)}` : ''}{a.premium_indicative ? ` · ~${inr(a.premium_indicative)}/yr (indicative)` : ''}</p>
+                  <span className="chip bg-amber-100 text-amber-700 text-[10px] font-bold mt-1 inline-block">Submitted · issuance activating soon</span>
+                </div>
+                <button onClick={() => withdrawApp(a.application_id)} className="text-[11px] text-signal-red underline shrink-0">Withdraw</button>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-ink-faint mt-2">We’ll arrange these through our IRDAI-licensed insurer partner and issue them here. No premium has been collected yet.</p>
         </div>
       )}
     </div>

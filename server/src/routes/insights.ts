@@ -24,6 +24,7 @@ import { remember } from '../services/rag';
 import { aiAvailable, analyzeDocumentGeneric } from '../services/docAI';
 import {
   listPolicies, createPolicy, attachPolicyFile, getPolicyFile, deletePolicy,
+  listApplications, createApplication, withdrawApplication,
   INSURANCE_CATEGORIES, INSURANCE_FIELD_GUIDE, INSURANCE_TYPE_OPTIONS, CATEGORY_LABEL,
 } from '../services/insurancePolicies';
 import { CATALOG, CATEGORY_LABEL as MARKET_CAT_LABEL, verifyNote, PlanCategory } from '../services/insuranceCatalog';
@@ -187,6 +188,38 @@ insightsRouter.get('/insurance/market/plans', async (req: AuthedRequest, res) =>
   const cover = Math.max(0, Number(req.query.cover) || recommendedCover);
   const ctx = { age, cover, familySize, smoker };
   res.json({ category, label: MARKET_CAT_LABEL[category], cover, recommendedCover, ctx, plans: rankPlans(category, ctx), verifyNote });
+});
+
+// ── In-app insurance applications (corporate-agent journey — intent capture) ──
+// IMPORTANT: until the IRDAI corporate-agent licence + insurer APIs are live this
+// only records intent. No premium is collected and no policy is issued here.
+insightsRouter.get('/insurance/applications', async (req: AuthedRequest, res) => {
+  res.json(await listApplications(req.userId!));
+});
+insightsRouter.post('/insurance/applications', rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'insapp' }), async (req: AuthedRequest, res) => {
+  const parsed = z.object({
+    plan_id: z.string().max(40).optional(),
+    category: z.enum([...INSURANCE_CATEGORIES] as [string, ...string[]]),
+    insurer: z.string().max(160).optional(),
+    plan_name: z.string().max(200).optional(),
+    cover: z.number().int().nonnegative().max(100_000_000_00).optional(),
+    premium_indicative: z.number().int().nonnegative().max(100_000_000_00).optional(),
+    applicant: z.object({
+      name: z.string().max(120).optional(), dob: z.string().max(20).optional(),
+      mobile: z.string().max(20).optional(), email: z.string().max(160).optional(),
+      notes: z.string().max(400).optional(),
+    }).optional(),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
+  const row = await createApplication(req.userId!, parsed.data as any);
+  await remember(req.userId!, 'insurance_application', `Applied for ${parsed.data.plan_name || CATEGORY_LABEL[parsed.data.category] || 'insurance'}`,
+    `User started an in-app application for ${parsed.data.plan_name || parsed.data.category}${parsed.data.insurer ? ' (' + parsed.data.insurer + ')' : ''}${parsed.data.cover ? ', cover ₹' + Math.round(parsed.data.cover / 100).toLocaleString('en-IN') : ''}. Pending issuance via partner insurer.`
+  ).catch(() => {});
+  res.status(201).json(row);
+});
+insightsRouter.delete('/insurance/applications/:id', async (req: AuthedRequest, res) => {
+  await withdrawApplication(req.userId!, req.params.id);
+  res.json({ ok: true });
 });
 
 // GET /market — educational themes + third-party financial news (no advice)
