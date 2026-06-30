@@ -39,6 +39,16 @@ const config: Config = {
           teal: '#1D8A78',
           green: '#2E9E44',
         },
+        // ── Accent palette — muted jewel tones that sit calmly on the warm
+        // paper background but give each category/section its own colour, so
+        // the UI isn't a wall of green. Use 100 for tints, 500 for fills,
+        // 600/700 for text/icons.
+        ocean:  { 700: '#1B4F72', 600: '#21618C', 500: '#2E86C1', 100: '#D6EAF8' },
+        sky:    { 700: '#1F6F86', 600: '#2A8AA6', 500: '#45A6C2', 100: '#DCF0F6' },
+        violet: { 700: '#5B3A8E', 600: '#6C3FB0', 500: '#8E5FD0', 100: '#ECE3FA' },
+        berry:  { 700: '#94306A', 600: '#B53D82', 500: '#D45FA2', 100: '#F8E1EE' },
+        coral:  { 700: '#B23A2E', 600: '#D0493B', 500: '#E5705F', 100: '#FBE3DE' },
+        gold:   { 700: '#9A6B12', 600: '#C08A1E', 500: '#E0A23B', 100: '#FAEFD6' },
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],

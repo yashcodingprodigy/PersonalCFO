@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { get } from '@/lib/api';
 import { inr } from '@/lib/format';
+import { insCatColor } from '@/lib/colors';
 
 const CAT_ICON: Record<string, string> = {
   term_life: '🛡️', health: '🩺', personal_accident: '🦺', critical_illness: '❤️‍🩹', motor: '🚗', home: '🏠', travel: '✈️',
@@ -67,17 +68,20 @@ export default function InsuranceMarket() {
           <p className="text-sm text-ink-soft mt-1 max-w-2xl">Compare real plans from leading insurers, see which fits your profile best, and we’ll guide you to buy it on the insurer’s site. Educational comparison — PayWatch doesn’t sell insurance.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cats.map((c) => (
-            <button key={c.category} onClick={() => openCat(c.category)} className="card p-5 text-left hover:border-pine-600 hover:shadow-card transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-2xl">{CAT_ICON[c.category] || '📄'}</span>
-                <span className="text-[11px] text-ink-faint">{c.planCount} plans</span>
-              </div>
-              <p className="text-sm font-bold mt-2">{c.label}</p>
-              {c.recommendedCover != null && <p className="text-[11px] text-ink-faint mt-0.5">suggested cover {inr(c.recommendedCover)}</p>}
-              {c.gap > 0 && <p className="text-[11px] text-signal-red font-semibold mt-0.5">you have a gap of {inr(c.gap)}</p>}
-            </button>
-          ))}
+          {cats.map((c) => {
+            const col = insCatColor(c.category);
+            return (
+              <button key={c.category} onClick={() => openCat(c.category)} className="card p-5 text-left hover:shadow-lift hover:border-pine-600 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className={`grid place-items-center w-11 h-11 rounded-xl text-xl ${col.bg}`}>{CAT_ICON[c.category] || '📄'}</span>
+                  <span className="text-[11px] text-ink-faint">{c.planCount} plans</span>
+                </div>
+                <p className={`text-sm font-bold mt-2.5 ${col.text}`}>{c.label}</p>
+                {c.recommendedCover != null && <p className="text-[11px] text-ink-faint mt-0.5">suggested cover {inr(c.recommendedCover)}</p>}
+                {c.gap > 0 && <p className="text-[11px] text-signal-red font-semibold mt-0.5">you have a gap of {inr(c.gap)}</p>}
+              </button>
+            );
+          })}
         </div>
         {verify && <p className="text-[11px] text-ink-faint leading-relaxed">{verify}</p>}
       </div>

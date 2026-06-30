@@ -6,6 +6,7 @@ import { get, post, del, downloadFile } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
 import { toast, PROFILE_UPDATED } from '@/lib/toast';
+import { recCatColor } from '@/lib/colors';
 import {
   readPdfText, parsePayslip, parseForm16, parseStatementFile, parseHoldingsFile, parseCapitalGainsCsv,
 } from '@/lib/statementParse';
@@ -468,9 +469,10 @@ export default function MonthlyRecords() {
         {CATEGORIES.map((cat) => {
           const items = DOC_TYPES.filter((d) => d.category === cat);
           if (!items.length) return null;
+          const cc = recCatColor(cat);
           return (
             <div key={cat}>
-              <p className="text-xs font-bold text-pine-800 mb-1.5">{cat}</p>
+              <p className={`text-xs font-bold uppercase tracking-wider mb-1.5 ${cc.text}`}>{cat}</p>
               <div className="space-y-2">
                 {items.map((dt) => {
                   const existing = forPeriod(dt.type);
@@ -478,7 +480,7 @@ export default function MonthlyRecords() {
                   return (
               <div key={dt.type} className={`rounded-xl border p-3 ${has ? 'border-mint-500/60 bg-mint-50' : 'border-paper-200 bg-white'}`}>
                 <div className="flex items-center gap-3">
-                  <span className={`grid place-items-center w-10 h-10 rounded-full text-lg shrink-0 ${has ? 'bg-mint-500 text-pine-950' : 'bg-paper-100'}`}>{has ? '✓' : dt.icon}</span>
+                  <span className={`grid place-items-center w-10 h-10 rounded-full text-lg shrink-0 ${has ? 'bg-mint-500 text-pine-950' : cc.bg}`}>{has ? '✓' : dt.icon}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold flex items-center gap-2 flex-wrap">{dt.label}
                       <span className="chip bg-paper-100 text-ink-faint text-[10px]">{dt.cadence}</span>

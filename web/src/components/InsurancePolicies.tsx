@@ -6,6 +6,7 @@ import { inr } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
 import { readPdfText } from '@/lib/statementParse';
 import { toast, PROFILE_UPDATED } from '@/lib/toast';
+import { insCatColor } from '@/lib/colors';
 
 // Insurance categories the user can upload. Mirrors the server enum.
 const CATS: { key: string; icon: string; label: string }[] = [
@@ -260,7 +261,7 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
             {policies.map((p) => (
               <div key={p.policy_id} className="card p-4">
                 <div className="flex items-start gap-3">
-                  <span className="grid place-items-center w-10 h-10 rounded-full bg-paper-100 text-lg shrink-0">{catIcon(p.category)}</span>
+                  <span className={`grid place-items-center w-10 h-10 rounded-full text-lg shrink-0 ${insCatColor(p.category).bg}`}>{catIcon(p.category)}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold truncate">{p.insurer || catLabel(p.category)}</p>
