@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [actions, setActions] = useState<any[]>([]);
   const [aa, setAa] = useState<any>(null);
   const [hi, setHi] = useState(0); // growth horizon index 0/1/2
+  const [monthly, setMonthly] = useState(25000); // "what if I invest" slider (₹/mo)
   const [briefing, setBriefing] = useState<any>(null);
   const [err, setErr] = useState('');
 
@@ -41,6 +42,24 @@ export default function Dashboard() {
 
   const dims = Object.entries(score.dimensions) as [string, any][];
   const unavailable = dims.filter(([, d]) => !d.available);
+  const growthOk = !!(networth?.growth?.available && networth.growth.horizons?.[hi]);
+  const dimBlock = (
+    <section className="card p-6">
+      <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Score dimensions</h2>
+      <div className="grid sm:grid-cols-2 gap-x-8">
+        {dims.map(([key, d]) =>
+          d.available ? (
+            <DimensionBar key={key} label={DIMENSION_LABELS[key] || key} score={d.score} explanation={d.explanation} />
+          ) : (
+            <div key={key} className="py-3 opacity-50">
+              <div className="flex justify-between"><span className="text-sm font-semibold">{DIMENSION_LABELS[key]}</span><span className="text-xs">locked</span></div>
+              <p className="text-xs text-ink-soft mt-1">{d.explanation}</p>
+            </div>
+          )
+        )}
+      </div>
+    </section>
+  );
 
   return (
     <div className="space-y-6">
@@ -59,8 +78,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Money Health Score — hero, front and top */}
-      <div className="grid lg:grid-cols-5 gap-6">
+      {/* Money Health Score + your opportunity — hero */}
+      <div className="grid lg:grid-cols-5 gap-6 items-start">
         <section className="card p-6 lg:col-span-2 flex flex-col items-center text-center relative overflow-hidden">
           <div className="absolute -top-14 -left-10 w-48 h-48 rounded-full bg-mint-500/10 blur-3xl pw-blob pointer-events-none" aria-hidden />
           <ScoreGauge score={score.score} size={240} />
@@ -78,22 +97,99 @@ export default function Dashboard() {
             </Link>
           )}
         </section>
-        <section className="card p-6 lg:col-span-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Score dimensions</h2>
-          <div className="divide-y divide-paper-100">
-            {dims.map(([key, d]) =>
-              d.available ? (
-                <DimensionBar key={key} label={DIMENSION_LABELS[key] || key} score={d.score} explanation={d.explanation} />
-              ) : (
-                <div key={key} className="py-3 opacity-50">
-                  <div className="flex justify-between"><span className="text-sm font-semibold">{DIMENSION_LABELS[key]}</span><span className="text-xs">locked</span></div>
-                  <p className="text-xs text-ink-soft mt-1">{d.explanation}</p>
+
+        <div className="lg:col-span-3">
+          {growthOk ? (() => {
+            const g = networth.growth; const h = g.horizons[hi];
+            const years = h.years;
+            const rWith = (g.assumedReturnPct || 11) / 100;
+            const rIdle = 0.035;
+            const cur = g.current || 0;
+            const lump = (p: number, r: number, n: number) => p * Math.pow(1 + r, n);
+            const sipFV = (mp: number, r: number, n: number, step: number) => { let tot = 0, p = mp; const i = r / 12; for (let y = 0; y < n; y++) { for (let m = 0; m < 12; m++) tot = (tot + p) * (1 + i); p *= 1 + step; } return tot; };
+            const withPW = lump(cur, rWith, years) + sipFV(monthly * 100, rWith, years, 0.08);
+            const alone = lump(cur, rIdle, years);
+            const uplift = Math.max(0, withPW - alone);
+            const total = withPW || 1;
+            const basePct = Math.max(4, Math.min(100, (alone / total) * 100));
+            const upPct = Math.max(0, Math.min(100 - basePct, (uplift / total) * 100));
+            return (
+              <section className="card p-6 text-white overflow-hidden relative" style={{ background: 'linear-gradient(150deg,#07211D 0%,#0B2F2A 100%)' }}>
+                <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-mint-500/10 blur-3xl pw-blob pointer-events-none" aria-hidden />
+                <div className="relative">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-mint-300">Your {years}-year opportunity</p>
+                    <div className="inline-flex rounded-full bg-white/10 p-1">
+                      {g.horizons.map((x: any, i: number) => (
+                        <button key={x.years} onClick={() => setHi(i)}
+                          className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${hi === i ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>{x.years}y</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* What-if slider */}
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-white/55">If you invest</span>
+                      <span className="font-display text-lg text-white tabular-nums">{inr(monthly * 100)}<span className="text-white/40 text-xs font-normal">/mo</span></span>
+                    </div>
+                    <input type="range" min={5000} max={100000} step={1000} value={monthly} onChange={(e) => setMonthly(Number(e.target.value))} className="w-full mt-2 accent-mint-500 h-2 cursor-pointer" />
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 items-stretch">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Going it alone</p>
+                      <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-white/70">{inr(alone)}</p>
+                    </div>
+                    <div className="rounded-2xl border-2 border-mint-500 bg-mint-500/10 p-5 relative shadow-[0_0_30px_-8px_rgba(47,188,155,0.6)]">
+                      <span className="absolute -top-2.5 right-3 rounded-full bg-mint-500 text-pine-950 text-[11px] font-extrabold px-2.5 py-0.5">+{inr(uplift)}</span>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-mint-300">With PayWatch</p>
+                      <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-mint-300">{inr(withPW)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex h-3 rounded-full overflow-hidden bg-white/[0.06]">
+                    <div className="bg-white/25" style={{ width: `${basePct}%`, transition: 'width .4s cubic-bezier(.16,1,.3,1)' }} />
+                    <div className="bg-mint-500" style={{ width: `${upPct}%`, transition: 'width .4s cubic-bezier(.16,1,.3,1)', boxShadow: '0 0 16px rgba(47,188,155,.55)' }} />
+                  </div>
+                  <p className="mt-2.5 text-sm text-white/85"><strong className="text-mint-300">{inr(uplift)} more</strong> — same start, and the gap widens every year.</p>
+
+                  <div className="mt-4 flex items-center gap-4 flex-wrap">
+                    <Link href="/actions" className="inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2.5 text-sm font-bold hover:bg-mint-400 transition-colors">See how →</Link>
+                    <details className="text-sm">
+                      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden text-white/65 hover:text-white transition-colors">What moves the needle ▾</summary>
+                      <ul className="mt-3 space-y-1.5">
+                        {g.levers.map((l: string, i: number) => (
+                          <li key={i} className="flex gap-2 text-sm text-white/85"><span className="text-mint-300 shrink-0">→</span>{l}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-xs text-white/55">Your <strong className="text-white/85 capitalize">{g.riskAppetite}</strong> plan · ~{g.assumedReturnPct}%/yr</p>
+                    <div className="inline-flex rounded-full bg-white/10 p-0.5">
+                      {['conservative', 'moderate', 'aggressive'].map((r) => (
+                        <button key={r} onClick={() => changeRisk(r)} disabled={savingRisk}
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize transition-colors disabled:opacity-50 ${g.riskAppetite === r ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>
+                          {r === 'conservative' ? 'Cautious' : r === 'aggressive' ? 'Aggressive' : 'Balanced'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <details className="mt-2 text-[10px] text-white/40">
+                    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:text-white/60 transition-colors">Assumptions ▾</summary>
+                    <p className="mt-1.5 leading-relaxed">Idle savings assumed ~3.5% vs your {g.riskAppetite} plan ~{g.assumedReturnPct}% a year, with a 10% annual step-up on what you invest. Illustration, not a guarantee — markets fluctuate. Nominal, before ~6% inflation.</p>
+                  </details>
                 </div>
-              )
-            )}
-          </div>
-        </section>
+              </section>
+            );
+          })() : dimBlock}
+        </div>
       </div>
+
+      {/* Score dimensions — below the score */}
+      {growthOk && dimBlock}
 
       {/* Ask your CFO — spotlight */}
       <Link href="/ask" className="block group">
@@ -156,76 +252,6 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Net-worth growth incentive */}
-      {networth?.growth?.available && networth.growth.horizons?.[hi] && (() => {
-        const g = networth.growth; const h = g.horizons[hi];
-        const total = h.improved || 1;
-        const basePct = Math.max(4, Math.min(100, (h.baseline / total) * 100));
-        const upPct = Math.max(0, Math.min(100 - basePct, (h.uplift / total) * 100));
-        return (
-          <section className="card p-6 text-white overflow-hidden relative" style={{ background: 'linear-gradient(150deg,#07211D 0%,#0B2F2A 100%)' }}>
-            <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-mint-500/10 blur-3xl pw-blob pointer-events-none" aria-hidden />
-            <div className="relative">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-mint-300">Your {h.years}-year opportunity</p>
-                <div className="inline-flex rounded-full bg-white/10 p-1">
-                  {g.horizons.map((x: any, i: number) => (
-                    <button key={x.years} onClick={() => setHi(i)}
-                      className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${hi === i ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>{x.years}y</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 items-stretch">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Going it alone</p>
-                  <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-white/70">{inr(h.baseline)}</p>
-                </div>
-                <div className="rounded-2xl border-2 border-mint-500 bg-mint-500/10 p-5 relative shadow-[0_0_30px_-8px_rgba(47,188,155,0.6)]">
-                  <span className="absolute -top-2.5 right-3 rounded-full bg-mint-500 text-pine-950 text-[11px] font-extrabold px-2.5 py-0.5">+{inr(h.uplift)}</span>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-mint-300">With PayWatch</p>
-                  <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-mint-300">{inr(h.improved)}</p>
-                </div>
-              </div>
-
-              {/* Visual gap bar */}
-              <div className="mt-4 flex h-3 rounded-full overflow-hidden bg-white/[0.06]">
-                <div className="bg-white/25" style={{ width: `${basePct}%`, transition: 'width .7s cubic-bezier(.16,1,.3,1)' }} />
-                <div className="bg-mint-500" style={{ width: `${upPct}%`, transition: 'width .7s cubic-bezier(.16,1,.3,1)', boxShadow: '0 0 16px rgba(47,188,155,.55)' }} />
-              </div>
-              <p className="mt-2.5 text-sm text-white/85"><strong className="text-mint-300">{inr(h.uplift)} more</strong> — same start, and the gap widens every year.</p>
-
-              <div className="mt-4 flex items-center gap-4 flex-wrap">
-                <Link href="/actions" className="inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2.5 text-sm font-bold hover:bg-mint-400 transition-colors">See how →</Link>
-                <details className="text-sm">
-                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden text-white/65 hover:text-white transition-colors">What moves the needle ▾</summary>
-                  <ul className="mt-3 space-y-1.5">
-                    {g.levers.map((l: string, i: number) => (
-                      <li key={i} className="flex gap-2 text-sm text-white/85"><span className="text-mint-300 shrink-0">→</span>{l}</li>
-                    ))}
-                  </ul>
-                </details>
-              </div>
-
-              <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-2">
-                <p className="text-xs text-white/55">Your <strong className="text-white/85 capitalize">{g.riskAppetite}</strong> plan · ~{g.assumedReturnPct}%/yr</p>
-                <div className="inline-flex rounded-full bg-white/10 p-0.5">
-                  {['conservative', 'moderate', 'aggressive'].map((r) => (
-                    <button key={r} onClick={() => changeRisk(r)} disabled={savingRisk}
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize transition-colors disabled:opacity-50 ${g.riskAppetite === r ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>
-                      {r === 'conservative' ? 'Cautious' : r === 'aggressive' ? 'Aggressive' : 'Balanced'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <details className="mt-2 text-[10px] text-white/40">
-                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:text-white/60 transition-colors">Assumptions ▾</summary>
-                <p className="mt-1.5 leading-relaxed">Cautious ~7% · balanced ~9% · aggressive ~11% a year. Illustration, not a guarantee — markets fluctuate. &ldquo;Going it alone&rdquo; continues your current investing; the plan assumes ~25% of take-home invested. Nominal, before ~6% inflation.</p>
-              </details>
-            </div>
-          </section>
-        );
-      })()}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Net worth summary */}
