@@ -75,16 +75,16 @@ export default function InsurancePage() {
             <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Zm-1 14-4-4 1.4-1.4L11 13.2l5.6-5.6L18 9l-7 7Z" /></svg>
           </span>
           <div className="min-w-0 flex-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-mint-300">Marketplace</span>
-            <h3 className="font-display text-xl font-semibold mt-0.5">Find your best-fit cover</h3>
-            <p className="text-sm text-white/70 mt-1 max-w-lg leading-relaxed">Real plans from top insurers, ranked for your profile with indicative premiums — compare and apply in minutes.</p>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-mint-300">Insurance</span>
+            <h3 className="font-display text-xl font-semibold mt-0.5">Buy insurance</h3>
+            <p className="text-sm text-white/70 mt-1 max-w-lg leading-relaxed">Compare real plans from top insurers, pick the right cover for you, and apply — all in one place.</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {['Term life', 'Health', 'Motor', 'Personal accident', 'Travel'].map((c) => (
                 <span key={c} className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 text-[11px] text-white/85">{c}</span>
               ))}
             </div>
           </div>
-          <span className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white text-pine-950 px-5 py-2.5 text-sm font-bold group-hover:bg-mint-100 transition-colors">Compare plans <span className="group-hover:translate-x-0.5 transition-transform">→</span></span>
+          <span className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white text-pine-950 px-5 py-2.5 text-sm font-bold group-hover:bg-mint-100 transition-colors">See plans <span className="group-hover:translate-x-0.5 transition-transform">→</span></span>
         </div>
       </Link>
 
