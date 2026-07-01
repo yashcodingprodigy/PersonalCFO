@@ -9,6 +9,7 @@ import { isNative, initNative, unlock, registerPush } from '@/lib/native';
 import { Walkthrough } from '@/components/Walkthrough';
 import { Toaster } from '@/components/Toaster';
 import { WelcomeSplash } from '@/components/WelcomeSplash';
+import { NavTransition } from '@/components/NavTransition';
 
 const ASK_ICON = 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z';
 
@@ -226,6 +227,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* "Hello, {name}" welcome splash — plays once per app-open, then lifts away */}
       {!locked && <WelcomeSplash name={user?.name || user?.mobile} />}
+
+      {/* Context-aware curtain on every in-app navigation */}
+      {!locked && <NavTransition />}
     </div>
   );
 }

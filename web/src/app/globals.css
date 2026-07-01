@@ -85,6 +85,9 @@ body {
 /* The page beneath eases in as the splash lifts */
 @keyframes pw-page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .pw-page-in { animation: pw-page-in 0.5s ease-out 0.15s both; }
+/* Top progress bar that fills during a route transition */
+@keyframes pw-navbar { 0% { width: 8%; } 60% { width: 72%; } 100% { width: 92%; } }
+.pw-navbar { animation: pw-navbar 0.9s ease-out both; }
 
 /* Subtle count-up effect handled in JS; keep motion gentle */
 @media (prefers-reduced-motion: reduce) {

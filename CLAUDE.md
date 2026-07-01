@@ -248,6 +248,19 @@ renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, and 
   upload + look-through, used inside Invest), **`CaThread.tsx`** (shared messaging + documents panel for
   both CA & user sides; `fileToBase64`).
 - Sidebar nav scrolls (`overflow-y-auto min-h-0`) so the account/sign-out footer stays visible.
+- **Loading / motion system** (engagement): `components/Skeleton.tsx` = `Skeleton/SkeletonCard/SkeletonList/
+  PageSkeleton` + `WittyLoader` + **`LoadingScreen`** (big centred animated gauge + rotating sarcastic caption
+  that crossfades away when `loading` flips false — used inside a `relative min-h-[60vh]` wrapper with content
+  gated on `!loading`; wired into actions/insurance/tax/invest/networth/markets/reports pages). `components/
+  WelcomeSplash.tsx` = "Hello, {name}" splash once per app-open (sessionStorage `paywatch_greeted`).
+  **`components/NavTransition.tsx`** = GLOBAL route-transition curtain in the app layout: on every `usePathname`
+  change it covers the content area (`fixed md:left-60 top-14 md:top-0 bg-paper`) with the gauge + a
+  context-aware caption from **`lib/quips.ts`** (`quipsForPath()` route→quips map) + a thin top progress bar,
+  then eases away. Skips first mount (welcome splash owns it); does NOT fire on query-only navs (avoids
+  `useSearchParams` to keep the static export safe). Animations in `globals.css` (`pw-splash/pw-splash-leave`,
+  `pw-ring-draw`, `pw-sweep`, `pw-fade-up`, `pw-page-in`, `pw-navbar`, `pw-skeleton`) all respect
+  `prefers-reduced-motion` (global disable) with JS safety-timeouts so curtains never get stuck. CA portal
+  (`/ca/*`, separate layout) not yet wired.
 
 ---
 
