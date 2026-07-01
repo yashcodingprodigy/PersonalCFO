@@ -68,6 +68,24 @@ body {
 @keyframes pw-fade-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .pw-fade-up { animation: pw-fade-up 0.25s ease-out; }
 
+/* ── Welcome splash (shown once per app open) ───────────────────────── */
+@keyframes pw-greet-in {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.96); filter: blur(4px); }
+  100% { opacity: 1; transform: none; filter: blur(0); }
+}
+.pw-greet-in { animation: pw-greet-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes pw-ring-draw {
+  from { stroke-dashoffset: 283; }
+  to   { stroke-dashoffset: 70; }
+}
+.pw-ring-draw { animation: pw-ring-draw 1.1s ease-out both; }
+/* Overlay reveal: fade + scale up as it hands off to the page underneath */
+.pw-splash { transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
+.pw-splash-leave { opacity: 0; transform: scale(1.06); pointer-events: none; }
+/* The page beneath eases in as the splash lifts */
+@keyframes pw-page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.pw-page-in { animation: pw-page-in 0.5s ease-out 0.15s both; }
+
 /* Subtle count-up effect handled in JS; keep motion gentle */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
