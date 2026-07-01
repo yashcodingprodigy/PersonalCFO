@@ -89,6 +89,39 @@ body {
 @keyframes pw-navbar { 0% { width: 8%; } 60% { width: 72%; } 100% { width: 92%; } }
 .pw-navbar { animation: pw-navbar 0.9s ease-out both; }
 
+/* ── Landing page: aurora, floats, reveals, gradients ───────────────── */
+@keyframes pw-blob {
+  0%   { transform: translate(0,0) scale(1); }
+  33%  { transform: translate(34px,-26px) scale(1.12); }
+  66%  { transform: translate(-24px,22px) scale(0.94); }
+  100% { transform: translate(0,0) scale(1); }
+}
+.pw-blob { animation: pw-blob 16s ease-in-out infinite; }
+@keyframes pw-float2 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+.pw-float2 { animation: pw-float2 6s ease-in-out infinite; }
+@keyframes pw-shine { 0% { background-position: -180% 0; } 100% { background-position: 180% 0; } }
+.pw-reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+.pw-reveal.in { opacity: 1; transform: none; }
+.pw-gradient-text {
+  background: linear-gradient(92deg, #2FBC9B 0%, #7FE0C8 55%, #46C9E0 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.pw-aurora {
+  background:
+    radial-gradient(60% 55% at 18% 22%, rgba(47,188,155,0.30), transparent 60%),
+    radial-gradient(50% 50% at 82% 18%, rgba(70,201,224,0.22), transparent 60%),
+    radial-gradient(60% 60% at 70% 85%, rgba(24,84,75,0.55), transparent 65%);
+}
+.pw-glass { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(14px); }
+.pw-shimmer-cta {
+  background-image: linear-gradient(100deg, #2FBC9B 0%, #34d0aa 45%, #7FE0C8 50%, #34d0aa 55%, #2FBC9B 100%);
+  background-size: 200% 100%; animation: pw-shine 4.5s linear infinite;
+}
+/* Ensure reduced-motion users still see revealed content */
+@media (prefers-reduced-motion: reduce) {
+  .pw-reveal { opacity: 1 !important; transform: none !important; }
+}
+
 /* Subtle count-up effect handled in JS; keep motion gentle */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

@@ -248,6 +248,13 @@ renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, and 
   upload + look-through, used inside Invest), **`CaThread.tsx`** (shared messaging + documents panel for
   both CA & user sides; `fileToBase64`).
 - Sidebar nav scrolls (`overflow-y-auto min-h-0`) so the account/sign-out footer stays visible.
+- **Landing page** (`app/page.tsx`, client) — premium rebuild: aurora gradient hero + floating blobs, 3D
+  tilt score card, animated count-up **Gauge**, scroll-reveals (`.pw-reveal` + IntersectionObserver),
+  glass feature showcase, an **interactive "cost of waiting"** projection (monthly slider → 10yr idle vs
+  PayWatch FV, illustrative/compliant), animated stat counters, gradient pricing + CTA. Brand gradient/motion
+  tokens live in `globals.css`: `.pw-aurora .pw-glass .pw-gradient-text .pw-shimmer-cta .pw-blob .pw-float2
+  .pw-reveal` (all respect `prefers-reduced-motion`; `.pw-reveal` force-shows). Logo = `Logo.tsx`
+  (`LogoMark` ascending ledger bars + `Wordmark` "Pay·Watch"). Copy stays in the education/organisation lane.
 - **Loading / motion system** (engagement): `components/Skeleton.tsx` = `Skeleton/SkeletonCard/SkeletonList/
   PageSkeleton` + `WittyLoader` + **`LoadingScreen`** (big centred animated gauge + rotating sarcastic caption
   that crossfades away when `loading` flips false — used inside a `relative min-h-[60vh]` wrapper with content
