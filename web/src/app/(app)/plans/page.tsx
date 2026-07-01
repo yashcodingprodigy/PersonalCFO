@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -70,7 +71,7 @@ export default function PlansPage() {
     flash(r.message); load();
   }
 
-  if (!user) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!user) return <PageSkeleton />;
   const isPaidActive = (user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active';
 
   return (

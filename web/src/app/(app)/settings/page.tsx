@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -135,7 +136,7 @@ export default function SettingsPage() {
     load();
   }
 
-  if (!user) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!user) return <PageSkeleton />;
 
   return (
     <div className="space-y-6 max-w-3xl">

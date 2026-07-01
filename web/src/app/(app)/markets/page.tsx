@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -28,7 +29,7 @@ export default function MarketsPage() {
   useEffect(() => { get('/market').then(setM).catch((e) => setErr(e.message)); }, []);
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
-  if (!m) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!m) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">

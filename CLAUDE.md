@@ -89,13 +89,17 @@ unread-alerts badge, native biometric lock overlay).
   cover rings + score; expiry/renewal/maturity **alerts** with follow-up), **Find & compare plans** marketplace
   (`/insurance/market`), coverage **rings**, collapsible "what to get" recommendations, avoid list.
   `InsurancePolicies.tsx` component.
-- **Insurance marketplace** (`insurance/market`) — PolicyBazaar-style browse → compare → guided buy across
-  **all categories** (term life, health, personal accident, critical illness, motor, home, travel). Real
-  insurers/plans/features/claim-ratios in `insuranceCatalog.ts`; `insuranceMarket.ts` ranks plans for the user's
-  profile (cover need, age, family, smoker) with a transparent score + "best fit" reasons and an **indicative
-  premium** (NOT a live quote). Compare 2–3 side-by-side; **buy = compliant hand-off** to the insurer's own
-  site via an interstitial disclaimer. Routes `/insurance/market/categories`, `/insurance/market/plans`.
-  **GOING LIVE NEEDS A LICENCE — see §8.**
+- **Insurance marketplace** (`insurance/market`) — CRED-style browse → compare → **in-app buy** across **all
+  categories** (term/health/PA/CI/motor/home/travel). Real insurers/plans/features/claim-ratios +
+  `CATEGORY_COVERAGES` + `CATEGORY_ADDONS` (motor: zero-dep/NCB-protect/engine/roadside/etc. with indicative
+  prices; health/term riders) in `insuranceCatalog.ts`; `insuranceMarket.ts` ranks for the user (transparent
+  score + "best fit" reasons + **indicative** premium, not a live quote). **PlanCard** = insurer monogram +
+  Recommended/Best-priced badges + coverages + View-benefits expand + Select. **Checkout** (`Checkout` in the
+  page) = category-aware: motor **IDV tiers** (min/std/max) + **add-on upgrades** with running total →
+  **"calculating your final premium"** loader → **review** (net + 18% GST + your details + consent) → submits
+  an **application** (`insurance_applications`; intent-only, no premium collected — see §8). Routes
+  `/insurance/market/categories`, `/insurance/market/plans` (returns plans+coverages+addOns),
+  `/insurance/applications` (list/create/withdraw). **GOING LIVE NEEDS THE CORPORATE-AGENT LICENCE — see §8.**
 - **Monthly records** (`records`) — recurring monthly-upload hub (CA-requested): month picker + **24 doc
   types grouped into 8 categories** (Income & salary, Tax statements, Banking & spending, Investments, Loans,
   Deductions & tax-saving proofs, Insurance & property, Business & self-employed) — payslip, Form 16/16A,

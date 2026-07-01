@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
@@ -7,7 +8,7 @@ import { inr, pct, DIMENSION_LABELS, CATEGORY_LABELS } from '@/lib/format';
 export default function ReportsPage() {
   const [r, setR] = useState<any>(null);
   useEffect(() => { get('/reports/current').then(setR).catch(() => {}); }, []);
-  if (!r) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!r) return <PageSkeleton />;
 
   const dims = Object.entries(r.score.dimensions) as [string, any][];
 

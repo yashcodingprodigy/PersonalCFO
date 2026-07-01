@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -35,7 +36,7 @@ export default function InsurancePage() {
   const [ins, setIns] = useState<any>(null);
   const loadIns = () => get('/insurance').then(setIns).catch(() => {});
   useEffect(() => { loadIns(); }, []);
-  if (!ins) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!ins) return <PageSkeleton />;
 
   return (
     <div className="space-y-5">

@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
@@ -246,7 +247,7 @@ export default function TaxPage() {
   const [tax, setTax] = useState<any>(null);
   const [full, setFull] = useState<any>(null);
   useEffect(() => { get('/tax').then(setTax).catch(() => {}); get('/tax/full').then(setFull).catch(() => {}); }, []);
-  if (!tax) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!tax) return <PageSkeleton />;
 
   const { comparison: c, deductions: d } = tax;
   const rp = tax.reductionPlan;

@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -25,7 +26,7 @@ export default function InvestPage() {
   }
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
-  if (!g) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!g) return <PageSkeleton />;
 
   if (!g.hasIncome) {
     return (

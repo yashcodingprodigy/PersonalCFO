@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
@@ -15,7 +16,7 @@ export default function NetWorthStatementPage() {
     get('/user/me').then(setUser).catch(() => {});
   }, []);
 
-  if (!nw || !user) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!nw || !user) return <PageSkeleton />;
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (

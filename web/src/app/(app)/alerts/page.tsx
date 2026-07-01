@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -31,7 +32,7 @@ export default function AlertsPage() {
     setData((d: any) => ({ ...d, alerts: d.alerts.map((a: any) => ({ ...a, status: 'read' })) }));
   }
 
-  if (!data) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!data) return <PageSkeleton />;
 
   const alerts = data.alerts || [];
   const unread = alerts.filter((a: any) => a.status === 'unread').length;

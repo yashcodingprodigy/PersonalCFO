@@ -27,7 +27,7 @@ import {
   listApplications, createApplication, withdrawApplication,
   INSURANCE_CATEGORIES, INSURANCE_FIELD_GUIDE, INSURANCE_TYPE_OPTIONS, CATEGORY_LABEL,
 } from '../services/insurancePolicies';
-import { CATALOG, CATEGORY_LABEL as MARKET_CAT_LABEL, verifyNote, PlanCategory } from '../services/insuranceCatalog';
+import { CATALOG, CATEGORY_LABEL as MARKET_CAT_LABEL, CATEGORY_COVERAGES, CATEGORY_ADDONS, verifyNote, PlanCategory } from '../services/insuranceCatalog';
 import { rankPlans } from '../services/insuranceMarket';
 
 export const insightsRouter = Router();
@@ -187,7 +187,13 @@ insightsRouter.get('/insurance/market/plans', async (req: AuthedRequest, res) =>
   const recommendedCover = defaultCover(category, p, ins);
   const cover = Math.max(0, Number(req.query.cover) || recommendedCover);
   const ctx = { age, cover, familySize, smoker };
-  res.json({ category, label: MARKET_CAT_LABEL[category], cover, recommendedCover, ctx, plans: rankPlans(category, ctx), verifyNote });
+  res.json({
+    category, label: MARKET_CAT_LABEL[category], cover, recommendedCover, ctx,
+    plans: rankPlans(category, ctx),
+    coverages: CATEGORY_COVERAGES[category] || [],
+    addOns: CATEGORY_ADDONS[category] || [],
+    verifyNote,
+  });
 });
 
 // ── In-app insurance applications (corporate-agent journey — intent capture) ──

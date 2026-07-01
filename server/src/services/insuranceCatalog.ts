@@ -180,5 +180,46 @@ export const CATALOG: InsurancePlan[] = [
     tags: ['multi-trip', 'worldwide'], buyUrl: 'https://www.icicilombard.com/travel-insurance' },
 ];
 
+// What each category's policy covers (shown on cards + benefits view).
+export const CATEGORY_COVERAGES: Record<PlanCategory, string[]> = {
+  motor: ['Accidental damage', 'Theft', 'Fire & explosion', 'Natural disasters (flood, quake)', 'Third-party liability', 'Personal accident cover (owner-driver)'],
+  health: ['In-patient hospitalisation', 'Day-care procedures', 'Pre & post hospitalisation', 'Ambulance charges', 'ICU / room charges', 'Domiciliary treatment'],
+  term_life: ['Death benefit to your nominee', 'Terminal-illness benefit', 'Tax benefit u/s 80C & 10(10D)'],
+  personal_accident: ['Accidental death', 'Permanent total / partial disability', 'Temporary disability income', 'Hospitalisation allowance'],
+  critical_illness: ['Lump sum on diagnosis', 'Cancer, cardiac, stroke, kidney & more', 'No hospital bills needed to claim'],
+  home: ['Building structure', 'Household contents', 'Fire, theft & burglary', 'Natural disasters'],
+  travel: ['Emergency medical abroad', 'Trip cancellation / curtailment', 'Baggage & passport loss', 'Flight delay', '24×7 global assistance'],
+};
+
+export interface AddOn { id: string; name: string; desc: string; price: number; popular?: boolean; mandatory?: boolean }
+
+// Optional upgrades per category (indicative ₹/year). Same menu across insurers.
+export const CATEGORY_ADDONS: Partial<Record<PlanCategory, AddOn[]>> = {
+  motor: [
+    { id: 'zero_dep', name: 'Zero depreciation cover', desc: 'Full claim payout with no depreciation deducted on parts.', price: 3031, popular: true },
+    { id: 'ncb_protect', name: 'NCB protect', desc: 'Keep your no-claim bonus even after making a claim.', price: 842 },
+    { id: 'engine_protect', name: 'Engine protect', desc: 'Covers engine & gearbox damage beyond standard cover.', price: 1450 },
+    { id: 'roadside', name: '24×7 roadside assistance', desc: 'Towing, fuel, flat-tyre and lockout help anytime.', price: 499 },
+    { id: 'consumables', name: 'Consumables cover', desc: 'Oil, nuts, bolts and other consumables during claims.', price: 650 },
+    { id: 'key_lock', name: 'Lock & key protect', desc: 'New keys/locks if they’re lost or stolen.', price: 299 },
+    { id: 'rti', name: 'Return to invoice', desc: 'Get the full invoice value on total loss or theft.', price: 1200 },
+    { id: 'tyre', name: 'Tyre protect', desc: 'Covers tyre damage & replacement.', price: 750 },
+    { id: 'pb', name: 'Personal belongings cover', desc: 'Items stolen from inside the vehicle.', price: 94 },
+  ],
+  health: [
+    { id: 'topup', name: 'Super top-up', desc: 'Extra cover above a threshold, very cheaply.', price: 1800, popular: true },
+    { id: 'opd', name: 'OPD & diagnostics', desc: 'Doctor visits, tests and pharmacy bills.', price: 2400 },
+    { id: 'maternity', name: 'Maternity & newborn', desc: 'Delivery and newborn cover (waiting period applies).', price: 3200 },
+    { id: 'roomrent', name: 'Room-rent waiver', desc: 'Remove any room-rent cap on your policy.', price: 900 },
+    { id: 'ci_rider', name: 'Critical-illness rider', desc: 'Lump sum on a major-illness diagnosis.', price: 1500 },
+  ],
+  term_life: [
+    { id: 'ci', name: 'Critical-illness rider', desc: 'Lump sum on diagnosis of major illnesses.', price: 2400, popular: true },
+    { id: 'adb', name: 'Accidental death benefit', desc: 'Extra payout if death is accidental.', price: 900 },
+    { id: 'wop', name: 'Waiver of premium', desc: 'Future premiums waived on disability / CI.', price: 600 },
+    { id: 'income', name: 'Income payout option', desc: 'Monthly income to family instead of a lump sum.', price: 1100 },
+  ],
+};
+
 export const verifyNote =
   'Plans, features and claim-settlement ratios are from public/IRDAI sources and can change — always confirm the current terms on the insurer’s own page. Premiums shown are PayWatch indicative estimates, not live insurer quotes.';

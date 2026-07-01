@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -28,7 +29,7 @@ export default function NetWorthPage() {
     finally { setSavingRisk(false); }
   }
 
-  if (!nw) return <div className="card h-96 animate-pulse mt-4" />;
+  if (!nw) return <PageSkeleton />;
 
   const allocTotal = Object.values(nw.allocation).reduce((s: number, v: any) => s + Number(v), 0) as number;
   const donutData = Object.entries(nw.allocation)
