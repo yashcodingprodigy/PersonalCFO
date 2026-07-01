@@ -188,7 +188,7 @@ export default function Landing() {
       {/* Nav */}
       <header className={`fixed top-0 inset-x-0 z-50 transition-all ${scrolled ? 'bg-pine-950/80 backdrop-blur-md border-b border-white/10' : ''}`}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Wordmark dark />
+          <Link href="/" aria-label="PayWatch home" className="transition-opacity hover:opacity-80"><Wordmark dark /></Link>
           <nav className="flex items-center gap-6 text-sm text-white/70">
             <a href="#features" className="hover:text-white transition-colors hidden sm:block">Features</a>
             <a href="#value" className="hover:text-white transition-colors hidden sm:block">Why now</a>
@@ -206,9 +206,6 @@ export default function Landing() {
 
         <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-14 items-center">
           <div className="pw-reveal">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.15em] uppercase text-mint-300 pw-glass rounded-full px-3 py-1.5 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-mint-400 pw-float2" /> India&apos;s money operating system
-            </span>
             <h1 className="font-display text-5xl sm:text-6xl leading-[1.03] font-medium">
               Every app shows you data.<br /><span className="pw-gradient-text">We tell you what to do.</span>
             </h1>
@@ -254,6 +251,14 @@ export default function Landing() {
             </div>
           </div>
         </div>
+
+        {/* Scroll cue */}
+        <a href="#features" aria-label="Scroll to explore" className="absolute bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/50 hover:text-white transition-colors">
+          <span className="text-[10px] uppercase tracking-[0.25em]">Scroll</span>
+          <span className="w-6 h-9 rounded-full border border-white/30 flex items-start justify-center pt-1.5">
+            <span className="w-1 h-1.5 rounded-full bg-mint-400 pw-bounce" />
+          </span>
+        </a>
       </section>
 
       {/* Value pillars */}

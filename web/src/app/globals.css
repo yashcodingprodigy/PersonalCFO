@@ -99,6 +99,8 @@ body {
 .pw-blob { animation: pw-blob 16s ease-in-out infinite; }
 @keyframes pw-float2 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
 .pw-float2 { animation: pw-float2 6s ease-in-out infinite; }
+@keyframes pw-bounce { 0%,100% { transform: translateY(0); opacity: 0.7; } 50% { transform: translateY(7px); opacity: 1; } }
+.pw-bounce { animation: pw-bounce 1.7s ease-in-out infinite; }
 @keyframes pw-shine { 0% { background-position: -180% 0; } 100% { background-position: 180% 0; } }
 .pw-reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
 .pw-reveal.in { opacity: 1; transform: none; }

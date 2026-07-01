@@ -61,9 +61,10 @@ export default function Dashboard() {
 
       {/* Ask your CFO — spotlight */}
       <Link href="/ask" className="block group">
-        <div className="card bg-pine-950 text-white p-5 sm:p-6 overflow-hidden relative hover:ring-2 hover:ring-mint-500/50 transition-all">
-          <div className="flex items-start gap-4">
-            <span className="hidden sm:flex shrink-0 items-center justify-center w-12 h-12 rounded-full bg-mint-500 text-pine-950">
+        <div className="card text-white p-5 sm:p-6 overflow-hidden relative hover:ring-2 hover:ring-mint-500/50 transition-all" style={{ background: 'linear-gradient(135deg,#0F3D34 0%,#134e43 55%,#177a67 125%)' }}>
+          <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-mint-500/15 blur-3xl pw-blob pointer-events-none" aria-hidden />
+          <div className="flex items-start gap-4 relative">
+            <span className="hidden sm:flex shrink-0 items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-mint-400 to-mint-500 text-pine-950 shadow-lg shadow-mint-500/20">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z" /></svg>
             </span>
             <div className="min-w-0 flex-1">
