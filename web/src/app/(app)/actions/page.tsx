@@ -3,6 +3,53 @@
 import { useEffect, useState } from 'react';
 import { get, patch, post } from '@/lib/api';
 import { rupeesToPaise } from '@/lib/format';
+import { Skeleton } from '@/components/Skeleton';
+
+// Sarcastic captions that rotate while the action plan loads.
+const LOADING_QUIPS = [
+  'Rounding up ways to make you richer…',
+  'Finding money you forgot you had…',
+  'Ranking your to-dos so you don’t have to…',
+  'Doing the boring finance bit for you…',
+  'Negotiating with your spreadsheet…',
+  'Bribing your future self to save more…',
+  'Alphabetising your excuses… almost done…',
+];
+
+// A single action-card-shaped skeleton row.
+function ActionSkeleton() {
+  return (
+    <div className="card p-5">
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-5 w-5 rounded-full mt-0.5" />
+        <div className="flex-1 space-y-2.5">
+          <Skeleton className="h-3.5 w-2/3" />
+          <Skeleton className="h-3 w-1/2" />
+          <div className="flex gap-2 pt-1">
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+        </div>
+        <Skeleton className="h-4 w-4 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function ActionsLoading() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((x) => (x + 1) % LOADING_QUIPS.length), 1700);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="space-y-4">
+      <p key={i} className="pw-fade-up text-sm text-ink-soft text-center py-1">{LOADING_QUIPS[i]}</p>
+      {Array.from({ length: 4 }).map((_, k) => <ActionSkeleton key={k} />)}
+    </div>
+  );
+}
 
 const DIFF_STYLE: Record<string, string> = {
   easy: 'bg-mint-100 text-pine-800',
@@ -45,6 +92,7 @@ export default function ActionsPage() {
   const [priority, setPriority] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [sortBy, setSortBy] = useState<'priority' | 'points'>('priority');
   const [toast, setToast] = useState('');
+  const [loading, setLoading] = useState(true);
 
   // confirmation flow state
   const [confirm, setConfirm] = useState<{ id: string; step: 'ask' | 'details' } | null>(null);
@@ -56,7 +104,7 @@ export default function ActionsPage() {
     const [a, s] = await Promise.all([get('/actions'), get('/actions/stats/summary')]);
     setActions(a); setStats(s);
   }
-  useEffect(() => { load().catch(() => {}); }, []);
+  useEffect(() => { load().catch(() => {}).finally(() => setLoading(false)); }, []);
 
   function flash(m: string) { setToast(m); setTimeout(() => setToast(''), 4000); }
 
@@ -138,6 +186,7 @@ export default function ActionsPage() {
 
       {toast && <div className="rounded-xl bg-mint-100 text-pine-800 text-sm font-semibold px-4 py-3">{toast}</div>}
 
+      {loading ? <ActionsLoading /> : (
       <div className="space-y-4">
         {visible.length === 0 && (
           <div className="card p-10 text-center text-sm text-ink-soft">
@@ -232,6 +281,7 @@ export default function ActionsPage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
