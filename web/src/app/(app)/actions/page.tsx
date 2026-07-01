@@ -117,7 +117,7 @@ export default function ActionsPage() {
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-display text-3xl font-medium">Action plan</h1>
-          <p className="text-sm text-ink-soft mt-1">Specific, quantified steps — prioritised for your profile.</p>
+          <p className="text-sm text-ink-soft mt-1">Clear steps to improve your money — most important first.</p>
         </div>
         {stats && (
           <div className="flex gap-6 text-center">

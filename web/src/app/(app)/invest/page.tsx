@@ -184,7 +184,7 @@ export default function InvestPage() {
       </Section>
 
       {/* Start + rebalance */}
-      <Section id="start" title="Make it happen">
+      <Section id="start" title="How to start">
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="card p-6">
             <h3 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-3">How to actually start</h3>

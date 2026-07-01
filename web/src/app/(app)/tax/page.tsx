@@ -52,7 +52,7 @@ function TaxCopilot({ c }: { c: any }) {
   const mailto = `mailto:?subject=${encodeURIComponent(`My tax pack (FY ${c.readyPack.fy})`)}&body=${encodeURIComponent('Hi, attaching my PayWatch tax summary for filing. Please find the figures and document list in the attached file.')}`;
 
   return (
-    <Section id="copilot" title="Your year-round tax copilot" hint="What a CA tracks all year — on autopilot.">
+    <Section id="copilot" title="Plan ahead through the year" hint="The things a CA usually tracks — sorted for you.">
       <div className="card p-5 border-l-4 border-l-mint-500 mb-4"><p className="text-sm text-ink-soft leading-relaxed">{c.season}</p></div>
 
       {/* Advance tax timeline */}
@@ -272,7 +272,7 @@ export default function TaxPage() {
         <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · updated for the latest Finance Act.</p>
       </div>
 
-      <SectionNav items={[{ id: 'computation', label: 'Full computation' }, { id: 'regime', label: 'Regime' }, { id: 'copilot', label: 'Copilot' }, { id: 'reduce', label: 'Reduce tax' }, { id: 'deductions', label: 'Deductions' }, { id: 'calendar', label: 'Calendar' }, { id: 'docs', label: 'Docs & terms' }]} />
+      <SectionNav items={[{ id: 'computation', label: 'Full computation' }, { id: 'regime', label: 'Regime' }, { id: 'copilot', label: 'Plan ahead' }, { id: 'reduce', label: 'Reduce tax' }, { id: 'deductions', label: 'Deductions' }, { id: 'calendar', label: 'Calendar' }, { id: 'docs', label: 'Docs & terms' }]} />
 
       {full && <FullBreakdown f={full} />}
 
@@ -285,7 +285,7 @@ export default function TaxPage() {
       )}
 
       {/* Regime comparison */}
-      <Section id="regime" title="Which tax regime wins" hint="The system that leaves more in your pocket.">
+      <Section id="regime" title="Old vs new regime" hint="Which one saves you more.">
         <div className="grid sm:grid-cols-2 gap-4">
           {[c.oldRegime, c.newRegime].map((r: any) => (
             <div key={r.regime} className={`card p-6 relative ${c.recommended === r.regime ? 'ring-2 ring-pine-700' : ''}`}>
@@ -379,7 +379,7 @@ export default function TaxPage() {
 
       {/* Docs + glossary */}
       {rp && (
-        <Section id="docs" title="Filing toolkit">
+        <Section id="docs" title="How to file">
           <div className="grid sm:grid-cols-3 gap-3 mb-4">
             {[['/file', 'File your ITR', 'Guided wizard'], ['/rent-receipts', 'Rent receipts', 'For HRA'], ['/donation-receipts', '80G receipt', 'For donations']].map(([href, t, s]) => (
               <Link key={href} href={href} className="rounded-xl border border-paper-200 p-4 hover:border-pine-600 hover:shadow-card transition-all">
