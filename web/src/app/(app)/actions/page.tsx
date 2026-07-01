@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { get, patch, post } from '@/lib/api';
 import { rupeesToPaise } from '@/lib/format';
-import { Skeleton } from '@/components/Skeleton';
 
 // Sarcastic captions that rotate while the action plan loads.
 const LOADING_QUIPS = [
@@ -16,37 +15,38 @@ const LOADING_QUIPS = [
   'Alphabetising your excuses… almost done…',
 ];
 
-// A single action-card-shaped skeleton row.
-function ActionSkeleton() {
-  return (
-    <div className="card p-5">
-      <div className="flex items-start gap-3">
-        <Skeleton className="h-5 w-5 rounded-full mt-0.5" />
-        <div className="flex-1 space-y-2.5">
-          <Skeleton className="h-3.5 w-2/3" />
-          <Skeleton className="h-3 w-1/2" />
-          <div className="flex gap-2 pt-1">
-            <Skeleton className="h-5 w-24 rounded-full" />
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-          </div>
-        </div>
-        <Skeleton className="h-4 w-4 rounded" />
-      </div>
-    </div>
-  );
-}
-
-function ActionsLoading() {
-  const [i, setI] = useState(0);
+// Big centred loading state: an animated gauge + a large rotating quip that
+// eases away in style once the data is ready (`leaving` → onTransitionEnd).
+function ActionsLoading({ leaving, onGone }: { leaving: boolean; onGone: () => void }) {
+  const [i, setI] = useState(() => Math.floor(Math.random() * LOADING_QUIPS.length));
   useEffect(() => {
+    if (leaving) return; // stop rotating once we start the exit
     const t = setInterval(() => setI((x) => (x + 1) % LOADING_QUIPS.length), 1700);
     return () => clearInterval(t);
-  }, []);
+  }, [leaving]);
+  // Safety net: if transitionend never fires (e.g. reduced-motion disables
+  // transitions), still remove the loader so content isn't blocked.
+  useEffect(() => {
+    if (!leaving) return;
+    const t = setTimeout(onGone, 700);
+    return () => clearTimeout(t);
+  }, [leaving, onGone]);
   return (
-    <div className="space-y-4">
-      <p key={i} className="pw-fade-up text-sm text-ink-soft text-center py-1">{LOADING_QUIPS[i]}</p>
-      {Array.from({ length: 4 }).map((_, k) => <ActionSkeleton key={k} />)}
+    <div
+      className={`pw-splash absolute inset-0 z-10 flex flex-col items-center justify-center text-center gap-8 ${leaving ? 'pw-splash-leave' : ''}`}
+      onTransitionEnd={() => { if (leaving) onGone(); }}
+      aria-hidden
+    >
+      <svg width="88" height="88" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="45" fill="none" stroke="#0F3D34" strokeOpacity="0.10" strokeWidth="5" />
+        <circle cx="50" cy="50" r="45" fill="none" stroke="#2FBC9B" strokeWidth="5" strokeLinecap="round"
+          strokeDasharray="283" transform="rotate(-90 50 50)" className="pw-ring-draw" />
+        <g className="pw-sweep"><line x1="50" y1="50" x2="50" y2="18" stroke="#2FBC9B" strokeWidth="3.5" strokeLinecap="round" /></g>
+        <circle cx="50" cy="50" r="5" fill="#2FBC9B" />
+      </svg>
+      <p key={i} className="pw-fade-up font-display text-3xl sm:text-4xl font-medium text-pine-900 max-w-xl px-6 leading-snug">
+        {LOADING_QUIPS[i]}
+      </p>
     </div>
   );
 }
@@ -93,6 +93,7 @@ export default function ActionsPage() {
   const [sortBy, setSortBy] = useState<'priority' | 'points'>('priority');
   const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showLoader, setShowLoader] = useState(true); // stays mounted through the exit fade
 
   // confirmation flow state
   const [confirm, setConfirm] = useState<{ id: string; step: 'ask' | 'details' } | null>(null);
@@ -186,8 +187,10 @@ export default function ActionsPage() {
 
       {toast && <div className="rounded-xl bg-mint-100 text-pine-800 text-sm font-semibold px-4 py-3">{toast}</div>}
 
-      {loading ? <ActionsLoading /> : (
-      <div className="space-y-4">
+      <div className="relative min-h-[60vh]">
+        {showLoader && <ActionsLoading leaving={!loading} onGone={() => setShowLoader(false)} />}
+        {!loading && (
+        <div className="space-y-4 pw-page-in">
         {visible.length === 0 && (
           <div className="card p-10 text-center text-sm text-ink-soft">
             {status === 'open' ? 'Nothing here with these filters. Your plan is on track — new actions appear as your data changes.' : 'Nothing here yet.'}
@@ -280,8 +283,9 @@ export default function ActionsPage() {
             </article>
           );
         })}
+        </div>
+        )}
       </div>
-      )}
     </div>
   );
 }
