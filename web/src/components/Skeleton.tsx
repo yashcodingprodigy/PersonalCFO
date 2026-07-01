@@ -81,22 +81,27 @@ export function WittyLoader({ messages = DEFAULT_MESSAGES, title, dark = false, 
 // then eases away in style once `loading` flips false (crossfading to the
 // page underneath). Drop inside a `relative min-h-[…]` wrapper, with the
 // real content rendered as a sibling gated on `!loading`.
-export function LoadingScreen({ loading, quips }: { loading: boolean; quips: string[] }) {
-  const [show, setShow] = useState(true);
+// DEFERRED: it only reveals itself if `loading` is still true after `delayMs`,
+// so fast / cached loads never flash a curtain — it appears only when the data
+// genuinely takes a moment.
+export function LoadingScreen({ loading, quips, delayMs = 200 }: { loading: boolean; quips: string[]; delayMs?: number }) {
+  const [show, setShow] = useState(false);
   const [i, setI] = useState(() => Math.floor(Math.random() * quips.length));
-  useEffect(() => { if (loading) setShow(true); }, [loading]);
+  // Reveal only if loading outlasts the delay; when loading ends, keep the
+  // element around briefly so the exit fade can play (or safety-clear it).
+  useEffect(() => {
+    if (loading) {
+      const t = setTimeout(() => setShow(true), delayMs);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setShow(false), 700);
+    return () => clearTimeout(t);
+  }, [loading, delayMs]);
   useEffect(() => {
     if (!show || !loading) return; // stop rotating once the exit begins
     const t = setInterval(() => setI((x) => (x + 1) % quips.length), 1700);
     return () => clearInterval(t);
   }, [show, loading, quips.length]);
-  // Safety net: if transitionend never fires (reduced-motion disables
-  // transitions), still remove the curtain so content isn't blocked.
-  useEffect(() => {
-    if (loading) return;
-    const t = setTimeout(() => setShow(false), 700);
-    return () => clearTimeout(t);
-  }, [loading]);
   if (!show) return null;
   const leaving = !loading;
   return (
