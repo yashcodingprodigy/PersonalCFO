@@ -123,52 +123,56 @@ export default function Dashboard() {
       {/* Net-worth growth incentive */}
       {networth?.growth?.available && networth.growth.horizons?.[hi] && (() => {
         const g = networth.growth; const h = g.horizons[hi];
+        const total = h.improved || 1;
+        const basePct = Math.max(4, Math.min(100, (h.baseline / total) * 100));
+        const upPct = Math.max(0, Math.min(100 - basePct, (h.uplift / total) * 100));
         return (
-          <section className="card p-6 bg-pine-950 text-white overflow-hidden relative">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-mint-300">Your {h.years}-year opportunity</p>
-              <div className="inline-flex rounded-full bg-white/10 p-1">
-                {g.horizons.map((x: any, i: number) => (
-                  <button key={x.years} onClick={() => setHi(i)}
-                    className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${hi === i ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>{x.years}y</button>
-                ))}
+          <section className="card p-6 text-white overflow-hidden relative" style={{ background: 'linear-gradient(135deg,#0F3D34 0%,#123f37 60%,#0c332c 100%)' }}>
+            <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-mint-500/10 blur-3xl pw-blob pointer-events-none" aria-hidden />
+            <div className="relative">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-mint-300">Your {h.years}-year opportunity</p>
+                <div className="inline-flex rounded-full bg-white/10 p-1">
+                  {g.horizons.map((x: any, i: number) => (
+                    <button key={x.years} onClick={() => setHi(i)}
+                      className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${hi === i ? 'bg-mint-500 text-pine-950' : 'text-white/70 hover:text-white'}`}>{x.years}y</button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <p className="mt-2 text-xs text-white/55">Starting from your net worth today, <strong className="text-white/80">{inr(g.current)}</strong>, here&apos;s where {h.years} years takes you:</p>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 items-stretch">
-              {/* If nothing changes */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">If nothing changes</p>
-                <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-white/70">{inr(h.baseline)}</p>
-                <p className="text-[11px] text-white/35 mt-1">going it alone</p>
+              <div className="mt-4 grid grid-cols-2 gap-3 items-stretch">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Going it alone</p>
+                  <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-white/70">{inr(h.baseline)}</p>
+                </div>
+                <div className="rounded-2xl border-2 border-mint-500 bg-mint-500/10 p-5 relative shadow-[0_0_30px_-8px_rgba(47,188,155,0.6)]">
+                  <span className="absolute -top-2.5 right-3 rounded-full bg-mint-500 text-pine-950 text-[11px] font-extrabold px-2.5 py-0.5">+{inr(h.uplift)}</span>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-mint-300">With PayWatch</p>
+                  <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-mint-300">{inr(h.improved)}</p>
+                </div>
               </div>
-              {/* With PayWatch */}
-              <div className="rounded-2xl border-2 border-mint-500 bg-mint-500/10 p-5 relative shadow-[0_0_30px_-8px_rgba(47,188,155,0.6)]">
-                <span className="absolute -top-2.5 right-3 rounded-full bg-mint-500 text-pine-950 text-[11px] font-extrabold px-2.5 py-0.5">+{inr(h.uplift)}</span>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-mint-300">With PayWatch</p>
-                <p className="font-display text-2xl sm:text-3xl font-semibold tabular-nums mt-1.5 text-mint-300">{inr(h.improved)}</p>
-                <p className="text-[11px] text-white/55 mt-1">following your plan</p>
+
+              {/* Visual gap bar */}
+              <div className="mt-4 flex h-3 rounded-full overflow-hidden bg-white/[0.06]">
+                <div className="bg-white/25" style={{ width: `${basePct}%`, transition: 'width .7s cubic-bezier(.16,1,.3,1)' }} />
+                <div className="bg-mint-500" style={{ width: `${upPct}%`, transition: 'width .7s cubic-bezier(.16,1,.3,1)', boxShadow: '0 0 16px rgba(47,188,155,.55)' }} />
               </div>
-            </div>
+              <p className="mt-2.5 text-sm text-white/85"><strong className="text-mint-300">{inr(h.uplift)} more</strong> — same start, and the gap widens every year.</p>
 
-            <p className="mt-4 text-sm text-white/85 leading-snug">
-              Same starting point — about <strong className="text-mint-300">{inr(h.uplift)} more</strong> in {h.years} years by investing more of what you earn, instead of letting it sit. And the gap widens every year after.
-            </p>
+              <div className="mt-4 flex items-center gap-4 flex-wrap">
+                <Link href="/actions" className="inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2.5 text-sm font-bold hover:bg-mint-400 transition-colors">See how →</Link>
+                <details className="text-sm">
+                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden text-white/65 hover:text-white transition-colors">What moves the needle ▾</summary>
+                  <ul className="mt-3 space-y-1.5">
+                    {g.levers.map((l: string, i: number) => (
+                      <li key={i} className="flex gap-2 text-sm text-white/85"><span className="text-mint-300 shrink-0">→</span>{l}</li>
+                    ))}
+                  </ul>
+                </details>
+              </div>
 
-            <ul className="mt-3 space-y-1.5">
-              {g.levers.map((l: string, i: number) => (
-                <li key={i} className="flex gap-2 text-sm text-white/90"><span className="text-mint-300 font-bold shrink-0">→</span>{l}</li>
-              ))}
-            </ul>
-            <Link href="/actions" className="mt-4 inline-block rounded-full bg-mint-500 text-pine-950 px-5 py-2.5 text-sm font-bold hover:bg-mint-400 transition-colors">
-              Show me how — go to my actions
-            </Link>
-
-            {/* Risk-based return assumption + change control */}
-            <div className="mt-5 pt-4 border-t border-white/10">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-xs text-white/60">Based on your <strong className="text-white/85 capitalize">{g.riskAppetite}</strong> risk level — assumes <strong className="text-white/85">~{g.assumedReturnPct}% a year</strong>.</p>
+              <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs text-white/55">Your <strong className="text-white/85 capitalize">{g.riskAppetite}</strong> plan · ~{g.assumedReturnPct}%/yr</p>
                 <div className="inline-flex rounded-full bg-white/10 p-0.5">
                   {['conservative', 'moderate', 'aggressive'].map((r) => (
                     <button key={r} onClick={() => changeRisk(r)} disabled={savingRisk}
@@ -178,9 +182,10 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-              <p className="mt-2 text-[10px] text-white/40 leading-relaxed">
-                Change your risk level to see how the projection shifts (cautious ~7% · balanced ~9% · aggressive ~11% a year). Illustration, not a guarantee — markets fluctuate and returns aren&apos;t guaranteed. &ldquo;If nothing changes&rdquo; continues your current investing; the plan assumes you invest ~25% of take-home. Figures are nominal, before ~6% inflation.
-              </p>
+              <details className="mt-2 text-[10px] text-white/40">
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:text-white/60 transition-colors">Assumptions ▾</summary>
+                <p className="mt-1.5 leading-relaxed">Cautious ~7% · balanced ~9% · aggressive ~11% a year. Illustration, not a guarantee — markets fluctuate. &ldquo;Going it alone&rdquo; continues your current investing; the plan assumes ~25% of take-home invested. Nominal, before ~6% inflation.</p>
+              </details>
             </div>
           </section>
         );
