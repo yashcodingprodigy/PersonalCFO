@@ -59,6 +59,42 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Money Health Score — hero, front and top */}
+      <div className="grid lg:grid-cols-5 gap-6">
+        <section className="card p-6 lg:col-span-2 flex flex-col items-center text-center relative overflow-hidden">
+          <div className="absolute -top-14 -left-10 w-48 h-48 rounded-full bg-mint-500/10 blur-3xl pw-blob pointer-events-none" aria-hidden />
+          <ScoreGauge score={score.score} size={240} />
+          {score.change_since_last_month != null && score.change_since_last_month !== 0 && (
+            <p className={`text-sm font-semibold ${score.change_since_last_month > 0 ? 'text-signal-green' : 'text-signal-red'}`}>
+              {score.change_since_last_month > 0 ? '▲' : '▼'} {Math.abs(score.change_since_last_month)} points since last month
+            </p>
+          )}
+          <p className="text-xs text-ink-faint mt-3 leading-relaxed max-w-xs">
+            Your score across six dimensions of financial health, measured against standard planning benchmarks.
+          </p>
+          {unavailable.length > 0 && (
+            <Link href="/settings" className="mt-3 text-xs text-pine-700 underline">
+              {unavailable.length} dimension{unavailable.length > 1 ? 's' : ''} locked — add missing data
+            </Link>
+          )}
+        </section>
+        <section className="card p-6 lg:col-span-3">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Score dimensions</h2>
+          <div className="divide-y divide-paper-100">
+            {dims.map(([key, d]) =>
+              d.available ? (
+                <DimensionBar key={key} label={DIMENSION_LABELS[key] || key} score={d.score} explanation={d.explanation} />
+              ) : (
+                <div key={key} className="py-3 opacity-50">
+                  <div className="flex justify-between"><span className="text-sm font-semibold">{DIMENSION_LABELS[key]}</span><span className="text-xs">locked</span></div>
+                  <p className="text-xs text-ink-soft mt-1">{d.explanation}</p>
+                </div>
+              )
+            )}
+          </div>
+        </section>
+      </div>
+
       {/* Ask your CFO — spotlight */}
       <Link href="/ask" className="block group">
         <div className="card text-white p-5 sm:p-6 overflow-hidden relative hover:ring-2 hover:ring-mint-500/50 transition-all" style={{ background: 'linear-gradient(135deg,#0F3D34 0%,#134e43 55%,#177a67 125%)' }}>
@@ -127,7 +163,7 @@ export default function Dashboard() {
         const basePct = Math.max(4, Math.min(100, (h.baseline / total) * 100));
         const upPct = Math.max(0, Math.min(100 - basePct, (h.uplift / total) * 100));
         return (
-          <section className="card p-6 text-white overflow-hidden relative" style={{ background: 'linear-gradient(135deg,#0F3D34 0%,#123f37 60%,#0c332c 100%)' }}>
+          <section className="card p-6 text-white overflow-hidden relative" style={{ background: 'linear-gradient(150deg,#07211D 0%,#0B2F2A 100%)' }}>
             <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-mint-500/10 blur-3xl pw-blob pointer-events-none" aria-hidden />
             <div className="relative">
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -190,43 +226,6 @@ export default function Dashboard() {
           </section>
         );
       })()}
-
-      <div className="grid lg:grid-cols-5 gap-6">
-        {/* Score card */}
-        <section className="card p-6 lg:col-span-2 flex flex-col items-center text-center">
-          <ScoreGauge score={score.score} />
-          {score.change_since_last_month != null && score.change_since_last_month !== 0 && (
-            <p className={`text-sm font-semibold ${score.change_since_last_month > 0 ? 'text-signal-green' : 'text-signal-red'}`}>
-              {score.change_since_last_month > 0 ? '▲' : '▼'} {Math.abs(score.change_since_last_month)} points since last month
-            </p>
-          )}
-          <p className="text-xs text-ink-faint mt-3 leading-relaxed max-w-xs">
-            Your score across six dimensions of financial health, measured against standard planning benchmarks.
-          </p>
-          {unavailable.length > 0 && (
-            <Link href="/settings" className="mt-3 text-xs text-pine-700 underline">
-              {unavailable.length} dimension{unavailable.length > 1 ? 's' : ''} locked — add missing data
-            </Link>
-          )}
-        </section>
-
-        {/* Dimensions */}
-        <section className="card p-6 lg:col-span-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Score dimensions</h2>
-          <div className="divide-y divide-paper-100">
-            {dims.map(([key, d]) =>
-              d.available ? (
-                <DimensionBar key={key} label={DIMENSION_LABELS[key] || key} score={d.score} explanation={d.explanation} />
-              ) : (
-                <div key={key} className="py-3 opacity-50">
-                  <div className="flex justify-between"><span className="text-sm font-semibold">{DIMENSION_LABELS[key]}</span><span className="text-xs">locked</span></div>
-                  <p className="text-xs text-ink-soft mt-1">{d.explanation}</p>
-                </div>
-              )
-            )}
-          </div>
-        </section>
-      </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Net worth summary */}

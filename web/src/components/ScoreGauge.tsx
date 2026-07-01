@@ -9,7 +9,7 @@ export function ScoreGauge({ score, size = 220 }: { score: number; size?: number
   useEffect(() => {
     let raf: number;
     const start = performance.now();
-    const dur = 900;
+    const dur = 1400;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / dur);
       setDisplay(Math.round(score * (1 - Math.pow(1 - p, 3))));
