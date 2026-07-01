@@ -1,5 +1,14 @@
 'use client';
-import { PageSkeleton } from '@/components/Skeleton';
+import { LoadingScreen } from '@/components/Skeleton';
+
+const INVEST_QUIPS = [
+  'Diversifying without the jargon…',
+  'Turning today’s surplus into future-you…',
+  'Balancing greed and fear, mathematically…',
+  'Doing compound interest the slow way…',
+  'Finding your risk appetite… gently…',
+  'Building wealth, one index fund at a time…',
+];
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -26,25 +35,24 @@ export default function InvestPage() {
   }
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
-  if (!g) return <PageSkeleton />;
 
-  if (!g.hasIncome) {
-    return (
-      <div className="space-y-4">
-        <h1 className="font-display text-3xl font-medium">Where to invest</h1>
-        <div className="card p-8 text-center">
-          <p className="text-sm text-ink-soft">{g.investableExplanation}</p>
-          <Link href="/settings" className="btn-primary inline-block mt-4">Add my income</Link>
-        </div>
-      </div>
-    );
-  }
-
-  const t = g.targetAllocation;
-  const donutData = (['equity', 'debt', 'gold'] as const).filter((k) => t[k] > 0).map((k) => ({ label: BUCKET_LABEL[k], value: t[k], color: BUCKET_COLOR[k] }));
+  const t = g?.targetAllocation;
+  const donutData = t ? (['equity', 'debt', 'gold'] as const).filter((k) => t[k] > 0).map((k) => ({ label: BUCKET_LABEL[k], value: t[k], color: BUCKET_COLOR[k] })) : [];
 
   return (
-    <div className="space-y-5">
+    <div className="relative min-h-[60vh]">
+      <LoadingScreen loading={!g} quips={INVEST_QUIPS} />
+      {g && !g.hasIncome && (
+        <div className="space-y-4 pw-page-in">
+          <h1 className="font-display text-3xl font-medium">Where to invest</h1>
+          <div className="card p-8 text-center">
+            <p className="text-sm text-ink-soft">{g.investableExplanation}</p>
+            <Link href="/settings" className="btn-primary inline-block mt-4">Add my income</Link>
+          </div>
+        </div>
+      )}
+      {g && g.hasIncome && (
+    <div className="space-y-5 pw-page-in">
       <div>
         <h1 className="font-display text-3xl font-medium">Where to invest</h1>
         <p className="text-sm text-ink-soft mt-1">A personalised, beginner-friendly plan — fund <em>categories</em>, never specific products.</p>
@@ -194,6 +202,8 @@ export default function InvestPage() {
       </Section>
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{g.disclaimer}</p>
+    </div>
+      )}
     </div>
   );
 }

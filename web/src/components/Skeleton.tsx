@@ -76,6 +76,49 @@ export function WittyLoader({ messages = DEFAULT_MESSAGES, title, dark = false, 
   );
 }
 
+// ── Big centred loading curtain ─────────────────────────────────────
+// Shows an animated gauge + a large rotating caption over the content area,
+// then eases away in style once `loading` flips false (crossfading to the
+// page underneath). Drop inside a `relative min-h-[…]` wrapper, with the
+// real content rendered as a sibling gated on `!loading`.
+export function LoadingScreen({ loading, quips }: { loading: boolean; quips: string[] }) {
+  const [show, setShow] = useState(true);
+  const [i, setI] = useState(() => Math.floor(Math.random() * quips.length));
+  useEffect(() => { if (loading) setShow(true); }, [loading]);
+  useEffect(() => {
+    if (!show || !loading) return; // stop rotating once the exit begins
+    const t = setInterval(() => setI((x) => (x + 1) % quips.length), 1700);
+    return () => clearInterval(t);
+  }, [show, loading, quips.length]);
+  // Safety net: if transitionend never fires (reduced-motion disables
+  // transitions), still remove the curtain so content isn't blocked.
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => setShow(false), 700);
+    return () => clearTimeout(t);
+  }, [loading]);
+  if (!show) return null;
+  const leaving = !loading;
+  return (
+    <div
+      className={`pw-splash absolute inset-0 z-10 flex flex-col items-center justify-center text-center gap-8 ${leaving ? 'pw-splash-leave' : ''}`}
+      onTransitionEnd={() => { if (leaving) setShow(false); }}
+      aria-hidden
+    >
+      <svg width="88" height="88" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="45" fill="none" stroke="#0F3D34" strokeOpacity="0.10" strokeWidth="5" />
+        <circle cx="50" cy="50" r="45" fill="none" stroke="#2FBC9B" strokeWidth="5" strokeLinecap="round"
+          strokeDasharray="283" transform="rotate(-90 50 50)" className="pw-ring-draw" />
+        <g className="pw-sweep"><line x1="50" y1="50" x2="50" y2="18" stroke="#2FBC9B" strokeWidth="3.5" strokeLinecap="round" /></g>
+        <circle cx="50" cy="50" r="5" fill="#2FBC9B" />
+      </svg>
+      <p key={i} className="pw-fade-up font-display text-3xl sm:text-4xl font-medium text-pine-900 max-w-xl px-6 leading-snug">
+        {quips[i]}
+      </p>
+    </div>
+  );
+}
+
 // A compact inline spinner + message (for buttons / small waits).
 export function InlineLoader({ label = 'loading…' }: { label?: string }) {
   return (

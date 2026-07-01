@@ -1,5 +1,14 @@
 'use client';
-import { PageSkeleton } from '@/components/Skeleton';
+import { LoadingScreen } from '@/components/Skeleton';
+
+const TAX_QUIPS = [
+  'Finding deductions the taxman forgot to mention…',
+  'Arguing old regime vs new on your behalf…',
+  'Doing the math you’d rather not…',
+  'Counting every rupee back into your pocket…',
+  'Making peace with Form 16…',
+  'Turning receipts into refunds…',
+];
 
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
@@ -247,15 +256,17 @@ export default function TaxPage() {
   const [tax, setTax] = useState<any>(null);
   const [full, setFull] = useState<any>(null);
   useEffect(() => { get('/tax').then(setTax).catch(() => {}); get('/tax/full').then(setFull).catch(() => {}); }, []);
-  if (!tax) return <PageSkeleton />;
-
-  const { comparison: c, deductions: d } = tax;
-  const rp = tax.reductionPlan;
-  const noTax = c.oldRegime.tax === 0 && c.newRegime.tax === 0;
-  const maxTax = Math.max(c.oldRegime.tax, c.newRegime.tax, 1);
+  const c = tax?.comparison;
+  const d = tax?.deductions;
+  const rp = tax?.reductionPlan;
+  const noTax = !!c && c.oldRegime.tax === 0 && c.newRegime.tax === 0;
+  const maxTax = c ? Math.max(c.oldRegime.tax, c.newRegime.tax, 1) : 1;
 
   return (
-    <div className="space-y-5">
+    <div className="relative min-h-[60vh]">
+      <LoadingScreen loading={!tax} quips={TAX_QUIPS} />
+      {tax && c && (
+    <div className="space-y-5 pw-page-in">
       <div>
         <h1 className="font-display text-3xl font-medium">Tax</h1>
         <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · updated for the latest Finance Act.</p>
@@ -399,6 +410,8 @@ export default function TaxPage() {
       )}
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{tax.disclaimer}</p>
+    </div>
+      )}
     </div>
   );
 }

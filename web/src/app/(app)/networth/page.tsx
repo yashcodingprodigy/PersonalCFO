@@ -1,5 +1,14 @@
 'use client';
-import { PageSkeleton } from '@/components/Skeleton';
+import { LoadingScreen } from '@/components/Skeleton';
+
+const NETWORTH_QUIPS = [
+  'Adding up everything you own (and owe)…',
+  'Counting assets, ignoring vibes…',
+  'Projecting future-you’s bank balance…',
+  'Doing the flex-worthy math…',
+  'Netting the good against the bad…',
+  'Turning your accounts into one number…',
+];
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -29,21 +38,22 @@ export default function NetWorthPage() {
     finally { setSavingRisk(false); }
   }
 
-  if (!nw) return <PageSkeleton />;
-
-  const allocTotal = Object.values(nw.allocation).reduce((s: number, v: any) => s + Number(v), 0) as number;
-  const donutData = Object.entries(nw.allocation)
+  const allocTotal = (nw ? Object.values(nw.allocation).reduce((s: number, v: any) => s + Number(v), 0) : 0) as number;
+  const donutData = nw ? Object.entries(nw.allocation)
     .filter(([, v]: any) => Number(v) > 0)
-    .map(([k, v]: [string, any]) => ({ label: ALLOC_LABELS[k] || k, value: Number(v), color: ALLOC_COLORS[k] || C.inkFaint }));
+    .map(([k, v]: [string, any]) => ({ label: ALLOC_LABELS[k] || k, value: Number(v), color: ALLOC_COLORS[k] || C.inkFaint })) : [];
 
   const months = spend?.by_category ? Array.from(new Set<string>(spend.by_category.map((r: any) => r.month))).slice(0, 1) : [];
   const thisMonthSpend = spend?.by_category?.filter((r: any) => r.month === months[0]) || [];
 
-  const g = nw.growth;
+  const g = nw?.growth;
   const horizon = g?.horizons?.[hi];
 
   return (
-    <div className="space-y-6">
+    <div className="relative min-h-[60vh]">
+      <LoadingScreen loading={!nw} quips={NETWORTH_QUIPS} />
+      {nw && (
+    <div className="space-y-6 pw-page-in">
       <div>
         <h1 className="font-display text-3xl font-medium">Net worth</h1>
         <p className="text-sm text-ink-soft mt-1">Assets minus liabilities — your complete financial picture.</p>
@@ -204,6 +214,8 @@ export default function NetWorthPage() {
             )}
           </div>
         </Section>
+      )}
+    </div>
       )}
     </div>
   );

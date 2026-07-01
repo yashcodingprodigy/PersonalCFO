@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { get, patch, post } from '@/lib/api';
 import { rupeesToPaise } from '@/lib/format';
+import { LoadingScreen } from '@/components/Skeleton';
 
 // Sarcastic captions that rotate while the action plan loads.
 const LOADING_QUIPS = [
@@ -14,42 +15,6 @@ const LOADING_QUIPS = [
   'Bribing your future self to save more…',
   'Alphabetising your excuses… almost done…',
 ];
-
-// Big centred loading state: an animated gauge + a large rotating quip that
-// eases away in style once the data is ready (`leaving` → onTransitionEnd).
-function ActionsLoading({ leaving, onGone }: { leaving: boolean; onGone: () => void }) {
-  const [i, setI] = useState(() => Math.floor(Math.random() * LOADING_QUIPS.length));
-  useEffect(() => {
-    if (leaving) return; // stop rotating once we start the exit
-    const t = setInterval(() => setI((x) => (x + 1) % LOADING_QUIPS.length), 1700);
-    return () => clearInterval(t);
-  }, [leaving]);
-  // Safety net: if transitionend never fires (e.g. reduced-motion disables
-  // transitions), still remove the loader so content isn't blocked.
-  useEffect(() => {
-    if (!leaving) return;
-    const t = setTimeout(onGone, 700);
-    return () => clearTimeout(t);
-  }, [leaving, onGone]);
-  return (
-    <div
-      className={`pw-splash absolute inset-0 z-10 flex flex-col items-center justify-center text-center gap-8 ${leaving ? 'pw-splash-leave' : ''}`}
-      onTransitionEnd={() => { if (leaving) onGone(); }}
-      aria-hidden
-    >
-      <svg width="88" height="88" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="none" stroke="#0F3D34" strokeOpacity="0.10" strokeWidth="5" />
-        <circle cx="50" cy="50" r="45" fill="none" stroke="#2FBC9B" strokeWidth="5" strokeLinecap="round"
-          strokeDasharray="283" transform="rotate(-90 50 50)" className="pw-ring-draw" />
-        <g className="pw-sweep"><line x1="50" y1="50" x2="50" y2="18" stroke="#2FBC9B" strokeWidth="3.5" strokeLinecap="round" /></g>
-        <circle cx="50" cy="50" r="5" fill="#2FBC9B" />
-      </svg>
-      <p key={i} className="pw-fade-up font-display text-3xl sm:text-4xl font-medium text-pine-900 max-w-xl px-6 leading-snug">
-        {LOADING_QUIPS[i]}
-      </p>
-    </div>
-  );
-}
 
 const DIFF_STYLE: Record<string, string> = {
   easy: 'bg-mint-100 text-pine-800',
@@ -93,7 +58,6 @@ export default function ActionsPage() {
   const [sortBy, setSortBy] = useState<'priority' | 'points'>('priority');
   const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showLoader, setShowLoader] = useState(true); // stays mounted through the exit fade
 
   // confirmation flow state
   const [confirm, setConfirm] = useState<{ id: string; step: 'ask' | 'details' } | null>(null);
@@ -188,7 +152,7 @@ export default function ActionsPage() {
       {toast && <div className="rounded-xl bg-mint-100 text-pine-800 text-sm font-semibold px-4 py-3">{toast}</div>}
 
       <div className="relative min-h-[60vh]">
-        {showLoader && <ActionsLoading leaving={!loading} onGone={() => setShowLoader(false)} />}
+        <LoadingScreen loading={loading} quips={LOADING_QUIPS} />
         {!loading && (
         <div className="space-y-4 pw-page-in">
         {visible.length === 0 && (

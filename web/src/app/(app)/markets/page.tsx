@@ -1,5 +1,13 @@
 'use client';
-import { PageSkeleton } from '@/components/Skeleton';
+import { LoadingScreen } from '@/components/Skeleton';
+
+const MARKET_QUIPS = [
+  'Fetching news that actually matters…',
+  'Ignoring the doom, keeping the signal…',
+  'Reading the headlines so you skim less…',
+  'Explaining markets without the hype…',
+  'Sorting facts from finfluencer noise…',
+];
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -29,10 +37,12 @@ export default function MarketsPage() {
   useEffect(() => { get('/market').then(setM).catch((e) => setErr(e.message)); }, []);
 
   if (err) return <p className="text-signal-red text-sm mt-8">{err}</p>;
-  if (!m) return <PageSkeleton />;
 
   return (
-    <div className="space-y-6">
+    <div className="relative min-h-[60vh]">
+      <LoadingScreen loading={!m} quips={MARKET_QUIPS} />
+      {m && (
+    <div className="space-y-6 pw-page-in">
       <div>
         <h1 className="font-display text-3xl font-medium">News & markets</h1>
         <p className="text-sm text-ink-soft mt-1">The latest financial news first — plus investment themes explained simply.</p>
@@ -98,6 +108,8 @@ export default function MarketsPage() {
       </section>
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{m.disclaimer}</p>
+    </div>
+      )}
     </div>
   );
 }

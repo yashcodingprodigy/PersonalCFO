@@ -1,19 +1,30 @@
 'use client';
-import { PageSkeleton } from '@/components/Skeleton';
+import { LoadingScreen } from '@/components/Skeleton';
 
 import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS, CATEGORY_LABELS } from '@/lib/format';
 
+const REPORT_QUIPS = [
+  'Assembling your money story…',
+  'Summarising months of decisions…',
+  'Making your numbers look presentable…',
+  'Putting your whole year on one page…',
+  'Grading your financial homework…',
+  'Turning data into bragging rights…',
+];
+
 export default function ReportsPage() {
   const [r, setR] = useState<any>(null);
   useEffect(() => { get('/reports/current').then(setR).catch(() => {}); }, []);
-  if (!r) return <PageSkeleton />;
 
-  const dims = Object.entries(r.score.dimensions) as [string, any][];
+  const dims = r ? (Object.entries(r.score.dimensions) as [string, any][]) : [];
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="relative min-h-[60vh]">
+      <LoadingScreen loading={!r} quips={REPORT_QUIPS} />
+      {r && (
+    <div className="space-y-6 max-w-3xl pw-page-in">
       <div className="flex items-end justify-between flex-wrap gap-3 no-print">
         <div>
           <h1 className="font-display text-3xl font-medium">Monthly report</h1>
@@ -129,6 +140,8 @@ export default function ReportsPage() {
       )}
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{r.disclaimer}</p>
+    </div>
+      )}
     </div>
   );
 }

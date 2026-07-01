@@ -1,5 +1,5 @@
 'use client';
-import { PageSkeleton } from '@/components/Skeleton';
+import { LoadingScreen } from '@/components/Skeleton';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -7,6 +7,15 @@ import { get } from '@/lib/api';
 import { inr, inrRange } from '@/lib/format';
 import { Ring, Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
 import { InsurancePolicies } from '@/components/InsurancePolicies';
+
+const INSURANCE_QUIPS = [
+  'Reading the fine print so you don’t have to…',
+  'Checking who actually pays their claims…',
+  'Comparing insurers who’d rather you didn’t…',
+  'Working out how much “peace of mind” costs…',
+  'Sizing your cover, not overselling it…',
+  'Separating real protection from sales pitches…',
+];
 
 const SEV_TONE: Record<string, any> = { high: 'red', medium: 'amber', low: 'gray' };
 const PRIORITY_LABEL: Record<string, string> = { high: 'Get this first', medium: 'Worth getting', low: 'Optional' };
@@ -36,10 +45,11 @@ export default function InsurancePage() {
   const [ins, setIns] = useState<any>(null);
   const loadIns = () => get('/insurance').then(setIns).catch(() => {});
   useEffect(() => { loadIns(); }, []);
-  if (!ins) return <PageSkeleton />;
-
   return (
-    <div className="space-y-5">
+    <div className="relative min-h-[60vh]">
+      <LoadingScreen loading={!ins} quips={INSURANCE_QUIPS} />
+      {ins && (
+    <div className="space-y-5 pw-page-in">
       <div>
         <h1 className="font-display text-3xl font-medium">Insurance</h1>
         <p className="text-sm text-ink-soft mt-1">Measured against standard planning benchmarks — category guidance only, never specific products.</p>
@@ -119,6 +129,8 @@ export default function InsurancePage() {
       </Section>
 
       <p className="text-[11px] text-ink-faint leading-relaxed">{ins.disclaimer}</p>
+    </div>
+      )}
     </div>
   );
 }
