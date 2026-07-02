@@ -77,7 +77,7 @@ export default function InsurancePage() {
           <div className="min-w-0 flex-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-mint-300">Insurance</span>
             <h3 className="font-display text-xl font-semibold mt-0.5">Buy insurance</h3>
-            <p className="text-sm text-white/70 mt-1 max-w-lg leading-relaxed">Compare real plans from top insurers, pick the right cover for you, and apply — all in one place.</p>
+            <p className="text-sm text-white/70 mt-1 max-w-lg leading-relaxed">Compare real plans from top insurers and start your application — arranged through our IRDAI-licensed insurance partner.</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {['Term life', 'Health', 'Motor', 'Personal accident', 'Travel'].map((c) => (
                 <span key={c} className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 text-[11px] text-white/85">{c}</span>

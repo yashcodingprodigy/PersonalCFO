@@ -258,7 +258,7 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
         <div className="card p-8 text-center border-dashed">
           <p className="text-3xl">🛡️</p>
           <p className="text-sm font-bold mt-2">No policies added yet</p>
-          <p className="text-xs text-ink-soft mt-1 max-w-sm mx-auto">Add even one above and PayWatch will track its renewal, fold it into your cover analysis, and sharpen your Money Score. The more you add, the more accurate your advice.</p>
+          <p className="text-xs text-ink-soft mt-1 max-w-sm mx-auto">Add even one above and PayWatch will track its renewal, fold it into your cover analysis, and sharpen your Money Score. The more you add, the more accurate your guidance.</p>
         </div>
       )}
 
@@ -320,7 +320,7 @@ export function InsurancePolicies({ onChange }: { onChange?: () => void }) {
                     {a.insurer || catLabel(a.category)} <span className="font-normal text-ink-soft">· {a.plan_name || catLabel(a.category)}</span>
                   </p>
                   <p className="text-xs text-ink-soft mt-0.5">{a.cover ? `cover ${inr(a.cover)}` : ''}{a.premium_indicative ? ` · ~${inr(a.premium_indicative)}/yr (indicative)` : ''}</p>
-                  <span className="chip bg-amber-100 text-amber-700 text-[10px] font-bold mt-1 inline-block">Submitted · issuance activating soon</span>
+                  <span className="chip bg-amber-100 text-amber-700 text-[10px] font-bold mt-1 inline-block">With our licensed partner · activating soon</span>
                 </div>
                 <button onClick={() => withdrawApp(a.application_id)} className="text-[11px] text-signal-red underline shrink-0">Withdraw</button>
               </div>

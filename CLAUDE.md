@@ -341,7 +341,20 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - **RBI Account Aggregator:** live bank data needs **FIU** registration (Sahamati + Finvu). Keep
   `AA_PROVIDER=mock` + statement-upload until then.
 - **Payments:** Razorpay is the PA; PayWatch is a merchant (needs Razorpay KYC, not a PA licence).
-- **Insurance — CHOSEN PATH: Corporate Agent, end-to-end in-app (CRED model).** Decided with the owner.
+- **Insurance — NEAR-TERM MODEL (refined with owner, Jul 2026): tech + discovery layer ON TOP OF a licensed
+  partner.** PayWatch builds the whole experience (education, needs discovery, comparison-style UX, policy
+  management) but the **regulated sale is owned by a licensed insurance partner** (embedded-insurance infra such
+  as Zopper / Riskcovry, or a broker) via their quote/issue APIs — go live WITHOUT our own licence first, validate
+  demand, then decide the licence path (broker for full comparison/advice, corporate agent for limited insurer
+  sales, or web aggregator). **Compliance wording rule (enforced in UI):** never "best plan for you / we
+  recommend / we're your advisor / cheapest & best in India". Use "options based on the details you provided,
+  arranged through our IRDAI-licensed insurance partner, subject to insurer terms/underwriting/disclosures — not
+  advice". Marketplace copy already updated: badge "★ Matches your inputs" (not "Recommended"), "Lowest indicative
+  premium here" (not "Best-priced for you"), submit CTA "Continue with our licensed partner", plus a disclaimer
+  banner on the plans list. Do NOT directly sell, collect premium into our account, or take commission
+  outside a permitted structure until licensed/partnered. Longer-term the owner may still pursue the
+  **Corporate Agent** licence below (own the margin) or design toward **Bima Sugam**.
+- **Insurance — LONGER-TERM OPTION: Corporate Agent, end-to-end in-app (CRED model).**
   PayWatch will become an **IRDAI Corporate Agent** (₹50L capital/net worth; can tie up with **up to 9 insurers
   per line** — life/general/health) and deliver the whole journey *inside the app* (compare → buy → manage →
   renew → claims assist), with policies underwritten by partner insurers — like CRED. (Alternatives weighed:

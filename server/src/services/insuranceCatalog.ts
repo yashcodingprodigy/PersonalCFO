@@ -2,11 +2,14 @@
 // and categories, with their public features and claim-settlement ratios.
 //
 // COMPLIANCE (see CLAUDE.md §8): this is EDUCATIONAL comparison information, not
-// solicitation. PayWatch is not (yet) an IRDAI-registered insurance intermediary
-// (web-aggregator / broker), so:
+// solicitation or advice. PayWatch itself is not (yet) an IRDAI-registered
+// insurance intermediary — the model is a tech + discovery layer ON TOP OF a
+// licensed insurance partner:
 //   • premiums shown are INDICATIVE estimates (see insuranceMarket.ts), NOT live
-//     insurer quotes — a live quote needs the insurer's API under a licensed tie-up;
-//   • the "buy" step hands the user off to the insurer's own site (no in-app sale).
+//     insurer quotes — a live quote needs the partner's / insurer's API;
+//   • the "buy" step captures the user's INTENT (insurance_applications) and, when
+//     live, hands off to our IRDAI-licensed partner who owns the quote, KYC,
+//     payment, issuance and servicing. No premium is collected in-app today.
 // Claim ratios / features are from public/IRDAI sources and must be re-verified —
 // they change yearly. `verifyNote` is surfaced in the UI.
 

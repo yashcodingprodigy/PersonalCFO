@@ -74,7 +74,7 @@ export default function InsuranceMarket() {
         <div>
           <Link href="/insurance" className="text-sm text-pine-700 underline">← Insurance</Link>
           <h1 className="font-display text-3xl font-medium mt-2">Find &amp; buy insurance</h1>
-          <p className="text-sm text-ink-soft mt-1 max-w-2xl">Compare real plans from leading insurers, see which fits your profile best, and apply right here — we arrange your policy through our IRDAI-licensed insurer partners. In-app issuance is activating soon.</p>
+          <p className="text-sm text-ink-soft mt-1 max-w-2xl">Compare real plans from leading insurers and start your application here. Plans are arranged through our IRDAI-licensed insurance partner, who handles the quote, KYC, payment and policy. Premiums are indicative; in-app issuance is activating soon.</p>
         </div>
         {catsLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="card p-5"><Skeleton className="w-11 h-11 rounded-xl" /><Skeleton className="h-3.5 w-2/3 mt-3" /><Skeleton className="h-3 w-1/2 mt-2" /></div>)}</div>
@@ -117,7 +117,11 @@ export default function InsuranceMarket() {
       <div>
         <button onClick={() => { setCat(''); setData(null); }} className="text-sm text-pine-700 underline">← All insurance types</button>
         <h1 className="font-display text-3xl font-medium mt-2">{CAT_ICON[cat]} {data?.label || ''}</h1>
-        <p className="text-sm text-ink-soft mt-1">Ranked for your profile. Premiums are <strong>indicative</strong> — the insurer confirms the final premium at issuance.</p>
+        <p className="text-sm text-ink-soft mt-1">Sorted by how well each matches the details you entered. Premiums are <strong>indicative</strong>, not advice — your insurer confirms the final premium at issuance.</p>
+      </div>
+
+      <div className="rounded-xl bg-paper-100 border border-paper-200 px-4 py-2.5 text-[11px] text-ink-soft leading-relaxed">
+        These are options shown for the details you provided, arranged through our IRDAI-licensed insurance partner and subject to insurer terms, underwriting and disclosures. This is information to help you choose, not insurance advice.
       </div>
 
       <div className="card p-4 flex flex-wrap items-end gap-3">
@@ -159,7 +163,7 @@ function PlanCard({ p, coverages, per, isCheapest, onSelect, inCompare, onCompar
   const covMore = Math.max(0, coverages.length - 2);
   return (
     <div className={`card overflow-hidden ${p.bestFit ? 'ring-2 ring-mint-500/70' : ''}`}>
-      {p.bestFit && <div className="bg-mint-500 text-pine-950 text-[11px] font-bold uppercase tracking-wider px-4 py-1.5">★ Recommended for you</div>}
+      {p.bestFit && <div className="bg-mint-500 text-pine-950 text-[11px] font-bold uppercase tracking-wider px-4 py-1.5">★ Matches your inputs</div>}
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
@@ -172,7 +176,7 @@ function PlanCard({ p, coverages, per, isCheapest, onSelect, inCompare, onCompar
           <button onClick={() => setOpen((o) => !o)} className="text-xs text-ocean-600 font-semibold underline shrink-0">View benefits</button>
         </div>
 
-        {isCheapest && <div className="mt-3 rounded-lg bg-mint-100 text-pine-800 text-[11px] font-bold px-3 py-1.5 inline-flex items-center gap-1.5">💰 Best-priced option for you</div>}
+        {isCheapest && <div className="mt-3 rounded-lg bg-mint-100 text-pine-800 text-[11px] font-bold px-3 py-1.5 inline-flex items-center gap-1.5">💰 Lowest indicative premium here</div>}
 
         <dl className="mt-3 space-y-1.5 text-sm">
           {p.claimRatioPct && <div className="flex justify-between"><dt className="text-ink-faint">Claim settlement</dt><dd className="font-semibold">{p.claimRatioPct}%</dd></div>}
@@ -254,7 +258,7 @@ function Checkout({ plan, category, cover, addOns, coverages, me, onClose }: any
         cover: category === 'motor' ? idvValue : cover, premium_indicative: total,
         applicant: { ...form, notes: `IDV:${idv}; add-ons:${selected.join(',') || 'none'}; net:${rupee(net)}; gst:${rupee(gst)}; total:${rupee(total)}` },
       });
-      setPhase('done'); toast('Application submitted — we’ll take it from here.');
+      setPhase('done'); toast('Application started — our licensed partner will take it from here.');
     } catch (e: any) { setErr(e?.message || 'Could not submit. Please try again.'); }
     finally { setSubmitting(false); }
   }
@@ -268,7 +272,7 @@ function Checkout({ plan, category, cover, addOns, coverages, me, onClose }: any
         ) : phase === 'done' ? (
           <div className="p-6 text-center">
             <p className="text-4xl">🎉</p>
-            <p className="text-lg font-bold mt-2">Application submitted</p>
+            <p className="text-lg font-bold mt-2">Application started</p>
             <p className="text-sm text-ink-soft mt-1.5 leading-relaxed">Your application for <strong>{plan.insurer} · {plan.plan}</strong> is in. We’ll arrange it through our IRDAI-licensed insurer partner, confirm the exact premium and issue it here.</p>
             <div className="rounded-lg bg-mint-100 text-pine-800 text-xs px-3 py-2.5 mt-3 leading-relaxed">Issuance &amp; payment are <strong>activating soon</strong> — <strong>no premium has been collected</strong>. Track it under <Link href="/insurance" className="underline font-semibold">Insurance → Your applications</Link>.</div>
             <button onClick={onClose} className="btn-primary mt-4 w-full">Done</button>
@@ -362,7 +366,7 @@ function Checkout({ plan, category, cover, addOns, coverages, me, onClose }: any
                   <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-ink-soft leading-relaxed">Issuance &amp; payment are activating soon — <strong>no premium is collected now</strong>. This submits your application; the insurer confirms the final premium and issues the policy.</div>
                   {err && <p className="text-xs text-signal-red">{err}</p>}
                   <div className="flex gap-2">
-                    <button onClick={submit} disabled={!consent || !form.name || submitting} className="btn-primary flex-1 disabled:opacity-50">{submitting ? 'Submitting…' : 'Submit application'}</button>
+                    <button onClick={submit} disabled={!consent || !form.name || submitting} className="btn-primary flex-1 disabled:opacity-50">{submitting ? 'Starting…' : 'Continue with our licensed partner'}</button>
                     <button onClick={() => setPhase('configure')} disabled={submitting} className="text-sm text-ink-faint underline px-2">Back</button>
                   </div>
                 </div>
