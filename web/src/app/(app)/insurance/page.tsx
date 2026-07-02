@@ -7,6 +7,8 @@ import { get } from '@/lib/api';
 import { inr, inrRange } from '@/lib/format';
 import { Ring, Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
 import { InsurancePolicies } from '@/components/InsurancePolicies';
+import { NeedsCheck } from '@/components/NeedsCheck';
+import { PolicyHelp } from '@/components/PolicyHelp';
 
 const INSURANCE_QUIPS = [
   'Reading the fine print so you don’t have to…',
@@ -55,7 +57,7 @@ export default function InsurancePage() {
         <p className="text-sm text-ink-soft mt-1">Measured against standard planning benchmarks — category guidance only, never specific products.</p>
       </div>
 
-      <SectionNav items={[{ id: 'policies', label: 'My policies' }, { id: 'coverage', label: 'Coverage' }, { id: 'get', label: 'What to get' }, { id: 'notes', label: 'Good to know' }]} />
+      <SectionNav items={[{ id: 'needs', label: 'What you need' }, { id: 'policies', label: 'My policies' }, { id: 'coverage', label: 'Coverage' }, { id: 'get', label: 'What to get' }, { id: 'help', label: 'Claims & terms' }, { id: 'notes', label: 'Good to know' }]} />
 
       {ins.beginnerIntro && (
         <div className="card p-5 border-l-4 border-l-mint-500"><p className="text-sm text-ink-soft leading-relaxed">{ins.beginnerIntro}</p></div>
@@ -87,6 +89,11 @@ export default function InsurancePage() {
           <span className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white text-pine-950 px-5 py-2.5 text-sm font-bold group-hover:bg-mint-100 transition-colors">See plans <span className="group-hover:translate-x-0.5 transition-transform">→</span></span>
         </div>
       </Link>
+
+      {/* Needs discovery — what cover you may want */}
+      <Section id="needs" title="What cover you may need" hint="A quick check — general guidance, not advice.">
+        <NeedsCheck />
+      </Section>
 
       {/* My policies — upload, AI-read, expiry tracking */}
       <Section id="policies" title="My policies">
@@ -128,6 +135,11 @@ export default function InsurancePage() {
           </ul>
         </section>
       )}
+
+      {/* Claims & plain-English policy help */}
+      <Section id="help" title="Claims & policy help" hint="Understand your cover and how to claim.">
+        <PolicyHelp />
+      </Section>
 
       {/* Notes */}
       <Section id="notes" title="Good to know">
