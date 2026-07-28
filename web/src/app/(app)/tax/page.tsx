@@ -14,8 +14,20 @@ import { useEffect, useState } from 'react';
 import { get } from '@/lib/api';
 import { inr } from '@/lib/format';
 import Link from 'next/link';
-import { Disclosure, SectionNav, Section, Pill, C } from '@/components/kit';
+import { Disclosure, Section, Pill, C } from '@/components/kit';
 import { UpgradeBanner } from '@/components/UpgradeBanner';
+import { ItrDocPrep } from '@/components/ItrDocPrep';
+
+const TAX_TABS = [
+  { id: 'computation', label: 'Full computation' },
+  { id: 'regime', label: 'Old vs new' },
+  { id: 'copilot', label: 'Plan ahead' },
+  { id: 'reduce', label: 'Reduce tax' },
+  { id: 'deductions', label: 'Deductions' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'file', label: 'Prepare ITR docs' },
+  { id: 'docs', label: 'Docs & terms' },
+];
 
 const INST_STATUS: Record<string, { tone: any; label: string }> = {
   due_soon: { tone: 'red', label: 'Due now' },
@@ -118,7 +130,7 @@ function TaxCopilot({ c }: { c: any }) {
 }
 
 // Comprehensive, CA-usable computation across every income head.
-function FullBreakdown({ f }: { f: any }) {
+function FullBreakdown({ f, onFile }: { f: any; onFile: () => void }) {
   const i = f.inputs;
   const rec = f.recommendedRegime === 'old' ? f.old : f.new;
   const other = f.recommendedRegime === 'old' ? f.new : f.old;
@@ -245,7 +257,7 @@ function FullBreakdown({ f }: { f: any }) {
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button onClick={download} className="rounded-full bg-pine-900 text-white px-5 py-2 text-sm font-bold hover:bg-pine-800">Download computation (for your CA)</button>
-        <Link href="/file" className="rounded-full border border-paper-200 text-pine-700 px-5 py-2 text-sm font-bold hover:border-pine-600">Prepare & file my ITR →</Link>
+        <button onClick={onFile} className="rounded-full border border-paper-200 text-pine-700 px-5 py-2 text-sm font-bold hover:border-pine-600">Prepare &amp; file my ITR →</button>
       </div>
       <p className="text-[11px] text-ink-faint mt-2">Computed from your profile + uploaded documents. Upload more under <Link href="/records" className="text-pine-700 underline">Monthly records</Link> to make this exact. Estimate for self-filing — verify against Form 26AS/AIS.</p>
     </Section>
@@ -255,6 +267,7 @@ function FullBreakdown({ f }: { f: any }) {
 export default function TaxPage() {
   const [tax, setTax] = useState<any>(null);
   const [full, setFull] = useState<any>(null);
+  const [tab, setTab] = useState('computation');
   useEffect(() => { get('/tax').then(setTax).catch(() => {}); get('/tax/full').then(setFull).catch(() => {}); }, []);
   const c = tax?.comparison;
   const d = tax?.deductions;
@@ -272,19 +285,30 @@ export default function TaxPage() {
         <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · updated for the latest Finance Act.</p>
       </div>
 
-      <SectionNav items={[{ id: 'computation', label: 'Full computation' }, { id: 'regime', label: 'Regime' }, { id: 'copilot', label: 'Plan ahead' }, { id: 'reduce', label: 'Reduce tax' }, { id: 'deductions', label: 'Deductions' }, { id: 'calendar', label: 'Calendar' }, { id: 'docs', label: 'Docs & terms' }]} />
+      {/* Tab bar — one section at a time, no more info dump */}
+      <div className="sticky top-2 z-10 -mx-1 overflow-x-auto no-print">
+        <div className="inline-flex gap-1 rounded-full bg-white/95 backdrop-blur border border-paper-200 p-1 shadow-card">
+          {TAX_TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${tab === t.id ? 'bg-pine-900 text-white' : 'text-ink-soft hover:text-ink'}`}>{t.label}</button>
+          ))}
+        </div>
+      </div>
 
-      {full && <FullBreakdown f={full} />}
-
-      {noTax && (
-        <div className="card p-5 border-l-4 border-l-signal-green">
-          <p className="text-sm text-ink-soft leading-relaxed">
-            <strong className="text-signal-green">Good news — you owe no income tax yet.</strong> At your income, the new regime&apos;s rebate covers you fully. Skim the rest so you know how it works for when you earn more.
-          </p>
+      {tab === 'computation' && (
+        <div className="space-y-5 pw-fade-up">
+          {full && <FullBreakdown f={full} onFile={() => setTab('file')} />}
+          {noTax && (
+            <div className="card p-5 border-l-4 border-l-signal-green">
+              <p className="text-sm text-ink-soft leading-relaxed">
+                <strong className="text-signal-green">Good news — you owe no income tax yet.</strong> At your income, the new regime&apos;s rebate covers you fully. Skim the rest so you know how it works for when you earn more.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Regime comparison */}
+      {tab === 'regime' && (
       <Section id="regime" title="Old vs new regime" hint="Which one saves you more.">
         <div className="grid sm:grid-cols-2 gap-4">
           {[c.oldRegime, c.newRegime].map((r: any) => (
@@ -305,12 +329,17 @@ export default function TaxPage() {
         </div>
         <div className="card p-5 border-l-4 border-l-mint-500 mt-4"><p className="text-sm leading-relaxed">{c.reasoning}</p></div>
       </Section>
+      )}
 
-      {/* Tax Copilot — year-round tracking that works alongside your CA */}
-      <UpgradeBanner feature="The year-round Tax Copilot and CA-ready pack" />
-      {tax.copilot && <TaxCopilot c={tax.copilot} />}
+      {tab === 'copilot' && (
+        <div className="space-y-4 pw-fade-up">
+          <UpgradeBanner feature="The year-round Tax Copilot and CA-ready pack" />
+          {tax.copilot && <TaxCopilot c={tax.copilot} />}
+        </div>
+      )}
 
-      {/* How to reduce */}
+      {tab === 'reduce' && (
+        <div className="space-y-4 pw-fade-up">
       {rp && (
         <Section id="reduce" title="How to reduce your tax"
           hint={`Each extra ₹100 of deduction saves about ₹${rp.marginalRatePct}. Tap a step for the how.`}
@@ -341,8 +370,10 @@ export default function TaxPage() {
           </ul>
         </Disclosure>
       )}
+        </div>
+      )}
 
-      {/* Deduction tracker */}
+      {tab === 'deductions' && (
       <Section id="deductions" title="Deduction tracker" hint="How much of each limit you've used (old regime).">
         <div className="card p-6 space-y-4">
           {d.items.map((i: any) => {
@@ -357,7 +388,9 @@ export default function TaxPage() {
         </div>
       </Section>
 
-      {/* Calendar */}
+      )}
+
+      {tab === 'calendar' && (
       <Section id="calendar" title="Tax calendar" hint="Don't miss a deadline.">
         <div className="card p-6">
           <ul className="space-y-4">
@@ -376,12 +409,35 @@ export default function TaxPage() {
           </ul>
         </div>
       </Section>
+      )}
 
-      {/* Docs + glossary */}
-      {rp && (
-        <Section id="docs" title="How to file">
-          <div className="grid sm:grid-cols-3 gap-3 mb-4">
-            {[['/file', 'File your ITR', 'Guided wizard'], ['/rent-receipts', 'Rent receipts', 'For HRA'], ['/donation-receipts', '80G receipt', 'For donations']].map(([href, t, s]) => (
+      {tab === 'file' && (
+        <div className="space-y-4 max-w-2xl pw-fade-up">
+          <p className="text-sm text-ink-soft leading-relaxed">Gather everything you need to file — store each document safely (encrypted) and send it to your CA in a tap.</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Link href="/advisor" className="card p-5 hover:border-pine-600 hover:shadow-card transition-all">
+              <p className="text-2xl">🤝</p>
+              <p className="text-sm font-bold mt-1">Hand it to your CA</p>
+              <p className="text-xs text-ink-faint mt-0.5">Gather the docs below and send them to your CA in a tap.</p>
+            </Link>
+            <Link href="/file/self" className="card p-5 border-pine-600/40 bg-mint-50 hover:shadow-card transition-all">
+              <p className="text-2xl">🧭</p>
+              <p className="text-sm font-bold mt-1">File it yourself →</p>
+              <p className="text-xs text-ink-faint mt-0.5">A simple, step-by-step guide to file your own ITR on the government portal.</p>
+            </Link>
+          </div>
+          <div className="card p-5">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-1">📋 Documents to prepare</h2>
+            <p className="text-xs text-ink-soft mb-3">Tap <strong>+</strong> on any document to upload it (encrypted) or send it to your CA.</p>
+            <ItrDocPrep />
+          </div>
+        </div>
+      )}
+
+      {tab === 'docs' && rp && (
+        <Section id="docs" title="Docs &amp; terms">
+          <div className="grid sm:grid-cols-2 gap-3 mb-4">
+            {[['/rent-receipts', 'Rent receipts', 'For HRA'], ['/donation-receipts', '80G receipt', 'For donations']].map(([href, t, s]) => (
               <Link key={href} href={href} className="rounded-xl border border-paper-200 p-4 hover:border-pine-600 hover:shadow-card transition-all">
                 <p className="text-sm font-bold">{t} →</p>
                 <p className="text-[11px] text-ink-faint mt-0.5">{s}</p>
