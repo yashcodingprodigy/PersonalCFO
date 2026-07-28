@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [aa, setAa] = useState<any>(null);
   const [hi, setHi] = useState(0); // growth horizon index 0/1/2
   const [monthly, setMonthly] = useState(25000); // "what if I invest" slider (₹/mo)
+  const [touchedSlider, setTouchedSlider] = useState(false); // has the user moved it?
   const [briefing, setBriefing] = useState<any>(null);
   const [err, setErr] = useState('');
 
@@ -29,6 +30,13 @@ export default function Dashboard() {
     swr('/alerts/briefing', setBriefing).catch(() => {});
   }
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
+
+  // Default the "if you invest" slider to the recommended amount (25% of take-home)
+  // once we have it — so the user starts on a personalised figure, not a guess.
+  useEffect(() => {
+    const rec = networth?.growth?.improvedSurplus;
+    if (!touchedSlider && rec) setMonthly(Math.round(rec / 100));
+  }, [networth, touchedSlider]);
 
   const [savingRisk, setSavingRisk] = useState(false);
   async function changeRisk(r: string) {
@@ -105,6 +113,10 @@ export default function Dashboard() {
             const rWith = (g.assumedReturnPct || 11) / 100;
             const rIdle = 0.035;
             const cur = g.current || 0;
+            const recRaw = Math.round((g.improvedSurplus || 0) / 100);
+            const sliderMax = Math.max(100000, Math.ceil(recRaw / 1000) * 1000);
+            const rec = Math.min(Math.max(recRaw, 5000), sliderMax);
+            const atRec = Math.abs(monthly - rec) < 500;
             const lump = (p: number, r: number, n: number) => p * Math.pow(1 + r, n);
             const sipFV = (mp: number, r: number, n: number, step: number) => { let tot = 0, p = mp; const i = r / 12; for (let y = 0; y < n; y++) { for (let m = 0; m < 12; m++) tot = (tot + p) * (1 + i); p *= 1 + step; } return tot; };
             const withPW = lump(cur, rWith, years) + sipFV(monthly * 100, rWith, years, 0.08);
@@ -133,7 +145,14 @@ export default function Dashboard() {
                       <span className="text-xs text-white/55">If you invest</span>
                       <span className="font-display text-lg text-white tabular-nums">{inr(monthly * 100)}<span className="text-white/40 text-xs font-normal">/mo</span></span>
                     </div>
-                    <input type="range" min={5000} max={100000} step={1000} value={monthly} onChange={(e) => setMonthly(Number(e.target.value))} className="w-full mt-2 accent-mint-500 h-2 cursor-pointer" />
+                    <input type="range" min={5000} max={sliderMax} step={1000} value={Math.min(monthly, sliderMax)} onChange={(e) => { setTouchedSlider(true); setMonthly(Number(e.target.value)); }} className="w-full mt-2 accent-mint-500 h-2 cursor-pointer" />
+                    {g.improvedSurplus > 0 && (
+                      <button onClick={() => { setTouchedSlider(true); setMonthly(rec); }}
+                        className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${atRec ? 'bg-mint-500 text-pine-950' : 'bg-white/10 text-mint-200 hover:bg-white/15'}`}>
+                        {atRec ? '✓ Recommended for you' : `★ Recommended for you · ${inr(g.improvedSurplus)}/mo`}
+                      </button>
+                    )}
+                    {atRec && <p className="mt-1.5 text-[11px] text-white/45">≈ 25% of your take-home — the standard planning target.</p>}
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 items-stretch">
