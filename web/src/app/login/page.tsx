@@ -45,8 +45,9 @@ export default function Login() {
       <section className="hidden lg:flex flex-col justify-between bg-pine-950 text-white p-12">
         <Wordmark dark />
         <div>
+          <p className="text-mint-300 text-sm font-bold uppercase tracking-[0.2em] mb-4">Watch your money grow</p>
           <h2 className="font-display text-4xl leading-tight font-medium max-w-md">
-            The financial clarity of a private CFO — for the price of a streaming subscription.
+            A private CFO for your money — for less than a streaming subscription.
           </h2>
           <p className="mt-6 text-white/60 text-sm max-w-md leading-relaxed">
             No passwords. No bank credentials. Sign in with your mobile number; connect data only

@@ -6,7 +6,7 @@ import '@fontsource-variable/fraunces';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'PayWatch — Know exactly what to do with your money', template: '%s · PayWatch' },
+  title: { default: 'PayWatch — Watch your money grow', template: '%s · PayWatch' },
   description:
     "India's personal finance operating system. One app that knows your full financial picture — and tells you exactly what to do next. Financial education and organisation, not SEBI investment advice.",
   manifest: '/manifest.webmanifest',
