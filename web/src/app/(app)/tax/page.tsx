@@ -255,10 +255,10 @@ function FullBreakdown({ f, onFile }: { f: any; onFile: () => void }) {
 
       {f.needsCA?.required && <div className="card p-4 mt-3 border-l-4 border-l-signal-amber text-sm text-ink-soft">{f.needsCA.reason}</div>}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button onClick={download} className="rounded-full bg-pine-900 text-white px-5 py-2 text-sm font-bold hover:bg-pine-800">Download computation (for your CA)</button>
-        <button onClick={onFile} className="rounded-full border border-paper-200 text-pine-700 px-5 py-2 text-sm font-bold hover:border-pine-600">Prepare &amp; file my ITR →</button>
-      </div>
+      <button onClick={onFile} className="group mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-full text-white px-8 py-4 text-base font-bold shadow-lg shadow-mint-500/20 hover:scale-[1.02] transition-transform" style={{ background: 'linear-gradient(135deg,#0F3D34 0%,#177a67 100%)' }}>
+        Prepare &amp; file my ITR
+        <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
+      </button>
       <p className="text-[11px] text-ink-faint mt-2">Computed from your profile + uploaded documents. Upload more under <Link href="/records" className="text-pine-700 underline">Monthly records</Link> to make this exact. Estimate for self-filing — verify against Form 26AS/AIS.</p>
     </Section>
   );
