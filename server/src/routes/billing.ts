@@ -15,6 +15,7 @@ billingRouter.get('/plans', (_req, res) => {
       key,
       name: PLANS[key].name,
       monthly_price: PLANS[key].monthly,
+      regular_price: PLANS[key].regular,
       annual_price: PLANS[key].monthly * 10,
       gst_note: 'Prices inclusive of 18% GST. GST invoice issued for every charge.',
     }))
@@ -38,7 +39,7 @@ billingRouter.get('/subscription', async (req: AuthedRequest, res) => {
 // POST /billing/subscribe
 billingRouter.post('/subscribe', async (req: AuthedRequest, res) => {
   const schema = z.object({
-    plan: z.enum(['starter', 'cfo', 'family']),
+    plan: z.enum(['starter', 'cfo']),
     cycle: z.enum(['monthly', 'annual']).default('monthly'),
   });
   const parsed = schema.safeParse(req.body);

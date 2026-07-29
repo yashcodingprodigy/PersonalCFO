@@ -355,23 +355,27 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14 pw-reveal">
             <h2 className="font-display text-4xl sm:text-5xl font-medium">Less than your streaming.</h2>
-            <p className="text-ink-soft mt-3">All prices include 18% GST. Annual: 12 months for the price of 10.</p>
+            <p className="text-ink-soft mt-3"><span className="chip bg-mint-100 text-pine-800 mr-2">Launch offer</span>Lock in the launch price now · all prices include 18% GST · annual = 2 months free.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6 items-start">
             {[
-              { name: 'Starter', price: '₹299', tag: 'Get organised', feats: ['Full Money Health Score', '3 actions / month', '5 CFO questions / month', 'Basic tax view'] },
-              { name: 'CFO', price: '₹699', tag: 'Most popular', hl: true, feats: ['Unlimited actions & questions', 'Full tax engine', 'Complete insurance analysis', 'Quarterly advisor call'] },
-              { name: 'Family', price: '₹1,199', tag: 'Up to 4 members', feats: ['Everything in CFO, per member', 'Family net worth', 'Estate & nomination checklist', 'Longer advisor call'] },
+              { name: 'Free', price: '₹0', was: null as string | null, tag: 'Start here — no card', feats: ['Money Health Score', 'Top actions to fix first', 'Net-worth & spending snapshot', 'A taste of Ask PayWatch'] },
+              { name: 'Starter', price: '₹199', was: '₹349', tag: 'Get organised', feats: ['Unlimited score & insights', 'Bank statement scan', 'Insurance & invest guidance', 'Prepare your ITR docs'] },
+              { name: 'CFO', price: '₹499', was: '₹799', tag: 'Most popular', hl: true, feats: ['Everything, unlimited', 'Unlimited Ask PayWatch', 'Full tax engine + Tax Copilot', 'Alerts, briefing & document vault', 'Connect your CA'] },
             ].map((p) => (
               <div key={p.name} className={`p-8 pw-reveal rounded-2xl ${p.hl ? 'text-white shadow-2xl scale-[1.02]' : 'card'}`} style={p.hl ? { background: 'linear-gradient(160deg,#0F3D34,#134e43)' } : {}}>
                 {p.hl && <span className="chip bg-mint-500 text-pine-950 mb-3">Most popular</span>}
                 <h3 className="text-lg font-bold">{p.name}</h3>
                 <p className={`text-xs ${p.hl ? 'text-white/60' : 'text-ink-faint'}`}>{p.tag}</p>
-                <p className="mt-4"><span className="font-display text-4xl font-semibold">{p.price}</span><span className={`text-sm ${p.hl ? 'text-white/50' : 'text-ink-faint'}`}>/month</span></p>
+                <p className="mt-4 flex items-baseline gap-2">
+                  {p.was && <span className={`text-lg line-through ${p.hl ? 'text-white/40' : 'text-ink-faint'}`}>{p.was}</span>}
+                  <span className="font-display text-4xl font-semibold">{p.price}</span>
+                  <span className={`text-sm ${p.hl ? 'text-white/50' : 'text-ink-faint'}`}>{p.price === '₹0' ? 'free forever' : '/month'}</span>
+                </p>
                 <ul className={`mt-6 space-y-2.5 text-sm ${p.hl ? 'text-white/85' : 'text-ink-soft'}`}>
                   {p.feats.map((f) => <li key={f} className="flex gap-2"><span className="text-mint-400 font-bold">✓</span>{f}</li>)}
                 </ul>
-                <Link href="/login" className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-bold transition-colors ${p.hl ? 'bg-mint-500 text-pine-950 hover:bg-mint-400' : 'bg-pine-900 text-white hover:bg-pine-800'}`}>Start {p.name}</Link>
+                <Link href="/login" className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-bold transition-colors ${p.hl ? 'bg-mint-500 text-pine-950 hover:bg-mint-400' : p.price === '₹0' ? 'bg-paper-100 text-pine-900 hover:bg-paper-200' : 'bg-pine-900 text-white hover:bg-pine-800'}`}>{p.price === '₹0' ? 'Start free' : `Start ${p.name}`}</Link>
               </div>
             ))}
           </div>

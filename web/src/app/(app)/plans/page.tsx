@@ -29,15 +29,17 @@ const FEATURES: Record<string, { tag: string; highlight?: boolean; feats: string
       'Full insurance analysis · unlimited Ask PayWatch',
     ],
   },
-  family: {
-    tag: 'For the whole family',
-    feats: [
-      'Everything in CFO — for up to 4 members',
-      'Consolidated family net worth',
-      'Family insurance overview',
-      'Estate & nomination checklist',
-    ],
-  },
+};
+
+const FREE_PLAN = {
+  name: 'Free',
+  tag: 'Start here — no card needed',
+  feats: [
+    'Your Money Health Score',
+    'The top few actions to fix first',
+    'Net-worth & spending snapshot',
+    'A taste of Ask PayWatch',
+  ],
 };
 
 export default function PlansPage() {
@@ -72,7 +74,7 @@ export default function PlansPage() {
   }
 
   if (!user) return <PageSkeleton />;
-  const isPaidActive = (user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active';
+  const isPaidActive = user.plan === 'cfo' && user.plan_status === 'active';
 
   return (
     <div className="space-y-6">
@@ -102,6 +104,19 @@ export default function PlansPage() {
 
       {/* Pricing cards */}
       <div className="grid lg:grid-cols-3 gap-5">
+        {/* Free tier — anchors the paid plans */}
+        <div className="rounded-2xl border border-paper-200 p-6 flex flex-col">
+          <p className="font-bold text-lg">{FREE_PLAN.name}</p>
+          <p className="text-xs text-ink-faint">{FREE_PLAN.tag}</p>
+          <p className="font-display text-4xl font-semibold mt-3 tabular-nums">₹0<span className="text-sm text-ink-faint font-normal">/mo</span></p>
+          <p className="text-[11px] text-ink-faint">free forever</p>
+          <ul className="mt-4 space-y-2 flex-1">
+            {FREE_PLAN.feats.map((x, i) => (
+              <li key={i} className="flex gap-2 text-sm text-ink-soft leading-snug"><span className="text-mint-500 font-bold shrink-0">✓</span>{x}</li>
+            ))}
+          </ul>
+          <div className="mt-5 w-full rounded-full py-2.5 text-sm font-bold text-center bg-paper-100 text-ink-faint">Included free</div>
+        </div>
         {plans.map((p) => {
           const f = FEATURES[p.key] || { tag: '', feats: [] };
           const price = cycle === 'annual' ? p.annual_price : p.monthly_price;
@@ -111,8 +126,11 @@ export default function PlansPage() {
               {f.highlight && <span className="absolute -top-3 left-6 chip bg-pine-900 text-white">Most popular</span>}
               <p className="font-bold text-lg capitalize">{p.name}</p>
               <p className="text-xs text-ink-faint">{f.tag}</p>
-              <p className="font-display text-4xl font-semibold mt-3 tabular-nums">{inr(price)}<span className="text-sm text-ink-faint font-normal">/{cycle === 'annual' ? 'yr' : 'mo'}</span></p>
-              <p className="text-[11px] text-ink-faint">incl. 18% GST</p>
+              {cycle === 'monthly' && p.regular_price > price && (
+                <p className="mt-3 text-xs text-ink-faint"><span className="line-through">{inr(p.regular_price)}</span> <span className="chip bg-mint-100 text-pine-800 ml-1">Save {Math.round((1 - price / p.regular_price) * 100)}%</span></p>
+              )}
+              <p className="font-display text-4xl font-semibold mt-1 tabular-nums">{inr(price)}<span className="text-sm text-ink-faint font-normal">/{cycle === 'annual' ? 'yr' : 'mo'}</span></p>
+              <p className="text-[11px] text-ink-faint">{cycle === 'monthly' ? 'launch price · incl. 18% GST' : '2 months free · incl. 18% GST'}</p>
               <ul className="mt-4 space-y-2 flex-1">
                 {f.feats.map((x, i) => (
                   <li key={i} className="flex gap-2 text-sm text-ink-soft leading-snug"><span className="text-mint-500 font-bold shrink-0">✓</span>{x}</li>
@@ -146,7 +164,7 @@ export default function PlansPage() {
       {/* Welcome-to-Plus modal after a successful subscribe */}
       {welcomePlan && (() => {
         const f = FEATURES[welcomePlan] || { feats: [] as string[] };
-        const isPlus = welcomePlan === 'cfo' || welcomePlan === 'family';
+        const isPlus = welcomePlan === 'cfo';
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-pine-950/70">
             <div className="card bg-white p-7 max-w-md w-full text-center relative overflow-hidden">

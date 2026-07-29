@@ -16,7 +16,7 @@ export interface Persona {
   annual_gross_income: number;
   monthly_take_home: number;
   dependents_count: number;
-  plan: 'starter' | 'cfo' | 'family';
+  plan: 'starter' | 'cfo';
   plan_status: 'trial' | 'active' | 'grace_period' | 'paused' | 'cancelled';
   blurb: string;
   assets: any;
@@ -116,8 +116,8 @@ export const PERSONAS: Persona[] = [
   {
     mobile: '+919000000009', name: 'Arjun Patel', age: 52, city: 'Surat', state: 'Gujarat',
     employment_type: 'business', risk_appetite: 'conservative', annual_gross_income: L(60), monthly_take_home: R(350000),
-    dependents_count: 2, plan: 'family', plan_status: 'active',
-    blurb: 'High net worth (~₹6.5Cr) but low equity / property+gold heavy; retirement & estate-planning focus. Family plan.',
+    dependents_count: 2, plan: 'cfo', plan_status: 'active',
+    blurb: 'High net worth (~₹6.5Cr) but low equity / property+gold heavy; retirement & estate-planning focus. CFO plan.',
     assets: { savings_balance: L(15), liquid_funds: L(10), fd_total: L(60), ppf: L(20), nps: L(10), gold: L(25),
       property: Cr(5), mutual_funds: { value: L(10), monthly_sip: 0 }, stocks: L(5), monthly_expenses: R(220000) },
     liabilities: { credit_cards: [{ outstanding: R(50000), limit: L(10) }] },

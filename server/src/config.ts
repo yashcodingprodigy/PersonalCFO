@@ -42,10 +42,11 @@ if (config.env === 'production') {
   if (config.corsOrigin === '*') console.warn('[security] CORS_ORIGIN is "*" in production — set explicit web origins.');
 }
 
+// `monthly` = the price we actually charge (paise). `regular` = a higher
+// "list" price shown struck-through for the launch-discount illusion.
 export const PLANS = {
-  starter: { name: 'Starter', monthly: 29900, qaLimit: 5, goalLimit: 2, policyLimit: 5, actionsPerMonth: 3 },
-  cfo: { name: 'CFO', monthly: 69900, qaLimit: Infinity, goalLimit: Infinity, policyLimit: Infinity, actionsPerMonth: Infinity },
-  family: { name: 'Family', monthly: 119900, qaLimit: Infinity, goalLimit: Infinity, policyLimit: Infinity, actionsPerMonth: Infinity },
+  starter: { name: 'Starter', monthly: 19900, regular: 34900, qaLimit: 5, goalLimit: 2, policyLimit: 5, actionsPerMonth: 3 },
+  cfo: { name: 'CFO', monthly: 49900, regular: 79900, qaLimit: Infinity, goalLimit: Infinity, policyLimit: Infinity, actionsPerMonth: Infinity },
 } as const;
 
 export type PlanKey = keyof typeof PLANS;

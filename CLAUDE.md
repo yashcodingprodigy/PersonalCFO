@@ -26,6 +26,13 @@ to replace them. We give individuals a private CFO for everyday money decisions 
 - Subscription (the recurring value): proactive Alerts, monthly briefing, year-round Tax Copilot,
   guided ITR filing, spending watchdog, goal autopilot, document vault.
 
+**Pricing (restructured Jul 2026 — Family plan REMOVED, it was never built):** three columns with
+psychology — **Free ₹0** (anchor: Money Health Score + a taste), **Starter ₹199/mo** (was ₹349 struck),
+**CFO ₹499/mo** (was ₹799 struck, "Most popular"). Charm prices + struck "regular" (`regular` field in
+`config.PLANS`, surfaced as `regular_price` from `/billing/plans`) create the launch-discount illusion.
+Plan keys stay `starter`/`cfo` (DB CHECK still lists `family` for back-compat; migrate any existing rows
+with `UPDATE users SET plan='cfo' WHERE plan='family';` since `PLANS['family']` no longer exists).
+
 **Regulatory lane (critical — never drift):** PayWatch is a **financial education, organisation and
 tax-preparation** tool. It is **NOT** a SEBI-registered Investment Adviser and never recommends a
 specific stock, mutual-fund scheme or product — only asset-class / fund-**category** guidance. For tax
