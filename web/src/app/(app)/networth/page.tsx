@@ -26,6 +26,8 @@ export default function NetWorthPage() {
   const [hi, setHi] = useState(0); // horizon index 0/1/2 → 5/10/20yr
 
   const [savingRisk, setSavingRisk] = useState(false);
+  const [barGrown, setBarGrown] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setBarGrown(true), 120); return () => clearTimeout(t); }, [nw]);
   function loadNw() { swr('/networth', setNw).catch(() => {}); }
   useEffect(() => {
     loadNw();
@@ -97,63 +99,62 @@ export default function NetWorthPage() {
         </section>
       </div>
 
-      {/* Investment allocation — current vs suggested mix (over / under) */}
+      {/* Investment allocation — one animated bar per class; ▾ marks the suggested share */}
       {nw.allocationAnalysis?.available && (
         <Section id="allocation" title="Investment allocation"
-          hint={`How your invested money is split — and where you're over or under the suggested mix for your ${nw.allocationAnalysis.riskProfile} risk level.`}>
+          hint={`Your ${inr(nw.allocationAnalysis.investedTotal)} of investments, by type — each bar grows to what you hold; ▾ marks the suggested share for your ${nw.allocationAnalysis.riskProfile} risk level.`}>
           <div className="card p-6">
-            <div className="space-y-5">
+            <p className="text-[11px] text-ink-faint mb-6 leading-relaxed">
+              <span className="font-bold" style={{ color: C.green }}>Green</span> = on track ·
+              <span className="font-bold" style={{ color: C.pine500 }}> Teal</span> = under ·
+              <span className="font-bold" style={{ color: C.amber }}> Amber</span> = over the <span style={{ color: C.pine900 }}>▾</span> suggested mark
+            </p>
+            <div className="space-y-7">
               {nw.allocationAnalysis.classes.map((c: any) => {
-                const color = ALLOC_COLORS[c.key] || C.pine700;
                 const cur = Math.min(100, c.currentPct);
                 const tgt = Math.min(100, c.targetPct);
-                const healthy = Math.min(cur, tgt);
-                const over = Math.max(0, cur - tgt);
-                const gap = Math.max(0, tgt - cur);
-                const chip = c.status === 'over'
-                  ? { text: `Over by ${c.deltaPct}%`, cls: 'bg-signal-amber/15 text-signal-amber' }
+                const s = c.status === 'over'
+                  ? { bar: C.amber, pill: 'bg-signal-amber/15 text-signal-amber', tag: `Over — ${c.deltaPct}% too much` }
                   : c.status === 'under'
-                    ? { text: `Under by ${-c.deltaPct}%`, cls: 'bg-pine-900/10 text-pine-800' }
-                    : { text: 'On track', cls: 'bg-mint-100 text-pine-800' };
+                    ? { bar: C.pine500, pill: 'bg-pine-900/8 text-pine-700', tag: `Under — ${-c.deltaPct}% short` }
+                    : { bar: C.green, pill: 'bg-mint-100 text-pine-800', tag: 'On track' };
+                const anchor = tgt <= 10 ? '0' : tgt >= 90 ? '-100%' : '-50%';
                 return (
                   <div key={c.key}>
-                    <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                      <span className="text-sm font-semibold flex items-center gap-2"><Dot color={color} />{c.label}</span>
-                      <span className="flex items-center gap-2 text-xs">
-                        <span className="tabular-nums text-ink-soft">{c.currentPct}% <span className="text-ink-faint">of {inr(nw.allocationAnalysis.investedTotal)}</span></span>
-                        <span className={`chip ${chip.cls}`}>{chip.text}</span>
-                      </span>
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-1.5">
+                      <span className="text-sm font-bold">{c.label}</span>
+                      <span className={`chip ${s.pill}`}>{s.tag}</span>
                     </div>
-                    <div className="relative h-7 rounded-lg bg-paper-100 overflow-hidden">
-                      {/* portion within the suggested share */}
-                      <div className="absolute left-0 top-0 h-full" style={{ width: `${healthy}%`, background: color }} />
-                      {/* over the suggested share — the "overflow" */}
-                      {over > 0 && (
-                        <div className="absolute top-0 h-full" style={{ left: `${tgt}%`, width: `${over}%`, background: C.amber, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.3) 0 6px, transparent 6px 12px)' }} />
-                      )}
-                      {/* gap up to the suggested share */}
-                      {gap > 0 && (
-                        <div className="absolute top-0 h-full border-2 border-dashed rounded-r-md" style={{ left: `${cur}%`, width: `${gap}%`, borderColor: color, opacity: 0.5 }} />
-                      )}
-                      {/* suggested-share marker */}
-                      <div className="absolute top-0 h-full" style={{ left: `${tgt}%`, width: 2, background: C.pine900 }} title={`Suggested ${c.targetPct}%`} />
+                    <div className="flex items-end gap-3">
+                      <div className="flex-1">
+                        {/* suggested-share marker label, aligned above the tick */}
+                        <div className="relative h-4">
+                          <span className="absolute bottom-0 whitespace-nowrap text-[10px] font-bold"
+                            style={{ left: `${tgt}%`, transform: `translateX(${anchor})`, color: C.pine900 }}>▾ {c.targetPct}%</span>
+                        </div>
+                        {/* the single animated bar */}
+                        <div className="relative h-6 rounded-full bg-paper-100 overflow-hidden">
+                          <div className="absolute inset-y-0 left-0 rounded-full"
+                            style={{ width: barGrown ? `${cur}%` : '0%', background: s.bar, transition: 'width .8s cubic-bezier(.22,1,.36,1)' }} />
+                          <div className="absolute inset-y-0" style={{ left: `${tgt}%`, borderLeft: `2px dashed ${C.pine900}` }} />
+                        </div>
+                      </div>
+                      <span className="w-10 text-right text-base font-extrabold tabular-nums" style={{ color: s.bar }}>{c.currentPct}%</span>
                     </div>
-                    <div className="mt-1.5 flex items-start justify-between gap-3">
-                      <p className="text-xs text-ink-soft">{c.note}</p>
-                      <span className="text-[11px] text-ink-faint whitespace-nowrap">Suggested {c.targetPct}%</span>
-                    </div>
+                    <p className="text-xs text-ink-soft mt-2 leading-relaxed">{c.note}</p>
                   </div>
                 );
               })}
             </div>
+
             {nw.allocationAnalysis.cash?.note && (
-              <div className="mt-5 pt-4 border-t border-paper-100 flex items-start gap-2 text-xs text-ink-soft">
-                <span className="text-signal-amber font-bold leading-none">●</span>
+              <div className="mt-6 pt-4 border-t border-paper-100 flex items-start gap-2 text-xs text-ink-soft">
+                <span className="text-signal-amber font-bold leading-none mt-0.5">●</span>
                 <span>{nw.allocationAnalysis.cash.note} You currently hold {inr(nw.allocationAnalysis.cash.value)} in cash.</span>
               </div>
             )}
             <p className="mt-4 text-[10px] text-ink-faint leading-relaxed">
-              The dark line marks the suggested share for your age and risk level; the striped part shows where a bucket is over it. This is educational asset-class guidance only — never a specific product — and not investment advice.
+              Educational asset-class guidance based on your age and risk level — never a specific product, and not investment advice. Percentages are of your invested money (cash and property shown separately).
             </p>
           </div>
         </Section>
