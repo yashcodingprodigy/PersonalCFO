@@ -1,0 +1,61 @@
+flowchart TD
+  subgraph CLIENT["CLIENT LAYER — one codebase"]
+    WEB["Web PWA - Next.js"]
+    IOS["iOS app - Capacitor"]
+    AND["Android app - Capacitor"]
+  end
+
+  APILIB["lib/api.ts - token refresh, SWR cache, SSE subscribe"]
+  WEB --> APILIB
+  IOS --> APILIB
+  AND --> APILIB
+
+  subgraph GATE["API GATEWAY — index.ts"]
+    SEC["Helmet + CORS + body-size limits"]
+    RL["Rate limiter"]
+    AUTH["Auth middleware - JWT, user vs CA"]
+    SSEH["SSE endpoint /v1/events"]
+  end
+  APILIB -->|"HTTPS /v1"| SEC --> RL --> AUTH
+
+  subgraph ROUTES["ROUTES LAYER (thin - no logic)"]
+    R1["auth · user · score · actions"]
+    R2["insights: networth · tax · insurance · invest · market"]
+    R3["records · documents · alerts · goals · qa · billing"]
+    R4["ca (CA portal) · cron"]
+  end
+  AUTH --> ROUTES
+
+  subgraph SERVICES["SERVICES / ENGINES (the brain - pure functions)"]
+    PROF["profile.ts - loadProfileData (shared hub)"]
+    COMP["Computation: score · tax · taxFiling · networth · investment · insurance · actions"]
+    ANAL["Analysis: statement · holdings · portfolio"]
+    AIE["AI: docAI · cfo-ai + rag"]
+    SUPP["Support: caLink · caShare · vault · encryption · realtime · monitor · alerts · goals · market"]
+  end
+  ROUTES --> PROF
+  ROUTES --> COMP
+  ROUTES --> ANAL
+  ROUTES --> AIE
+  ROUTES --> SUPP
+  PROF --> COMP
+
+  DB[("PostgreSQL - Supabase Mumbai")]
+  PROF --> DB
+  COMP --> DB
+  ANAL --> DB
+  SUPP --> DB
+
+  subgraph ADAPT["ADAPTERS (dev mode ↔ live provider)"]
+    A1["sms → msg91"]
+    A2["billing → Razorpay"]
+    A3["email → Resend"]
+    A4["push → FCM"]
+    A5["storage → Supabase"]
+    A6["aa → Account Aggregator"]
+  end
+  SUPP --> ADAPT
+  ROUTES --> ADAPT
+
+  CLAUDE["Anthropic Claude - narrow use, rules fallback"]
+  AIE --> CLAUDE

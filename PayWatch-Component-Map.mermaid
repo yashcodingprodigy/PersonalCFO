@@ -1,0 +1,59 @@
+flowchart LR
+  subgraph INPUTS["User inputs / uploads"]
+    ON["Onboarding"]
+    STMT["Bank statement"]
+    REC["Monthly records"]
+    POL["Insurance policy PDF"]
+    HLDF["Holdings file"]
+    ACTD["Mark action done"]
+    SET["Settings edit"]
+  end
+
+  subgraph PARSE["Parse + extract layer"]
+    SP["statement.ts - de-dup by fingerprint"]
+    DAI["docAI.ts - Claude + deterministic fallback"]
+    HLD["holdings.ts - look-through"]
+  end
+  STMT --> SP
+  REC --> DAI
+  POL --> DAI
+  HLDF --> HLD
+
+  PROFILE[("profiles - assets · liabilities · insurance · tax_data (paise)")]
+  ON --> PROFILE
+  SET --> PROFILE
+  SP --> PROFILE
+  DAI --> PROFILE
+  HLD --> PROFILE
+  ACTD --> PROFILE
+
+  LOAD["profile.ts - loadProfileData()"]
+  PROFILE --> LOAD
+
+  subgraph ENGINES["Engines read the assembled profile"]
+    SC["score.ts"]
+    TX["tax.ts / taxFiling.ts"]
+    NW["networth.ts"]
+    IV["investment.ts"]
+    IN["insurance.ts"]
+    AC["actions.ts"]
+  end
+  LOAD --> SC
+  LOAD --> TX
+  LOAD --> NW
+  LOAD --> IV
+  LOAD --> IN
+  LOAD --> AC
+
+  RECALC["recalculateAndStoreScore()"]
+  PROFILE -->|"ANY write triggers"| RECALC
+  RECALC --> SC
+  SC --> HIST[("score_history")]
+
+  ASK["Ask PayWatch - cfo-ai + rag + scope guard"]
+  LOAD --> ASK
+  PROFILE --> ASK
+
+  ALERTS["monitor.ts + alerts.ts"]
+  PROFILE --> ALERTS
+  ALERTS --> INBOX["Alert inbox + email/push digests"]

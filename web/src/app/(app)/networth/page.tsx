@@ -97,6 +97,68 @@ export default function NetWorthPage() {
         </section>
       </div>
 
+      {/* Investment allocation — current vs suggested mix (over / under) */}
+      {nw.allocationAnalysis?.available && (
+        <Section id="allocation" title="Investment allocation"
+          hint={`How your invested money is split — and where you're over or under the suggested mix for your ${nw.allocationAnalysis.riskProfile} risk level.`}>
+          <div className="card p-6">
+            <div className="space-y-5">
+              {nw.allocationAnalysis.classes.map((c: any) => {
+                const color = ALLOC_COLORS[c.key] || C.pine700;
+                const cur = Math.min(100, c.currentPct);
+                const tgt = Math.min(100, c.targetPct);
+                const healthy = Math.min(cur, tgt);
+                const over = Math.max(0, cur - tgt);
+                const gap = Math.max(0, tgt - cur);
+                const chip = c.status === 'over'
+                  ? { text: `Over by ${c.deltaPct}%`, cls: 'bg-signal-amber/15 text-signal-amber' }
+                  : c.status === 'under'
+                    ? { text: `Under by ${-c.deltaPct}%`, cls: 'bg-pine-900/10 text-pine-800' }
+                    : { text: 'On track', cls: 'bg-mint-100 text-pine-800' };
+                return (
+                  <div key={c.key}>
+                    <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                      <span className="text-sm font-semibold flex items-center gap-2"><Dot color={color} />{c.label}</span>
+                      <span className="flex items-center gap-2 text-xs">
+                        <span className="tabular-nums text-ink-soft">{c.currentPct}% <span className="text-ink-faint">of {inr(nw.allocationAnalysis.investedTotal)}</span></span>
+                        <span className={`chip ${chip.cls}`}>{chip.text}</span>
+                      </span>
+                    </div>
+                    <div className="relative h-7 rounded-lg bg-paper-100 overflow-hidden">
+                      {/* portion within the suggested share */}
+                      <div className="absolute left-0 top-0 h-full" style={{ width: `${healthy}%`, background: color }} />
+                      {/* over the suggested share — the "overflow" */}
+                      {over > 0 && (
+                        <div className="absolute top-0 h-full" style={{ left: `${tgt}%`, width: `${over}%`, background: C.amber, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.3) 0 6px, transparent 6px 12px)' }} />
+                      )}
+                      {/* gap up to the suggested share */}
+                      {gap > 0 && (
+                        <div className="absolute top-0 h-full border-2 border-dashed rounded-r-md" style={{ left: `${cur}%`, width: `${gap}%`, borderColor: color, opacity: 0.5 }} />
+                      )}
+                      {/* suggested-share marker */}
+                      <div className="absolute top-0 h-full" style={{ left: `${tgt}%`, width: 2, background: C.pine900 }} title={`Suggested ${c.targetPct}%`} />
+                    </div>
+                    <div className="mt-1.5 flex items-start justify-between gap-3">
+                      <p className="text-xs text-ink-soft">{c.note}</p>
+                      <span className="text-[11px] text-ink-faint whitespace-nowrap">Suggested {c.targetPct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {nw.allocationAnalysis.cash?.note && (
+              <div className="mt-5 pt-4 border-t border-paper-100 flex items-start gap-2 text-xs text-ink-soft">
+                <span className="text-signal-amber font-bold leading-none">●</span>
+                <span>{nw.allocationAnalysis.cash.note} You currently hold {inr(nw.allocationAnalysis.cash.value)} in cash.</span>
+              </div>
+            )}
+            <p className="mt-4 text-[10px] text-ink-faint leading-relaxed">
+              The dark line marks the suggested share for your age and risk level; the striped part shows where a bucket is over it. This is educational asset-class guidance only — never a specific product — and not investment advice.
+            </p>
+          </div>
+        </Section>
+      )}
+
       {/* Grow your net worth — horizon toggle */}
       {g?.available && horizon && (
         <Section id="grow" title="Grow your net worth" hint="Same starting point — the difference is a few habits."

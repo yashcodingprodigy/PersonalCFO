@@ -3,7 +3,28 @@
 > Single source of truth for the PayWatch project. Read this first before working on the codebase.
 > Keep it updated when architecture, features, deployment, branding, or compliance decisions change.
 
-Last updated: June 2026 (CA portal, Portfolio X-ray, Ask PayWatch rename, Supabase Mumbai DB).
+Last updated: Aug 2026 (accepted into XElevate Accelerator Cohort 3; first intern hired; incubated at MAHE
+Innovation Centre; pricing restructure; investment/MFD path; CA-marketplace legality; premium landing +
+brand/loading system; tabbed Tax page). **Companion docs added: `WORKFLOW.md` (end-to-end runtime flow —
+function/API/data flow per feature) and `DECISIONS.md` (why we chose what we chose). Read all three together;
+keep all three updated.**
+
+**Business status (Aug 2026):** PayWatch is **incubated at the MAHE Innovation Centre** (mentor: Dr. Mathew
+Peter / Dr. Mohammed Zuber) and has been **accepted into the XElevate Super Accelerator Program — Cohort 3**
+(60% scholarship, net fee ₹50,000; program focus = validation → adoption → scale → investor-readiness).
+Founder: Yash Saini (solo build). **First hire: a Market & User Research intern (Vighnesh, task-based,
+₹8–10k/mo merit stipend, started 22 Aug 2026)** — inducted via the IC (IC registers the intern + issues the
+internship letter on the founder's recommendation, since PayWatch isn't incorporated yet). **Company:** leaning
+**Private Limited**, registered in the founder's hometown with local CA/CS help (needs a 2nd director — a
+trusted family member/co-founder with a small stake); **trademark** "PayWatch" to be filed (classes 9/36/42)
+before heavy public promotion; public LinkedIn launch announcement deliberately held until trademark filed +
+traction. Not yet incorporated, no live users/revenue — prototype stage (TRL 7), now moving to validation +
+commercialisation. Tagline: **"Watch your money grow."**
+Non-code deliverables live in the project root: `PayWatch-Detailed-Deck.pptx/pdf` (self-explanatory investor/
+mentor deck), `PayWatch-Pitch-Deck.pptx`, `PayWatch-Poster.*`, `PayWatch-Hiring-Poster.*` (intern recruiting),
+`PayWatch-Insurance-Partnership-Brief.md`. **Defensibility framing (from research):** PFM apps die from
+*tracking, not acting* — PayWatch's guidance/action layer + moving score is the antidote; monetisation is
+distribution-native (insurance + MF commission), which is where every neobank/PFM player eventually pivoted.
 
 ---
 
@@ -213,6 +234,14 @@ unread-alerts badge, native biometric lock overlay).
   incremental seed), `profile.ts` (load ProfileData + recalc).
 - `caLink.ts` (connect-code gen + `requestLink` handshake), `caShare.ts` (messaging + documents for an
   active link). `db/index.ts` exports **`withTransaction()`** (ACID) — used by statement import + AA refresh.
+- `realtime.ts` — **SSE** live-update hub: in-memory registry keyed by user/CA id; `index.ts` serves
+  `GET /v1/events?token=` (JWT in query — EventSource can't set headers) and pushes a tiny refresh *signal*
+  (not data) on CA/user messages + connection handshake; client subscribes via `api.subscribeEvents()`.
+- `vault.ts` — Document Vault encrypted file store (AES-256, Supabase Storage, ≤8 MB, scoped by user_id).
+  `encryption.ts` — app-layer **AES-256-GCM** at rest (key = `ENCRYPTION_KEY` env) for CA docs/messages, vault,
+  records, insurance policies; version-prefixed rows; NOT end-to-end (server decrypts to show the CA). `itr.ts`
+  — canonical ITR document list + filing steps (shared by user prep guide, CA card, checklist). `holdings.ts`
+  **and** `portfolio.ts` — two look-through engines (asset-class/cap/sector diversification grading).
 
 ### Adapters
 `sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
@@ -283,6 +312,12 @@ renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, and 
 ## 6. Mobile apps (Capacitor) — see `web/MOBILE.md`
 - Bundled **static export** (`BUILD_TARGET=mobile next build` → `web/out/`), `capacitor.config.ts`
   (appId `in.paywatch.app`). Scripts: `build:mobile` / `cap:sync` / `cap:ios` / `cap:android` / `cap:assets`.
+- **SYNC MODEL — one codebase, mobile = a build step:** there is no separate mobile source. The native app is
+  `web/` statically exported + wrapped by Capacitor, so it can't drift at the source level — but the native
+  **build artifact goes stale until you re-run `npm run cap:sync`** (= `build:mobile` + `cap sync`) then rebuild
+  in Xcode/Android Studio on the Mac. **Status Aug 2026: mobile is STALE** — native bundles (`web/android`,
+  `web/ios`) date to ~Jun 29, missing ~2 months of web changes (premium landing, loading system, dashboard
+  restructure, tax tabs, insurance rework, pricing restructure). Fix = `cap:sync` + native rebuild; no porting.
 - `lib/native.ts`: biometric app-lock (launch/resume), splash, status bar, haptics, push registration →
   `POST /user/push-token`. All no-op on web (same codebase on Vercel + native).
 - **Push is gated off by `NEXT_PUBLIC_PUSH_ENABLED=1`** (build-time) — without Firebase set up it crashes
@@ -348,6 +383,20 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - **RBI Account Aggregator:** live bank data needs **FIU** registration (Sahamati + Finvu). Keep
   `AA_PROVIDER=mock` + statement-upload until then.
 - **Payments:** Razorpay is the PA; PayWatch is a merchant (needs Razorpay KYC, not a PA licence).
+- **Investing (SEBI + AMFI) — CHOSEN NEAR-TERM PATH: AMFI Mutual Fund Distributor (ARN).** To move Invest
+  from category-only guidance to letting users actually invest in named funds/SIPs, become an **AMFI-registered
+  MFD** (NISM Series V-A exam + ARN, ~₹3–5k — low barrier) and route transactions through **BSE StAR MF** (via
+  infra like Cybrilla/FintechPrimitives, MfAPIs, or smallcase). MFD = distribution (trail commission from AMCs),
+  NOT advice — do **not** charge advisory fees (that's SEBI RIA) and never name individual **stocks** (finfluencer
+  rule). ARN is mutual-funds only; **stocks/ETFs need a SEBI stockbroker** — offer later only via a broker partner
+  (e.g. smallcase gateway, execution at the user's own broker). Interim (no licence): keep category-only + an
+  execution **hand-off**. Alternative for direct plans: SEBI **Execution-Only Platform (EOP)** registration.
+- **CAs / advisor feature (ICAI) — legality clarified: keep it a PRIVATE user↔own-CA tool, NEVER a marketplace.**
+  ICAI bans CA **advertising/solicitation**, **listing on app-based aggregators for exclusive services**, and
+  **fee-sharing with non-members**. Our CA portal is a code-based handshake where a user connects their *own* CA
+  and shares documents — that's fine. Do **NOT** build a CA discovery/listing/quotes marketplace, and **never take
+  commission from CAs** (monetise the user, not the CA). If discovery is ever wanted, point to ICAI's own CA
+  Connect portal.
 - **Insurance — NEAR-TERM MODEL (refined with owner, Jul 2026): tech + discovery layer ON TOP OF a licensed
   partner.** PayWatch builds the whole experience (education, needs discovery, comparison-style UX, policy
   management) but the **regulated sale is owned by a licensed insurance partner** (embedded-insurance infra such
@@ -412,8 +461,12 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 8. **AIS reconciliation, audit/notice helpers** — later.
 
 ### Business / legal / registrations (Goal B — needs professionals)
-1. **Company** — incorporate Pvt Ltd, PAN/TAN (CA/CS). Update legal copy CIN/address.
-2. **Trademark** "PayWatch" with IP India (classes 9 / 36 / 42).
+0. **Incubation** ✓ — MAHE Innovation Centre (mentor assigned; help offered on trademark, testing, registrations,
+   workspace, interns). Now: recruit interns, start trademark, validate with users.
+1. **Company** — incorporate Pvt Ltd, PAN/TAN (CA/CS). Update legal copy CIN/address. (Unlocks most tie-ups.)
+2. **Trademark** "PayWatch" with IP India (classes 9 / 36 / 42) — start early via the IC, before heavy promotion.
+2b. **AMFI Mutual Fund Distributor (ARN)** — NISM V-A exam + ARN; unlocks in-app fund/SIP investing via BSE StAR
+   MF + trail commission. Cheapest "actually invest" step. See §8. (Stocks need a separate broker partner.)
 3. **GST registration** (billing already issues 18% GST invoices).
 4. **DPDP baseline** — consent notice, grievance officer, breach plan, under-18, security docs (lawyer).
 5. **Developer accounts + D-U-N-S** — Apple ($99/yr) + Google ($25) org accounts; start D-U-N-S early.
@@ -456,6 +509,12 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 
 ## 11. CA portal
 A second account type (Chartered Accountants) alongside users. Built across phases 1–5.
+
+> **LEGALITY (ICAI) — do not drift:** this is a **private user↔own-CA collaboration tool** (code-based handshake +
+> document sharing), NOT a CA marketplace/directory. ICAI bans CA advertising/solicitation, aggregator listings for
+> exclusive services, and fee-sharing with non-members. So: never add CA discovery/listing/ratings/quotes, and never
+> take commission from CAs — monetise the user. See §8. The client already knows their own CA, so identity isn't
+> "revealed" to strangers; that concern only applies to a marketplace, which we don't build.
 
 - **Identity:** `cas` table; CA tokens are JWT `role:'ca'` (15m access + stateless 90d refresh — no
   rotation/revoke yet, hardening TODO). `requireCa` guards `/v1/ca/*`; `requireAuth` rejects CA tokens.

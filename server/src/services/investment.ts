@@ -298,3 +298,81 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
     recommendations: visibleRecs, modelPortfolios, rebalanceNotes, startSteps, disclaimer,
   };
 }
+
+// ── Allocation vs. target (over / under) ────────────────────────────
+// Classifies the user's INVESTED money (equity, debt, gold) against the
+// suggested mix for their age + risk, so the Net Worth tab can show which
+// buckets are over the advised share ("overflowing") and which are short.
+// Educational — asset classes only, never a named product. Values in paise.
+export type AllocStatus = 'over' | 'under' | 'on_track';
+export interface AllocClass {
+  key: 'equity' | 'debt' | 'gold';
+  label: string;
+  value: number;        // paise held in this class
+  currentPct: number;   // % of invested (equity+debt+gold)
+  targetPct: number;    // suggested share
+  status: AllocStatus;
+  deltaPct: number;     // currentPct - targetPct (signed)
+  note: string;
+}
+export interface AllocationAnalysis {
+  available: boolean;
+  investedTotal: number;         // equity+debt+gold (paise)
+  riskProfile: Risk;
+  tolerancePct: number;          // band that still counts as "on track"
+  classes: AllocClass[];
+  cash: { value: number; note: string | null };
+  realEstate: { value: number };
+}
+
+export function allocationAnalysis(p: ProfileData): AllocationAnalysis {
+  const a = p.assets || {};
+  const age = p.user.age || 32;
+  const risk: Risk = (p.user.risk_appetite as Risk) || deriveRisk(p).risk;
+
+  const equityPct = targetEquityPct(age, risk);
+  const goldPct = risk === 'conservative' ? 10 : risk === 'moderate' ? 7 : 5;
+  const debtPct = Math.max(0, 100 - equityPct - goldPct);
+  const targets: Record<'equity' | 'debt' | 'gold', number> = { equity: equityPct, debt: debtPct, gold: goldPct };
+
+  const values: Record<'equity' | 'debt' | 'gold', number> = {
+    equity: n(a.mutual_funds?.value) + n(a.stocks) + n(a.us_stocks),
+    debt: n(a.epf) + n(a.ppf) + n(a.fd_total) + n(a.nps),
+    gold: n(a.gold),
+  };
+  const curCash = n(a.savings_balance) + n(a.liquid_funds);
+  const curRe = n(a.property);
+  const invested = values.equity + values.debt + values.gold;
+
+  const tol = 5;
+  const labels: Record<'equity' | 'debt' | 'gold', string> = { equity: 'Equity', debt: 'Debt & fixed income', gold: 'Gold' };
+
+  const classes: AllocClass[] = (['equity', 'debt', 'gold'] as const).map((k) => {
+    const currentPct = invested > 0 ? Math.round((values[k] / invested) * 100) : 0;
+    const targetPct = targets[k];
+    const deltaPct = currentPct - targetPct;
+    const status: AllocStatus = deltaPct > tol ? 'over' : deltaPct < -tol ? 'under' : 'on_track';
+    const note =
+      status === 'over'
+        ? `Above the suggested ~${targetPct}%. Steer new money to the lighter buckets rather than selling — selling can trigger capital-gains tax.`
+        : status === 'under'
+          ? `Below the suggested ~${targetPct}%. Your plan tilts new money here.`
+          : `In line with the suggested ~${targetPct}%.`;
+    return { key: k, label: labels[k], value: values[k], currentPct, targetPct, status, deltaPct, note };
+  });
+
+  const totalFin = invested + curCash;
+  const cashNote = totalFin > 0 && curCash > totalFin * 0.4
+    ? 'A large share of your money is sitting in cash. Keep 3–6 months of expenses as your emergency fund; the rest works harder invested.'
+    : null;
+
+  return {
+    available: invested > 0,
+    investedTotal: invested,
+    riskProfile: risk,
+    tolerancePct: tol,
+    classes,
+    cash: { value: curCash, note: cashNote },
+    realEstate: { value: curRe },
+  };
+}

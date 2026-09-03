@@ -1,0 +1,169 @@
+<div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#1A1A1A; max-width:1180px; margin:0 auto; padding:8px 4px 40px;">
+<style>
+  .pw-h { font-weight:800; color:#0B2F2A; letter-spacing:-0.02em; }
+  .pw-sub { color:#5b6b64; font-size:13px; margin:2px 0 18px; }
+  .bmc { display:flex; gap:8px; }
+  .bmc .col { flex:1; display:flex; flex-direction:column; gap:8px; }
+  .box { border:1px solid #d9e4de; border-radius:10px; padding:10px 11px; background:#fff; display:flex; flex-direction:column; flex:1; }
+  .box h4 { margin:0 0 7px; font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:#1F7A5C; font-weight:800; }
+  .box.vp h4 { color:#fff; }
+  .box.vp { background:linear-gradient(160deg,#0B2F2A,#1F7A5C); color:#eafaf3; border:none; }
+  .box.vp li { color:#eafaf3; }
+  .box ul { margin:0; padding-left:15px; }
+  .box li { font-size:12px; line-height:1.5; margin-bottom:4px; }
+  .bottom { display:flex; gap:8px; margin-top:8px; }
+  .bottom .box { flex:1; }
+  .tag { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; background:#e6f0eb; color:#0B2F2A; margin-left:6px; }
+  .vpc { display:flex; gap:12px; margin-top:8px; }
+  .vpc .panel { flex:1; border:1px solid #d9e4de; border-radius:14px; padding:14px 16px; background:#fff; }
+  .vpc .panel h3 { margin:0 0 4px; font-size:15px; color:#0B2F2A; }
+  .vpc .panel .cap { font-size:11px; color:#7a8a83; margin-bottom:10px; }
+  .vpc .sub { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#1F7A5C; margin:12px 0 4px; }
+  .vpc ul { margin:0; padding-left:16px; } .vpc li { font-size:12px; line-height:1.5; margin-bottom:4px; }
+  .callout { border-left:4px solid #1F7A5C; background:#f2f8f5; border-radius:0 10px 10px 0; padding:11px 14px; font-size:12.5px; margin-top:16px; }
+  .data { color:#1F7A5C; font-weight:700; }
+</style>
+
+<h1 class="pw-h" style="font-size:24px; margin:6px 0 0;">PayWatch — Business Model Canvas</h1>
+<div class="pw-sub">A one-page map of how PayWatch creates, delivers and captures value. Data-backed where research exists (Aug 2026).</div>
+
+<div class="bmc">
+  <div class="col">
+    <div class="box"><h4>Key Partners</h4><ul>
+      <li>Licensed insurance partner (Zopper / Riskcovry) → later IRDAI Corporate Agent</li>
+      <li>AMFI / BSE StAR MF infra (Cybrilla) for fund investing</li>
+      <li>Razorpay (payments), Supabase (infra)</li>
+      <li>Account Aggregator / FIU ecosystem (later)</li>
+      <li>MAHE Innovation Centre + XElevate (incubation, network)</li>
+      <li>Chartered Accountants — collaboration, never commission</li>
+    </ul></div>
+  </div>
+  <div class="col">
+    <div class="box"><h4>Key Activities</h4><ul>
+      <li>Keep the computation engines correct & compliant</li>
+      <li>Continuous user research & validation</li>
+      <li>Customer-acquisition experiments</li>
+      <li>Regulatory sequencing (licences as milestones)</li>
+      <li>Trust & security</li>
+    </ul></div>
+    <div class="box"><h4>Key Resources</h4><ul>
+      <li>Proprietary deterministic engines (tax / score / ITR) = core IP</li>
+      <li>Integrated user financial data + data flywheel</li>
+      <li>RAG knowledge base + guardrails</li>
+      <li>Brand + founder domain expertise</li>
+    </ul></div>
+  </div>
+  <div class="col">
+    <div class="box vp"><h4>Value Propositions</h4><ul>
+      <li><b>A private financial CFO in your pocket.</b></li>
+      <li>ONE Money Health Score + ONE plan across your whole financial life.</li>
+      <li>Trusted "what to do next," in plain language.</li>
+      <li>Neutral — never pushes a product.</li>
+      <li>Sees everything, so it can answer <i>"Am I okay?"</i> — the one thing single-vertical apps can't.</li>
+    </ul></div>
+  </div>
+  <div class="col">
+    <div class="box"><h4>Customer Relationships</h4><ul>
+      <li>Self-serve app, low-touch</li>
+      <li>Proactive AI guidance (alerts, monthly briefing, Ask PayWatch)</li>
+      <li>Habit-forming — visible progress + nudges</li>
+      <li>Trust via transparency, bank-level security, no data-selling</li>
+    </ul></div>
+    <div class="box"><h4>Channels</h4><ul>
+      <li>iOS / Android apps + web PWA</li>
+      <li>Organic content & SEO (finance education)</li>
+      <li>Campus / community (Reddit, WhatsApp, colleges)</li>
+      <li>Referral / word-of-mouth; CA referrals</li>
+      <li><i>Primary paid channel = to be found via experiments</i></li>
+    </ul></div>
+  </div>
+  <div class="col">
+    <div class="box"><h4>Customer Segments</h4><ul>
+      <li><b>Beachhead:</b> young salaried earners <b>22–28</b>, first 1–4 yrs of work, digitally native, anxious, no advisor</li>
+      <li>Expansion: working professionals 25–40 (families, EMIs)</li>
+      <li>Students with stipends (19–25)</li>
+      <li><span class="data">78% would use a financial-health app</span> (research)</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="box"><h4>Cost Structure</h4><ul>
+    <li>Infra (hosting, DB, Claude API) + payment-gateway fees</li>
+    <li>Development (founder + interns / stipends)</li>
+    <li>Compliance & legal (incorporation, trademark, licences)</li>
+    <li><b>Customer acquisition — the big variable (CAC)</b></li>
+    <li>Philosophy: "lower costs, increased income" — lean, non-dilutive funding</li>
+  </ul></div>
+  <div class="box"><h4>Revenue Streams</h4><ul>
+    <li><b>Subscription:</b> Free (anchor) · Starter ₹199/mo · CFO ₹499/mo</li>
+    <li><b>Distribution commission:</b> mutual-fund trail (AMFI MFD) + insurance (licensed partner)</li>
+    <li>Never charge for advice (SEBI); monetise the user + distribution, never CAs</li>
+    <li><span class="data">Status: designed, not yet validated — the #1 priority</span></li>
+  </ul></div>
+</div>
+
+<h1 class="pw-h" style="font-size:24px; margin:36px 0 0;">PayWatch — Value Proposition Canvas</h1>
+<div class="pw-sub">Left = what PayWatch offers. Right = what the user actually needs (from Vighnesh's empathy research, n=49 survey + 20 interviews). A good fit = the left relieves the right.</div>
+
+<div class="vpc">
+  <div class="panel">
+    <h3>Value Map <span style="font-weight:400;font-size:12px;color:#7a8a83;">— what we offer</span></h3>
+    <div class="sub">Products &amp; Services</div>
+    <ul>
+      <li>Money Health Score · ranked action plan · Ask PayWatch (AI on your data)</li>
+      <li>Tax computation + guided self-filing · insurance analysis + marketplace</li>
+      <li>Investment (category) guidance · net-worth + growth projection</li>
+      <li>Spending analysis · alerts & briefings · document vault · CA collaboration</li>
+    </ul>
+    <div class="sub">Pain Relievers</div>
+    <ul>
+      <li>One number tells you exactly where you stand → kills "don't know where I stand"</li>
+      <li>Ranked next-steps → kills decision paralysis / "where do I start?"</li>
+      <li>Plain-language beginner guidance → kills "acting without understanding"</li>
+      <li>Neutral + secure + transparent → addresses the trust gap</li>
+      <li>Proactive alerts → catches deadlines, cuts anxiety</li>
+    </ul>
+    <div class="sub">Gain Creators</div>
+    <ul>
+      <li>Single cross-silo view → the unified picture users ask for</li>
+      <li>Animated score + progress → makes progress visible</li>
+      <li>"What to do next" clarity · education-first → confidence</li>
+      <li>Life-stage aware → grows with them</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>Customer Profile <span style="font-weight:400;font-size:12px;color:#7a8a83;">— what they need</span></h3>
+    <div class="sub">Customer Jobs</div>
+    <ul>
+      <li>"Know if I'm on the right financial track"</li>
+      <li>"Know what to do next with my money"</li>
+      <li>"Handle tax / insurance / investing without becoming an expert"</li>
+      <li>"Feel in control — less money stress" · "Build an emergency fund"</li>
+    </ul>
+    <div class="sub">Pains <span style="font-weight:400;color:#7a8a83;">(from research)</span></div>
+    <ul>
+      <li><span class="data">"Don't know where to start"</span> — 40% of 19–25</li>
+      <li>Decision paralysis — too many options</li>
+      <li>No emergency buffer — <span class="data">only 28.6% have one</span></li>
+      <li>Don't know whom to trust (parents / finfluencers / no one)</li>
+      <li>Stress even at higher income — <span class="data">44.9% often/daily</span></li>
+      <li>Lifestyle inflation ("left with nothing") · tax & investing confusion</li>
+    </ul>
+    <div class="sub">Gains</div>
+    <ul>
+      <li>Clarity — "just tell me what to do" · simplicity</li>
+      <li>One unified view of all their money</li>
+      <li>Trusted guidance (they anchor trust on <span class="data">SEBI/RBI approval</span>)</li>
+      <li>Independence, security, visible progress, confidence</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout">
+  <b>Strategic tension to design around:</b> the research shows users anchor trust on <b>SEBI/RBI approval</b> — the one badge PayWatch (education lane) won't have early. The value map must substitute for it deliberately: bank-level security, transparent "we never sell your data / never take commission to push products," and surfacing <i>licensed partners'</i> regulation. Trust is a build task, not a footnote.
+</div>
+
+<div style="font-size:11px;color:#8a978f;margin-top:20px;">PayWatch · Business Model & Value Proposition Canvas · Aug 2026 · figures marked in green are from primary research; revenue model is designed but not yet validated.</div>
+</div>

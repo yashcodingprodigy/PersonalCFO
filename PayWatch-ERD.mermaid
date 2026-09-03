@@ -1,0 +1,137 @@
+erDiagram
+  USERS ||--|| PROFILES : has
+  USERS ||--o{ SCORE_HISTORY : tracks
+  USERS ||--o{ ACTIONS : owns
+  USERS ||--o{ GOALS : sets
+  USERS ||--o{ TRANSACTIONS : records
+  USERS ||--o{ CONVERSATIONS : starts
+  CONVERSATIONS ||--o{ MESSAGES : contains
+  USERS ||--o{ MONTHLY_RECORDS : uploads
+  USERS ||--o{ INSURANCE_POLICIES : holds
+  USERS ||--o{ DOCUMENTS : stores
+  USERS ||--o{ SUBSCRIPTIONS : subscribes
+  SUBSCRIPTIONS ||--o{ INVOICES : bills
+  USERS ||--o{ CONSENTS : grants
+  USERS ||--o{ NOTIFICATIONS : receives
+  USERS ||--o{ DEVICE_TOKENS : registers
+  USERS ||--o{ OTP_CODES : verifies
+  USERS ||--o{ REFRESH_TOKENS : issues
+  USERS ||--o{ CA_CLIENT_LINKS : "client side"
+  CAS ||--o{ CA_CLIENT_LINKS : "CA side"
+  CA_CLIENT_LINKS ||--o{ CA_MESSAGES : thread
+  CA_CLIENT_LINKS ||--o{ CA_DOCUMENTS : shares
+
+  USERS {
+    uuid user_id PK
+    string mobile
+    string email
+    bigint annual_gross_income
+    bigint monthly_take_home
+    int dependents_count
+    int age
+    string employment_type
+    string risk_appetite
+    string plan
+    string connect_code
+  }
+  PROFILES {
+    uuid user_id FK
+    jsonb assets
+    jsonb liabilities
+    jsonb insurance
+    jsonb tax_data
+  }
+  SCORE_HISTORY {
+    uuid id PK
+    uuid user_id FK
+    int score
+    int savings_rate_score
+    int insurance_score
+    string trigger
+    jsonb profile_snapshot
+  }
+  ACTIONS {
+    uuid id PK
+    uuid user_id FK
+    string code
+    string status
+    int priority
+  }
+  TRANSACTIONS {
+    uuid id PK
+    uuid user_id FK
+    date txn_date
+    bigint amount
+    string direction
+    string category
+    string fingerprint
+  }
+  MONTHLY_RECORDS {
+    uuid id PK
+    uuid user_id FK
+    string period
+    string doc_type
+    jsonb extracted
+    jsonb contribution
+  }
+  INSURANCE_POLICIES {
+    uuid id PK
+    uuid user_id FK
+    string category
+    bigint sum_assured
+    bigint premium
+    date expiry_date
+    date maturity_date
+  }
+  GOALS {
+    uuid id PK
+    uuid user_id FK
+    string name
+    bigint target_amount
+    date target_date
+  }
+  SUBSCRIPTIONS {
+    uuid id PK
+    uuid user_id FK
+    string plan
+    string status
+  }
+  INVOICES {
+    uuid id PK
+    uuid subscription_id FK
+    string invoice_number
+    bigint total_amount
+    bigint gst_amount
+  }
+  CAS {
+    uuid ca_id PK
+    string name
+    string icai_no
+    string firm
+    string connect_code
+  }
+  CA_CLIENT_LINKS {
+    uuid id PK
+    uuid user_id FK
+    uuid ca_id FK
+    string status
+    string initiated_by
+  }
+  CA_MESSAGES {
+    uuid id PK
+    uuid link_id FK
+    string sender
+    text body_encrypted
+  }
+  CA_DOCUMENTS {
+    uuid id PK
+    uuid link_id FK
+    string filename
+    string storage_key
+  }
+  RAG_DOCUMENTS {
+    uuid id PK
+    string title
+    text content
+    tsvector search
+  }

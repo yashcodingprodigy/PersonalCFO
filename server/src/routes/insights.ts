@@ -14,7 +14,7 @@ import { computeNetWorth, projectMonthsToTarget, growthProjection } from '../ser
 import { compareRegimes, taxCalendarEntries, currentFY, taxReductionPlan, taxCopilot } from '../services/tax';
 import { prepareFiling, FilingInputs, assembleFilingInputs, fullFiling } from '../services/taxFiling';
 import { analyseInsurance } from '../services/insurance';
-import { buildInvestmentGuidance } from '../services/investment';
+import { buildInvestmentGuidance, allocationAnalysis } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
 import { analyzeHoldings } from '../services/holdings';
 import { getMarketData } from '../services/market';
@@ -40,7 +40,7 @@ insightsRouter.get('/networth', async (req: AuthedRequest, res) => {
   const nw = computeNetWorth(p);
   const surplus = p.monthlyExpenses != null ? p.user.monthly_take_home - p.monthlyExpenses : 0;
   const monthsTo1Cr = projectMonthsToTarget(nw.netWorth, surplus, 10000000_00);
-  res.json({ ...nw, monthly_surplus: surplus, months_to_1cr: monthsTo1Cr, growth: growthProjection(p, nw) });
+  res.json({ ...nw, monthly_surplus: surplus, months_to_1cr: monthsTo1Cr, growth: growthProjection(p, nw), allocationAnalysis: allocationAnalysis(p) });
 });
 
 // GET /tax — full tax position

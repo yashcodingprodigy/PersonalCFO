@@ -1,0 +1,36 @@
+sequenceDiagram
+  autonumber
+  participant U as User screen
+  participant C as lib/api.ts (client)
+  participant G as Express gateway
+  participant R as Route handler
+  participant P as profile.ts
+  participant E as Engine (e.g. taxFiling)
+  participant DB as PostgreSQL
+
+  Note over U,DB: READ path — opening the Tax page
+  U->>C: open /tax
+  C-->>U: render cached value instantly (SWR)
+  C->>G: GET /v1/tax/full  (Bearer access token)
+  G->>G: CORS · rate limit · verify JWT
+  G->>R: pass to insights route
+  R->>P: loadProfileData(userId)
+  P->>DB: read user + profile + last 3 months txns
+  DB-->>P: raw data (paise)
+  P-->>R: assembled ProfileData
+  R->>E: fullFiling(profile)
+  E-->>R: computed ITR (deterministic)
+  R-->>C: JSON
+  C->>C: update cache + re-render
+  C-->>U: fresh, correct numbers
+
+  Note over U,DB: WRITE path — marking an action done
+  U->>C: POST /v1/actions/:id/complete
+  C->>G: request (auth)
+  G->>R: actions route
+  R->>DB: update profile (assets/tax_data)
+  R->>P: recalculateAndStoreScore(trigger)
+  P->>DB: INSERT score_history snapshot
+  R-->>C: ok
+  C->>C: bust cache (next read is fresh)
+  C-->>U: "Profile updated" toast + new score
