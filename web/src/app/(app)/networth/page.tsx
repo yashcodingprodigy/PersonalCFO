@@ -134,8 +134,10 @@ export default function NetWorthPage() {
                         </div>
                         {/* the single animated bar */}
                         <div className="relative h-6 rounded-full bg-paper-100 overflow-hidden">
-                          <div className="absolute inset-y-0 left-0 rounded-full"
-                            style={{ width: barGrown ? `${cur}%` : '0%', background: s.bar, transition: 'width .8s cubic-bezier(.22,1,.36,1)' }} />
+                          <div className="absolute inset-y-0 left-0 rounded-full overflow-hidden"
+                            style={{ width: barGrown ? `${cur}%` : '0%', background: s.bar, transition: 'width .8s cubic-bezier(.22,1,.36,1)' }}>
+                            <div className="pw-bar-sheen" />
+                          </div>
                           <div className="absolute inset-y-0" style={{ left: `${tgt}%`, borderLeft: `2px dashed ${C.pine900}` }} />
                         </div>
                       </div>

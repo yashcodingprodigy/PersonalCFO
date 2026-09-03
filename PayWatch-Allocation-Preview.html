@@ -15,13 +15,15 @@
   .markrow{position:relative;height:15px;}
   .mark{position:absolute;bottom:0;white-space:nowrap;font-size:10px;font-weight:800;color:#0B2F2A;}
   .track{position:relative;height:24px;border-radius:99px;background:#F2EFE8;overflow:hidden;}
-  .fill{position:absolute;top:0;bottom:0;left:0;border-radius:99px;width:0;animation:grow 1s cubic-bezier(.22,1,.36,1) forwards;}
+  .fill{position:absolute;top:0;bottom:0;left:0;border-radius:99px;width:0;overflow:hidden;animation:grow 1s cubic-bezier(.22,1,.36,1) forwards;}
+  .sheen{position:absolute;inset:0;pointer-events:none;border-radius:inherit;background-image:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);background-size:220% 100%;animation:sheen 2s linear infinite;}
   .tick{position:absolute;top:0;bottom:0;border-left:2px dashed #0B2F2A;}
   .rval{width:44px;text-align:right;font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;padding-bottom:2px;}
   .note{font-size:12px;color:#48544F;margin-top:8px;line-height:1.5;}
   .cash{margin-top:24px;padding-top:16px;border-top:1px solid #F2EFE8;font-size:12px;color:#48544F;display:flex;gap:8px;}
   .disc{margin-top:16px;font-size:10px;color:#7C8782;line-height:1.5;}
   @keyframes grow{from{width:0;}}
+  @keyframes sheen{0%{background-position:160% 0;}100%{background-position:-160% 0;}}
 </style>
 <div class="h">Net worth · section</div>
 <div class="title">Investment allocation</div>
@@ -29,42 +31,30 @@
 <div class="card">
   <div class="leg"><b style="color:#2E9E44;">Green</b> = on track · <b style="color:#258274;">Teal</b> = under · <b style="color:#C77E1F;">Amber</b> = over the <span style="color:#0B2F2A;">▾</span> suggested mark</div>
 
-  <!-- Equity: under (42 vs 70) -->
   <div class="cls">
     <div class="clshead"><span class="clsname">Equity</span><span class="pill" style="background:rgba(11,47,42,.08);color:#16544B;">Under — 28% short</span></div>
-    <div class="barrow">
-      <div class="barwrap">
-        <div class="markrow"><span class="mark" style="left:70%;transform:translateX(-50%);">▾ 70%</span></div>
-        <div class="track"><div class="fill" style="width:42%;background:#258274;"></div><div class="tick" style="left:70%;"></div></div>
-      </div>
-      <span class="rval" style="color:#258274;">42%</span>
-    </div>
+    <div class="barrow"><div class="barwrap">
+      <div class="markrow"><span class="mark" style="left:70%;transform:translateX(-50%);">▾ 70%</span></div>
+      <div class="track"><div class="fill" style="width:42%;background:#258274;"><div class="sheen"></div></div><div class="tick" style="left:70%;"></div></div>
+    </div><span class="rval" style="color:#258274;">42%</span></div>
     <p class="note">Below the suggested ~70%. Your plan tilts new money here.</p>
   </div>
 
-  <!-- Debt: on track (25 vs 23) -->
   <div class="cls">
     <div class="clshead"><span class="clsname">Debt &amp; fixed income</span><span class="pill" style="background:#DFF5EE;color:#0B2F2A;">On track</span></div>
-    <div class="barrow">
-      <div class="barwrap">
-        <div class="markrow"><span class="mark" style="left:23%;transform:translateX(-50%);">▾ 23%</span></div>
-        <div class="track"><div class="fill" style="width:25%;background:#2E9E44;"></div><div class="tick" style="left:23%;"></div></div>
-      </div>
-      <span class="rval" style="color:#2E9E44;">25%</span>
-    </div>
+    <div class="barrow"><div class="barwrap">
+      <div class="markrow"><span class="mark" style="left:23%;transform:translateX(-50%);">▾ 23%</span></div>
+      <div class="track"><div class="fill" style="width:25%;background:#2E9E44;"><div class="sheen"></div></div><div class="tick" style="left:23%;"></div></div>
+    </div><span class="rval" style="color:#2E9E44;">25%</span></div>
     <p class="note">In line with the suggested ~23%.</p>
   </div>
 
-  <!-- Gold: over (33 vs 7) -->
   <div class="cls">
     <div class="clshead"><span class="clsname">Gold</span><span class="pill" style="background:rgba(199,126,31,.15);color:#C77E1F;">Over — 26% too much</span></div>
-    <div class="barrow">
-      <div class="barwrap">
-        <div class="markrow"><span class="mark" style="left:7%;transform:translateX(0);">▾ 7%</span></div>
-        <div class="track"><div class="fill" style="width:33%;background:#C77E1F;"></div><div class="tick" style="left:7%;"></div></div>
-      </div>
-      <span class="rval" style="color:#C77E1F;">33%</span>
-    </div>
+    <div class="barrow"><div class="barwrap">
+      <div class="markrow"><span class="mark" style="left:7%;transform:translateX(0);">▾ 7%</span></div>
+      <div class="track"><div class="fill" style="width:33%;background:#C77E1F;"><div class="sheen"></div></div><div class="tick" style="left:7%;"></div></div>
+    </div><span class="rval" style="color:#C77E1F;">33%</span></div>
     <p class="note">Above the suggested ~7%. Steer new money to the lighter buckets rather than selling — selling can trigger capital-gains tax.</p>
   </div>
 
