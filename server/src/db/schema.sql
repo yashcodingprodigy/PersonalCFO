@@ -127,8 +127,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   liabilities JSONB NOT NULL DEFAULT '{}',
   insurance   JSONB NOT NULL DEFAULT '{}',
   tax_data    JSONB NOT NULL DEFAULT '{}',
+  context     JSONB NOT NULL DEFAULT '{}',
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Personalization Stage 2: occupation/employer + structured benefit facts.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS context JSONB NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS score_history (
   score_id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

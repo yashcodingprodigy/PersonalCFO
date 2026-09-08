@@ -3,6 +3,7 @@
 
 import { ProfileData } from './score';
 import { deriveLifePhase } from './lifestage';
+import { effectiveCoverFromBenefits } from './context';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 const inr = (paise: number) => {
@@ -57,8 +58,12 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   const dependents = p.user.dependents_count || 0;
   const familySize = 1 + dependents;
 
-  const termCover = sum(p.insurance?.term, 'sum_assured');
-  const healthCover = sum(p.insurance?.health, 'sum_insured');
+  // Count cover the user already has from employer/scheme benefits (group cover,
+  // a MAHE-style booster) so we credit it instead of nagging them to re-buy it.
+  const benTerm = effectiveCoverFromBenefits(p, 'term');
+  const benHealth = effectiveCoverFromBenefits(p, 'health');
+  const termCover = sum(p.insurance?.term, 'sum_assured') + benTerm.cover;
+  const healthCover = sum(p.insurance?.health, 'sum_insured') + benHealth.cover;
   const totalLiabilities =
     sum(p.liabilities?.home_loans, 'outstanding') +
     sum(p.liabilities?.personal_loans, 'outstanding') +
@@ -82,6 +87,7 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   const healthGap = Math.max(0, recommendedHealth - healthCover);
 
   const termNotes: string[] = [];
+  if (benTerm.cover > 0) termNotes.push(`Your ${benTerm.labels.join(', ')} adds ${inr(benTerm.cover)} of life cover — counted here. Remember employer cover ends when the job does, so keep some personal cover too.`);
   if (recommendedTerm === 0) {
     termNotes.push(isStudent
       ? "You don't have dependents or loans, so life insurance isn't needed yet. You can lock it in later when someone starts depending on your income — premiums stay cheap while you're young and healthy."
@@ -93,6 +99,7 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   }
 
   const healthNotes: string[] = [];
+  if (benHealth.cover > 0) healthNotes.push(`Your ${benHealth.labels.join(', ')} already provides ${inr(benHealth.cover)} of health cover — we've counted it, so the figure above is only the gap that remains.`);
   const healthPolicies = Array.isArray(p.insurance?.health) ? p.insurance.health : [];
   if (healthPolicies.length > 1) healthNotes.push('You hold multiple health policies — check for overlapping cover and hidden sub-limits (room rent caps, disease-wise limits) in older policies.');
   if (healthPolicies.some((h: any) => h.employer_provided)) healthNotes.push('Employer cover lapses the day you leave the job — a personal base policy or super top-up protects continuity.');

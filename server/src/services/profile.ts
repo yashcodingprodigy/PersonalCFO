@@ -9,7 +9,7 @@ export async function loadProfileData(userId: string): Promise<ProfileData | nul
     [userId]
   );
   if (!user) return null;
-  const profile = await one(`SELECT assets, liabilities, insurance, tax_data FROM profiles WHERE user_id = $1`, [userId]);
+  const profile = await one(`SELECT assets, liabilities, insurance, tax_data, context FROM profiles WHERE user_id = $1`, [userId]);
 
   // Derive monthly expenses: prefer transaction data (last 3 full months of
   // debits excluding investments & transfers), fall back to manual entry.
@@ -44,6 +44,7 @@ export async function loadProfileData(userId: string): Promise<ProfileData | nul
     liabilities: profile?.liabilities || {},
     insurance: profile?.insurance || {},
     tax_data: profile?.tax_data || {},
+    context: profile?.context || {},
     monthlyExpenses,
   };
 }

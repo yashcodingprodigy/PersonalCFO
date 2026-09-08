@@ -22,6 +22,7 @@ import { deductionUsage } from '../services/score';
 import { categorise } from '../adapters/aa';
 import { remember } from '../services/rag';
 import { aiAvailable, analyzeDocumentGeneric } from '../services/docAI';
+import { getContext, updateContextFields, addBenefit, removeBenefit } from '../services/context';
 import {
   listPolicies, createPolicy, attachPolicyFile, getPolicyFile, deletePolicy,
   listApplications, createApplication, withdrawApplication,
@@ -41,6 +42,48 @@ insightsRouter.get('/networth', async (req: AuthedRequest, res) => {
   const surplus = p.monthlyExpenses != null ? p.user.monthly_take_home - p.monthlyExpenses : 0;
   const monthsTo1Cr = projectMonthsToTarget(nw.netWorth, surplus, 10000000_00);
   res.json({ ...nw, monthly_surplus: surplus, months_to_1cr: monthsTo1Cr, growth: growthProjection(p, nw), allocationAnalysis: allocationAnalysis(p) });
+});
+
+// ── Context & benefits (Personalization Stage 2) ───────────────────
+insightsRouter.get('/context', async (req: AuthedRequest, res) => {
+  res.json(await getContext(req.userId!));
+});
+
+const contextFieldsSchema = z.object({
+  occupation: z.string().max(120).optional(),
+  employer: z.string().max(120).optional(),
+  sector: z.string().max(80).optional(),
+  employment_nature: z.enum(['salaried', 'self_employed', 'business', 'retired', 'student']).optional(),
+});
+insightsRouter.put('/context', async (req: AuthedRequest, res) => {
+  const parsed = contextFieldsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'bad_request', message: 'Invalid context fields.' });
+  const ctx = await updateContextFields(req.userId!, parsed.data);
+  await recalculateAndStoreScore(req.userId!, 'context_update').catch(() => {});
+  res.json(ctx);
+});
+
+const benefitSchema = z.object({
+  type: z.enum(['insurance_booster', 'group_health', 'group_term', 'epf', 'nps', 'gratuity', 'gpf', 'esops', 'pension', 'govt_scheme', 'perk', 'other']),
+  label: z.string().min(1).max(140),
+  source: z.enum(['employer', 'government', 'professional_body', 'bank', 'other']).optional(),
+  value_base: z.number().nonnegative().optional(),
+  value_boosted_to: z.number().nonnegative().optional(),
+  rule: z.string().max(400).optional(),
+  affects: z.array(z.string()).optional(),
+  confidence: z.enum(['user_stated', 'doc_verified', 'inferred']).optional(),
+});
+insightsRouter.post('/context/benefits', async (req: AuthedRequest, res) => {
+  const parsed = benefitSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'bad_request', message: 'Invalid benefit.' });
+  const ctx = await addBenefit(req.userId!, parsed.data);
+  await recalculateAndStoreScore(req.userId!, 'benefit_added').catch(() => {});
+  res.json(ctx);
+});
+insightsRouter.delete('/context/benefits/:id', async (req: AuthedRequest, res) => {
+  const ctx = await removeBenefit(req.userId!, req.params.id);
+  await recalculateAndStoreScore(req.userId!, 'benefit_removed').catch(() => {});
+  res.json(ctx);
 });
 
 // GET /tax — full tax position

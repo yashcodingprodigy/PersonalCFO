@@ -4,7 +4,7 @@ import { PageSkeleton } from '@/components/Skeleton';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { get, post, patch, del, api, clearTokens } from '@/lib/api';
+import { get, post, patch, put, del, api, clearTokens } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
 import { STATES, citiesForState } from '@/lib/india';
 
@@ -28,10 +28,13 @@ export default function SettingsPage() {
   const [city, setCity] = useState('');
   const [risk, setRisk] = useState('');
   const [email, setEmail] = useState('');
+  // Work & benefits (personalization context)
+  const [ctx, setCtx] = useState<any>({ benefits: [] });
+  const [ben, setBen] = useState({ type: 'group_health', label: '', value_base: '', value_boosted_to: '', rule: '' });
 
   async function load() {
-    const [u, p, b, a] = await Promise.all([get('/user/me'), get('/user/profile'), get('/billing/subscription'), get('/aa/status')]);
-    setUser(u); setProfile(p); setBilling(b); setAa(a);
+    const [u, p, b, a, c] = await Promise.all([get('/user/me'), get('/user/profile'), get('/billing/subscription'), get('/aa/status'), get('/context').catch(() => ({}))]);
+    setUser(u); setProfile(p); setBilling(b); setAa(a); setCtx(c && typeof c === 'object' ? c : { benefits: [] });
     setName(u.name || ''); setAge(u.age ? String(u.age) : ''); setEmployment(u.employment_type || 'salaried');
     setDependents(u.dependents_count != null ? String(u.dependents_count) : '0');
     setStateName(u.state || ''); setCity(u.city || ''); setRisk(u.risk_appetite || ''); setEmail(u.email || '');
@@ -105,6 +108,29 @@ export default function SettingsPage() {
       hra_received_annual: rupeesToPaise(fields.hra || '0'),
     });
     flash('Tax data saved.');
+  }
+
+  async function saveWork() {
+    await put('/context', {
+      occupation: ctx.occupation || undefined,
+      employer: ctx.employer || undefined,
+      sector: ctx.sector || undefined,
+      employment_nature: ctx.employment_nature || undefined,
+    });
+    flash('Work details saved — your guidance now reflects them.'); load();
+  }
+  async function addBenefitFact() {
+    if (!ben.label.trim()) return flash('Give the benefit a short name.');
+    const body: any = { type: ben.type, label: ben.label.trim(), source: 'employer' };
+    if (ben.value_base) body.value_base = rupeesToPaise(ben.value_base);
+    if (ben.value_boosted_to) body.value_boosted_to = rupeesToPaise(ben.value_boosted_to);
+    if (ben.rule.trim()) body.rule = ben.rule.trim();
+    const c = await post('/context/benefits', body);
+    setCtx(c); setBen({ type: 'group_health', label: '', value_base: '', value_boosted_to: '', rule: '' });
+    flash('Benefit added — your advice now accounts for it.');
+  }
+  async function removeBenefitFact(id: string) {
+    const c = await del(`/context/benefits/${id}`); setCtx(c); flash('Benefit removed.');
   }
 
   async function subscribe(plan: string) {
@@ -225,6 +251,80 @@ export default function SettingsPage() {
             <div><label className="label">Health cover</label><input className="input" inputMode="numeric" {...F('health')} /></div>
           </div>
           <button onClick={saveProfile} className="btn-primary">Save & recalculate score</button>
+        </section>
+      )}
+
+      {tab === 'profile' && (
+        <section className="card p-6 space-y-5">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Work &amp; benefits</h2>
+            <p className="text-xs text-ink-soft mt-1">Your job and the perks you get change your advice. Tell us once — PayWatch remembers and applies it everywhere (e.g. an employer health booster means we won&apos;t nag you to buy cover you already have).</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div><label className="label">Occupation</label><input className="input" placeholder="e.g. University faculty" value={ctx.occupation || ''} onChange={(e) => setCtx({ ...ctx, occupation: e.target.value })} /></div>
+            <div><label className="label">Employer</label><input className="input" placeholder="e.g. MAHE" value={ctx.employer || ''} onChange={(e) => setCtx({ ...ctx, employer: e.target.value })} /></div>
+            <div><label className="label">Sector</label><input className="input" placeholder="e.g. Education" value={ctx.sector || ''} onChange={(e) => setCtx({ ...ctx, sector: e.target.value })} /></div>
+            <div><label className="label">Employment type</label>
+              <select className="input" value={ctx.employment_nature || ''} onChange={(e) => setCtx({ ...ctx, employment_nature: e.target.value })}>
+                <option value="">Select…</option>
+                <option value="salaried">Salaried</option>
+                <option value="self_employed">Self-employed</option>
+                <option value="business">Business owner</option>
+                <option value="retired">Retired</option>
+                <option value="student">Student</option>
+              </select>
+            </div>
+          </div>
+          <button onClick={saveWork} className="btn-primary">Save work details</button>
+
+          {/* Existing benefit facts */}
+          <div className="pt-2 border-t border-paper-100">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint mb-2">Your benefits &amp; schemes</h3>
+            {(ctx.benefits || []).length === 0 ? (
+              <p className="text-sm text-ink-soft">None added yet. Add employer cover, an insurance booster, EPF/NPS, or a government scheme below.</p>
+            ) : (
+              <ul className="space-y-2">
+                {(ctx.benefits || []).map((b: any) => (
+                  <li key={b.id} className="flex items-center justify-between gap-3 rounded-xl bg-paper-100 px-3 py-2.5">
+                    <span className="text-sm">
+                      <span className="font-semibold">{b.label}</span>
+                      <span className="text-ink-faint"> · {String(b.type).replace(/_/g, ' ')}</span>
+                      {(b.value_boosted_to || b.value_base) && <span className="text-pine-700 font-semibold"> · {inr(b.value_boosted_to || b.value_base)}{b.value_boosted_to ? ' cover' : ''}</span>}
+                      {b.rule && <span className="block text-xs text-ink-soft mt-0.5">{b.rule}</span>}
+                    </span>
+                    <button onClick={() => removeBenefitFact(b.id)} className="text-xs text-signal-red font-semibold shrink-0">Remove</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Add a benefit */}
+          <div className="pt-2 border-t border-paper-100 space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint">Add a benefit</h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div><label className="label">Type</label>
+                <select className="input" value={ben.type} onChange={(e) => setBen({ ...ben, type: e.target.value })}>
+                  <option value="insurance_booster">Insurance booster (top-up)</option>
+                  <option value="group_health">Employer group health cover</option>
+                  <option value="group_term">Employer group life/term cover</option>
+                  <option value="epf">EPF / VPF</option>
+                  <option value="nps">NPS</option>
+                  <option value="gratuity">Gratuity</option>
+                  <option value="gpf">GPF (government)</option>
+                  <option value="esops">ESOPs</option>
+                  <option value="pension">Pension</option>
+                  <option value="govt_scheme">Government scheme</option>
+                  <option value="perk">Other perk</option>
+                </select>
+              </div>
+              <div><label className="label">Name</label><input className="input" placeholder="e.g. MAHE faculty insurance booster" value={ben.label} onChange={(e) => setBen({ ...ben, label: e.target.value })} /></div>
+              <div><label className="label">Base value (₹)</label><input className="input" inputMode="numeric" placeholder="e.g. 500000" value={ben.value_base} onChange={(e) => setBen({ ...ben, value_base: e.target.value })} /></div>
+              <div><label className="label">Boosts up to (₹) <span className="text-ink-faint font-normal">— optional</span></label><input className="input" inputMode="numeric" placeholder="e.g. 4000000" value={ben.value_boosted_to} onChange={(e) => setBen({ ...ben, value_boosted_to: e.target.value })} /></div>
+            </div>
+            <div><label className="label">Notes <span className="text-ink-faint font-normal">— optional</span></label><input className="input" placeholder="e.g. split 2.5L/2.5L, preserved for emergency" value={ben.rule} onChange={(e) => setBen({ ...ben, rule: e.target.value })} /></div>
+            <button onClick={addBenefitFact} className="btn-primary">Add benefit</button>
+          </div>
         </section>
       )}
 

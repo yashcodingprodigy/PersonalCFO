@@ -16,6 +16,7 @@ export interface ProfileData {
   liabilities: any;
   insurance: any;
   tax_data: any;
+  context?: any; // occupation/employer + structured benefit facts (see context.ts)
   monthlyExpenses: number | null; // derived from transactions or manual entry
 }
 
