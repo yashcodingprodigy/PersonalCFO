@@ -9,6 +9,7 @@ import { ProfileData, computeScore } from './score';
 import { compareRegimes } from './tax';
 import { analyseInsurance } from './insurance';
 import { computeNetWorth } from './networth';
+import { deriveLifePhase, phaseInfo } from './lifestage';
 import { retrieve, RetrievedDoc } from './rag';
 import { query } from '../db';
 
@@ -268,6 +269,9 @@ export async function answerQuestion(
   // Context memory: profile snapshot + the user's active goals, so guidance is
   // grounded in their overall picture and what they're saving for.
   let userContext = buildUserContext(p);
+  // Life stage — so guidance is framed for where they are in life (grow vs protect).
+  const lp = phaseInfo(deriveLifePhase(p));
+  userContext += `\nLife stage: ${lp.label} — focus on ${lp.focus}. Frame guidance for this stage.`;
   try {
     const goals = await query<any>(`SELECT name, goal_type, target_amount, target_date, current_amount FROM goals WHERE user_id = $1 ORDER BY created_at LIMIT 10`, [userId]);
     if (goals.length) {

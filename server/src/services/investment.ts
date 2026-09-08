@@ -9,6 +9,7 @@
 // All monetary values are in paise.
 
 import { ProfileData } from './score';
+import { deriveLifePhase, phaseEquityAdj, LifePhase } from './lifestage';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 const n = (x: any) => Number(x) || 0;
@@ -46,6 +47,7 @@ export interface InvestmentGuidance {
   riskProfile: Risk;
   riskReason: string;
   riskWasExplicit: boolean;
+  lifePhase: LifePhase;
 
   emergencyFirst: boolean;
   emergencyMessage: string | null;
@@ -87,11 +89,12 @@ function deriveRisk(p: ProfileData): { risk: Risk; reason: string } {
   return { risk, reason };
 }
 
-// Target equity weight as a function of age and risk appetite.
-function targetEquityPct(age: number, risk: Risk): number {
+// Target equity weight as a function of age, risk appetite and life phase.
+// `phaseAdj` (percentage points) lets the life-stage model de-risk near retirement.
+function targetEquityPct(age: number, risk: Risk, phaseAdj = 0): number {
   const base = 100 - age; // classic rule of thumb
   const adj = risk === 'aggressive' ? 15 : risk === 'moderate' ? 0 : -15;
-  return Math.max(20, Math.min(90, Math.round(base + adj)));
+  return Math.max(20, Math.min(90, Math.round(base + adj + phaseAdj)));
 }
 
 export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
@@ -102,7 +105,7 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
   const income = p.user.annual_gross_income || 0;
   if (!income && !p.user.monthly_take_home) {
     return {
-      hasIncome: false, riskProfile: 'moderate', riskReason: '', riskWasExplicit: false,
+      hasIncome: false, riskProfile: 'moderate', riskReason: '', riskWasExplicit: false, lifePhase: deriveLifePhase(p),
       emergencyFirst: false, emergencyMessage: null, highCostDebtFirst: false, debtMessage: null,
       monthlyInvestable: 0, investableExplanation: 'Add your income and expenses to unlock a personalised plan.',
       takeHome: 0, monthlyExpenses: 0, currentSip: 0, surplus: 0,
@@ -145,8 +148,9 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
       ? 'Your expenses currently use up your take-home pay, so there is no surplus to invest yet. The fastest win is freeing up money in the Actions tab.'
       : `From your ${inr(takeHome)} take-home minus ~${inr(expenses)} expenses, you have about ${inr(rawSurplus)} free each month. We suggest investing around ${inr(monthlyInvestable)} (keeping a buffer)${existingSip > 0 ? `. You already invest ${inr(existingSip)}/month via SIP — count this towards the plan.` : '.'}`;
 
-  // ── Target allocation ──────────────────────────────────────────────
-  const equityPct = targetEquityPct(age, risk);
+  // ── Target allocation (life-stage aware) ───────────────────────────
+  const lifePhase = deriveLifePhase(p);
+  const equityPct = targetEquityPct(age, risk, phaseEquityAdj(lifePhase));
   const goldPct = risk === 'conservative' ? 10 : risk === 'moderate' ? 7 : 5;
   const debtPct = Math.max(0, 100 - equityPct - goldPct);
   const targetAllocation = { equity: equityPct, debt: debtPct, gold: goldPct };
@@ -290,7 +294,7 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
   const visibleRecs = recs.filter((r) => !started.includes(r.category));
 
   return {
-    hasIncome: true, riskProfile: risk, riskReason: reason, riskWasExplicit,
+    hasIncome: true, riskProfile: risk, riskReason: reason, riskWasExplicit, lifePhase,
     emergencyFirst, emergencyMessage, highCostDebtFirst, debtMessage,
     monthlyInvestable, investableExplanation,
     takeHome, monthlyExpenses: expenses, currentSip: existingSip, surplus: Math.max(0, rawSurplus),
@@ -319,6 +323,7 @@ export interface AllocationAnalysis {
   available: boolean;
   investedTotal: number;         // equity+debt+gold (paise)
   riskProfile: Risk;
+  lifePhase: LifePhase;
   tolerancePct: number;          // band that still counts as "on track"
   classes: AllocClass[];
   cash: { value: number; note: string | null };
@@ -329,8 +334,9 @@ export function allocationAnalysis(p: ProfileData): AllocationAnalysis {
   const a = p.assets || {};
   const age = p.user.age || 32;
   const risk: Risk = (p.user.risk_appetite as Risk) || deriveRisk(p).risk;
+  const lifePhase = deriveLifePhase(p);
 
-  const equityPct = targetEquityPct(age, risk);
+  const equityPct = targetEquityPct(age, risk, phaseEquityAdj(lifePhase));
   const goldPct = risk === 'conservative' ? 10 : risk === 'moderate' ? 7 : 5;
   const debtPct = Math.max(0, 100 - equityPct - goldPct);
   const targets: Record<'equity' | 'debt' | 'gold', number> = { equity: equityPct, debt: debtPct, gold: goldPct };
@@ -370,6 +376,7 @@ export function allocationAnalysis(p: ProfileData): AllocationAnalysis {
     available: invested > 0,
     investedTotal: invested,
     riskProfile: risk,
+    lifePhase,
     tolerancePct: tol,
     classes,
     cash: { value: curCash, note: cashNote },

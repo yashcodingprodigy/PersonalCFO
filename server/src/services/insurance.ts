@@ -2,6 +2,7 @@
 // recommend a specific policy or insurer product (IRDAI/SEBI positioning).
 
 import { ProfileData } from './score';
+import { deriveLifePhase } from './lifestage';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 const inr = (paise: number) => {
@@ -96,6 +97,8 @@ export function analyseInsurance(p: ProfileData): InsuranceAnalysis {
   if (healthPolicies.length > 1) healthNotes.push('You hold multiple health policies — check for overlapping cover and hidden sub-limits (room rent caps, disease-wise limits) in older policies.');
   if (healthPolicies.some((h: any) => h.employer_provided)) healthNotes.push('Employer cover lapses the day you leave the job — a personal base policy or super top-up protects continuity.');
   if (age > 40) healthNotes.push('Past 40, consider a critical illness rider (cancer, cardiac, stroke) — these pay a lump sum on diagnosis, separate from hospitalisation cover.');
+  const lifePhase = deriveLifePhase(p);
+  if (lifePhase === 'pre_retirement' || lifePhase === 'retirement') healthNotes.push('As you approach and enter retirement, health cover becomes your top insurance priority — medical costs rise with age and employer cover ends. Lock in adequate cover now, while you are still insurable, and keep a super top-up for large hospitalisations.');
 
   const flags: InsuranceAnalysis['flags'] = [];
   if (termCover === 0 && dependents > 0) flags.push({ severity: 'high', message: 'No term life cover with financial dependents.' });

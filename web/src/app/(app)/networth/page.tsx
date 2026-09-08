@@ -102,7 +102,7 @@ export default function NetWorthPage() {
       {/* Investment allocation — one animated bar per class; ▾ marks the suggested share */}
       {nw.allocationAnalysis?.available && (
         <Section id="allocation" title="Investment allocation"
-          hint={`Your ${inr(nw.allocationAnalysis.investedTotal)} of investments, by type — each bar grows to what you hold; ▾ marks the suggested share for your ${nw.allocationAnalysis.riskProfile} risk level.`}>
+          hint={`Your ${inr(nw.allocationAnalysis.investedTotal)} of investments, by type — each bar grows to what you hold; ▾ marks the suggested share, tuned to your ${nw.allocationAnalysis.riskProfile} risk level${({ accumulation: '', consolidation: '', pre_retirement: ' and pre-retirement stage', retirement: ' and retirement stage' } as Record<string, string>)[nw.allocationAnalysis.lifePhase] || ''}.`}>
           <div className="card p-6">
             <p className="text-[11px] text-ink-faint mb-6 leading-relaxed">
               <span className="font-bold" style={{ color: C.green }}>Green</span> = on track ·
