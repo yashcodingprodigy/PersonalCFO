@@ -18,6 +18,10 @@ export default function AskPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [disclaimer, setDisclaimer] = useState('');
+  const [listening, setListening] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recogRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +36,9 @@ export default function AskPage() {
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) setVoiceSupported(true);
+  }, []);
 
   async function openConversation(id: string) {
     setActiveId(id);
@@ -53,6 +60,7 @@ export default function AskPage() {
         get('/qa/conversations').then(setConversations).catch(() => {});
       }
       setMessages((m) => [...m, { ...res.message, proposedAction: res.proposedAction }]);
+      if (voiceOn && res.message?.content) speak(strip(res.message.content));
     } catch (e: any) {
       setErr(e.message);
       setMessages((m) => m.slice(0, -1));
@@ -70,6 +78,42 @@ export default function AskPage() {
     setMessages((ms) => ms.map((x) => (x.message_id === mid ? { ...x, _actionState: 'dismissed' } : x)));
   }
 
+  // ── Voice (Phase A + B) ──────────────────────────────────────────
+  function strip(md: string) {
+    return (md || '').replace(/\[(.*?)\]\(.*?\)/g, '$1').replace(/[*#`_>]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function speak(text: string) {
+    try { const u = new SpeechSynthesisUtterance(text.slice(0, 600)); u.lang = 'en-IN'; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch { /* no TTS */ }
+  }
+  function findPending() {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === 'assistant' && m.proposedAction && m._actionState !== 'added' && m._actionState !== 'dismissed') return m;
+    }
+    return null;
+  }
+  // A spoken utterance: if there's a pending action, "yes/no" confirms it hands-free; else it's a question.
+  function handleVoice(t: string) {
+    const pend = findPending();
+    if (pend) {
+      if (/^\s*(yes|yeah|yep|yup|add it|confirm|sure|okay|ok|go ahead|haan|haanji|kar do|add)\b/i.test(t)) { confirmProposed(pend.message_id, pend.proposedAction.benefit); return; }
+      if (/^\s*(no|nope|don'?t|cancel|dismiss|skip|nahi|rehne do)\b/i.test(t)) { dismissProposed(pend.message_id); return; }
+    }
+    send(t);
+  }
+  function startListening() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    try {
+      const r = new SR(); r.lang = 'en-IN'; r.interimResults = false; r.maxAlternatives = 1;
+      r.onresult = (e: any) => { const t = e.results?.[0]?.[0]?.transcript?.trim(); setListening(false); if (t) handleVoice(t); };
+      r.onend = () => setListening(false);
+      r.onerror = () => setListening(false);
+      recogRef.current = r; setListening(true); r.start();
+    } catch { setListening(false); }
+  }
+  function stopListening() { try { recogRef.current?.stop(); } catch { /* ignore */ } setListening(false); }
+
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 8rem)' }}>
       <div className="flex items-end justify-between flex-wrap gap-3 mb-4">
@@ -77,12 +121,20 @@ export default function AskPage() {
           <h1 className="font-display text-3xl font-medium">Ask PayWatch</h1>
           <p className="text-sm text-ink-soft mt-1">Answers grounded in your actual numbers — not generic advice.</p>
         </div>
-        {conversations.length > 0 && (
-          <select className="input !w-auto !py-2 text-xs" value={activeId || ''} onChange={(e) => (e.target.value ? openConversation(e.target.value) : (setActiveId(null), setMessages([])))}>
-            <option value="">+ New conversation</option>
-            {conversations.map((c) => <option key={c.conversation_id} value={c.conversation_id}>{c.title}</option>)}
-          </select>
-        )}
+        <div className="flex items-center gap-2">
+          {voiceSupported && (
+            <button onClick={() => { setVoiceOn((v) => !v); if (voiceOn) try { window.speechSynthesis.cancel(); } catch {} }} title="Read answers aloud"
+              className={`rounded-full px-3 py-2 text-xs font-bold border transition-colors ${voiceOn ? 'bg-mint-100 text-pine-800 border-pine-700/30' : 'bg-paper-50 text-ink-soft border-paper-200'}`}>
+              {voiceOn ? '🔊 Voice on' : '🔈 Read aloud'}
+            </button>
+          )}
+          {conversations.length > 0 && (
+            <select className="input !w-auto !py-2 text-xs" value={activeId || ''} onChange={(e) => (e.target.value ? openConversation(e.target.value) : (setActiveId(null), setMessages([])))}>
+              <option value="">+ New conversation</option>
+              {conversations.map((c) => <option key={c.conversation_id} value={c.conversation_id}>{c.title}</option>)}
+            </select>
+          )}
+        </div>
       </div>
 
       <div className="card flex-1 flex flex-col overflow-hidden">
@@ -146,8 +198,14 @@ export default function AskPage() {
 
         {err && <p className="px-5 py-2 text-xs text-signal-red bg-signal-red/5">{err}</p>}
 
-        <form onSubmit={(e) => { e.preventDefault(); send(); }} className="border-t border-paper-100 p-3 flex gap-2">
-          <input className="input flex-1" placeholder="Ask about your money…" value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} />
+        <form onSubmit={(e) => { e.preventDefault(); send(); }} className="border-t border-paper-100 p-3 flex gap-2 items-center">
+          <input className="input flex-1" placeholder={listening ? 'Listening…' : 'Ask about your money…'} value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} />
+          {voiceSupported && (
+            <button type="button" onClick={() => (listening ? stopListening() : startListening())} title={listening ? 'Stop' : 'Talk to PayWatch'}
+              className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center border transition-colors ${listening ? 'bg-signal-red text-white border-signal-red animate-pulse' : 'bg-paper-50 text-pine-800 border-paper-200 hover:border-pine-600'}`}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M19 10v1a7 7 0 0 1-14 0v-1" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
+            </button>
+          )}
           <button className="btn-primary !px-5" disabled={busy || !input.trim()}>Send</button>
         </form>
       </div>
