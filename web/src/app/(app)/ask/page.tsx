@@ -52,12 +52,22 @@ export default function AskPage() {
         setActiveId(res.conversation_id);
         get('/qa/conversations').then(setConversations).catch(() => {});
       }
-      setMessages((m) => [...m, res.message]);
+      setMessages((m) => [...m, { ...res.message, proposedAction: res.proposedAction }]);
     } catch (e: any) {
       setErr(e.message);
       setMessages((m) => m.slice(0, -1));
       setInput(content);
     } finally { setBusy(false); }
+  }
+
+  async function confirmProposed(mid: string, benefit: any) {
+    try {
+      await post('/context/benefits', benefit);
+      setMessages((ms) => ms.map((x) => (x.message_id === mid ? { ...x, _actionState: 'added' } : x)));
+    } catch (e: any) { setErr(e.message || 'Could not save that. Please try again.'); }
+  }
+  function dismissProposed(mid: string) {
+    setMessages((ms) => ms.map((x) => (x.message_id === mid ? { ...x, _actionState: 'dismissed' } : x)));
   }
 
   return (
@@ -106,6 +116,22 @@ export default function AskPage() {
                 )}
                 {m.role === 'assistant' && m.review_status === 'pending_review' && (
                   <p className="mt-2 text-[10px] text-signal-amber font-semibold">⏳ Flagged for human advisor review (CFO plan) — may be refined within 4 hours.</p>
+                )}
+                {m.role === 'assistant' && m.proposedAction && m._actionState !== 'dismissed' && (
+                  <div className="mt-3 rounded-xl border border-pine-700/30 bg-mint-100/50 p-3">
+                    {m._actionState === 'added' ? (
+                      <p className="text-xs font-semibold text-pine-800">✓ Added to your profile — your insurance, tax and score now use it.</p>
+                    ) : (
+                      <>
+                        <p className="text-xs text-ink-soft mb-2">{m.proposedAction.summary}</p>
+                        <div className="flex gap-2">
+                          <button onClick={() => confirmProposed(m.message_id, m.proposedAction.benefit)} className="rounded-full bg-pine-900 text-white px-3 py-1.5 text-xs font-bold hover:bg-pine-800">Yes, add it</button>
+                          <button onClick={() => dismissProposed(m.message_id)} className="rounded-full bg-paper-100 text-ink-soft px-3 py-1.5 text-xs font-bold">No thanks</button>
+                        </div>
+                        <p className="text-[10px] text-ink-faint mt-2">You&apos;re in control — nothing changes until you tap &ldquo;Yes&rdquo;.</p>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

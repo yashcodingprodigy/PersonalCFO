@@ -132,7 +132,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   // private RAG memory — future answers know what they care about.
   await remember(req.userId!, 'question_asked', `Asked: ${question.slice(0, 100)}`, `On ${new Date().toISOString().slice(0, 10)} the user asked: "${question}". Topic relevance for future personalisation.`);
 
-  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER });
+  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction });
 }
 
 const qaLimit = rateLimit({ windowMs: 60_000, max: 15, keyPrefix: 'qa' });

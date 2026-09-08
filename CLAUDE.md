@@ -242,6 +242,17 @@ unread-alerts badge, native biometric lock overlay).
   records, insurance policies; version-prefixed rows; NOT end-to-end (server decrypts to show the CA). `itr.ts`
   — canonical ITR document list + filing steps (shared by user prep guide, CA card, checklist). `holdings.ts`
   **and** `portfolio.ts` — two look-through engines (asset-class/cap/sector diversification grading).
+- **Hyper-personalization stack** (see `PERSONALIZATION.md`): `lifestage.ts` — derives a user's life phase
+  (accumulation → consolidation → pre_retirement → retirement) from age/employment; every engine reframes
+  guidance for it (invest equity target de-risks near retirement, insurance emphasises health, Ask PayWatch
+  frames answers by stage). `context.ts` — the **Context & Benefits store**: `profiles.context` JSONB holds
+  occupation/employer/sector + structured **benefit facts** (employer group cover, a MAHE-style insurance
+  booster, EPF/NPS, govt schemes); `effectiveCoverFromBenefits()` lets the insurance engine credit cover the
+  user already has instead of nagging. `benefitsCatalog.ts` — the shared **benefits/schemes catalog** (curated
+  govt schemes + employer/occupation patterns, eligibility-matched) + **crowd-learned patterns**
+  (`benefit_patterns` table, aggregate only, surfaced past a ≥3-user threshold — DPDP-safe) → proactive
+  "people like you often have…" suggestions (`GET /v1/context/suggestions`). Manual UI in Settings → Profile →
+  Work & benefits. Routes: `GET/PUT /v1/context`, `POST/DELETE /v1/context/benefits`, `GET /v1/context/suggestions`.
 
 ### Adapters
 `sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
@@ -269,7 +280,9 @@ routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base
 user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`, `invoices`, `consents`,
 `notifications`, `documents`, **`monthly_records`**(period YYYY-MM, doc_type, encrypted file +
 `extracted` JSONB), **`insurance_policies`**(category, insurer, sum_assured, premium, issue/expiry/maturity/
-renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, and the **CA portal**: `cas`,
+renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, **`profiles.context`** (JSONB —
+occupation/employer + benefit facts), **`benefit_patterns`** (crowd-learned employer/occupation→benefit
+aggregates for the shared catalog), and the **CA portal**: `cas`,
 `ca_client_links`(handshake: status pending/active, initiated_by), `ca_messages`, `ca_documents`.
 
 ---

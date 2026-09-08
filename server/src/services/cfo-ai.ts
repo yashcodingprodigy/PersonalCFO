@@ -137,6 +137,44 @@ export interface CfoAnswer {
   content: string;
   citations: { tag: string; title: string }[];
   engine: 'claude' | 'rules' | 'guardrail';
+  // A structured action the AI PROPOSES from the user's message (e.g. a benefit
+  // fact it detected). The AI never writes data itself — the user confirms this
+  // in the UI, and a deterministic handler applies it. Foundation for voice too.
+  proposedAction?: {
+    kind: 'add_benefit';
+    benefit: { type: string; label: string; value_base?: number; value_boosted_to?: number; rule?: string };
+    summary: string;
+  };
+}
+
+const BENEFIT_TYPES = ['insurance_booster', 'group_health', 'group_term', 'epf', 'nps', 'gratuity', 'gpf', 'esops', 'pension', 'govt_scheme', 'perk', 'other'];
+
+// Detect a benefit the user STATES they have, and return it as a proposal to
+// confirm — never written automatically. Conservative: only fires on clear
+// statements, and only when the AI is available (manual UI covers the rest).
+async function extractBenefit(question: string): Promise<CfoAnswer['proposedAction'] | undefined> {
+  const looksLikeBenefit = /(booster|group\s*(health|insurance|term|cover)|from (my )?(office|employer|company|work)|\bepf\b|\bpf\b|provident|\bnps\b|gratuity|\bgpf\b|esop|pension|covered? (up )?to|insurance (from|at|by))/i.test(question);
+  if (!looksLikeBenefit || !config.anthropicApiKey) return undefined;
+  try {
+    const sys = `You extract AT MOST ONE benefit the user says they HAVE (employer/insurance/scheme). Return STRICT JSON only, no prose: {"found":boolean,"type":one of [${BENEFIT_TYPES.join(', ')}],"label":short string,"value_base_rupees":number|null,"value_boosted_to_rupees":number|null,"rule":string|null}. Set found=true ONLY if the user is clearly stating a benefit they currently possess — not asking a question, not hypothetical. Interpret Indian amounts ("5 lakh"=500000, "40L"=4000000, "2 cr"=20000000).`;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: config.anthropicModel, max_tokens: 300, system: sys, messages: [{ role: 'user', content: question }] }),
+    });
+    if (!res.ok) return undefined;
+    const data: any = await res.json();
+    const m = (data.content?.[0]?.text || '').match(/\{[\s\S]*\}/);
+    if (!m) return undefined;
+    const j = JSON.parse(m[0]);
+    if (!j.found || !j.type || !BENEFIT_TYPES.includes(j.type)) return undefined;
+    const benefit: any = { type: j.type, label: String(j.label || 'Benefit').slice(0, 140) };
+    if (j.value_base_rupees) benefit.value_base = Math.round(Number(j.value_base_rupees) * 100);
+    if (j.value_boosted_to_rupees) benefit.value_boosted_to = Math.round(Number(j.value_boosted_to_rupees) * 100);
+    if (j.rule) benefit.rule = String(j.rule).slice(0, 400);
+    const cover = benefit.value_boosted_to || benefit.value_base;
+    return { kind: 'add_benefit', benefit, summary: `Add this to your profile: ${benefit.label}${cover ? ` (${inr(cover)})` : ''}? I'll use it in your insurance, tax and score.` };
+  } catch { return undefined; }
 }
 
 // ── Claude generation ───────────────────────────────────────────────
@@ -327,5 +365,7 @@ export async function answerQuestion(
   }
 
   const citations = docs.slice(0, 4).map((d) => ({ tag: d.source_tag, title: d.title }));
-  return { content, citations, engine };
+  // (guardrail/off-topic messages return earlier, so we only reach here for real answers)
+  const proposedAction = await extractBenefit(question);
+  return { content, citations, engine, proposedAction };
 }

@@ -31,10 +31,13 @@ export default function SettingsPage() {
   // Work & benefits (personalization context)
   const [ctx, setCtx] = useState<any>({ benefits: [] });
   const [ben, setBen] = useState({ type: 'group_health', label: '', value_base: '', value_boosted_to: '', rule: '' });
+  const [selKey, setSelKey] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
 
   async function load() {
     const [u, p, b, a, c] = await Promise.all([get('/user/me'), get('/user/profile'), get('/billing/subscription'), get('/aa/status'), get('/context').catch(() => ({}))]);
     setUser(u); setProfile(p); setBilling(b); setAa(a); setCtx(c && typeof c === 'object' ? c : { benefits: [] });
+    loadSuggestions();
     setName(u.name || ''); setAge(u.age ? String(u.age) : ''); setEmployment(u.employment_type || 'salaried');
     setDependents(u.dependents_count != null ? String(u.dependents_count) : '0');
     setStateName(u.state || ''); setCity(u.city || ''); setRisk(u.risk_appetite || ''); setEmail(u.email || '');
@@ -110,6 +113,7 @@ export default function SettingsPage() {
     flash('Tax data saved.');
   }
 
+  function loadSuggestions() { get('/context/suggestions').then((s) => setSuggestions(Array.isArray(s) ? s : [])).catch(() => setSuggestions([])); }
   async function saveWork() {
     await put('/context', {
       occupation: ctx.occupation || undefined,
@@ -119,18 +123,32 @@ export default function SettingsPage() {
     });
     flash('Work details saved — your guidance now reflects them.'); load();
   }
+  // Clicking a suggestion pre-fills the add form (the user still confirms/edits before saving).
+  function pickSuggestion(s: any) {
+    const pf = s.prefill || {};
+    setBen({
+      type: pf.type || s.type, label: pf.label || s.name,
+      value_base: pf.value_base ? String(Math.round(pf.value_base / 100)) : '',
+      value_boosted_to: pf.value_boosted_to ? String(Math.round(pf.value_boosted_to / 100)) : '',
+      rule: '',
+    });
+    setSelKey(s.origin === 'catalog' ? s.key : '');
+    flash('Filled the form below — add your numbers and confirm.');
+  }
   async function addBenefitFact() {
     if (!ben.label.trim()) return flash('Give the benefit a short name.');
     const body: any = { type: ben.type, label: ben.label.trim(), source: 'employer' };
     if (ben.value_base) body.value_base = rupeesToPaise(ben.value_base);
     if (ben.value_boosted_to) body.value_boosted_to = rupeesToPaise(ben.value_boosted_to);
     if (ben.rule.trim()) body.rule = ben.rule.trim();
+    if (selKey) body.confidence = 'user_stated';
     const c = await post('/context/benefits', body);
-    setCtx(c); setBen({ type: 'group_health', label: '', value_base: '', value_boosted_to: '', rule: '' });
+    setCtx(c); setBen({ type: 'group_health', label: '', value_base: '', value_boosted_to: '', rule: '' }); setSelKey('');
+    loadSuggestions();
     flash('Benefit added — your advice now accounts for it.');
   }
   async function removeBenefitFact(id: string) {
-    const c = await del(`/context/benefits/${id}`); setCtx(c); flash('Benefit removed.');
+    const c = await del(`/context/benefits/${id}`); setCtx(c); loadSuggestions(); flash('Benefit removed.');
   }
 
   async function subscribe(plan: string) {
@@ -298,6 +316,26 @@ export default function SettingsPage() {
               </ul>
             )}
           </div>
+
+          {/* Proactive suggestions — "people like you often have…" */}
+          {suggestions.length > 0 && (
+            <div className="pt-2 border-t border-paper-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint mb-2">People like you often have</h3>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {suggestions.map((s) => (
+                  <button key={s.key} onClick={() => pickSuggestion(s)} className="text-left rounded-xl border border-paper-200 hover:border-pine-700 p-3 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{s.name}</span>
+                      {s.origin === 'learned' && <span className="chip bg-mint-100 text-pine-800">from users like you</span>}
+                    </div>
+                    <p className="text-xs text-ink-soft mt-1">{s.prompt}</p>
+                    <span className="text-[11px] font-semibold text-pine-700 mt-1 inline-block">+ Add this</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-ink-faint mt-2">Based on your age, income and occupation. Nothing is added until you confirm it below.</p>
+            </div>
+          )}
 
           {/* Add a benefit */}
           <div className="pt-2 border-t border-paper-100 space-y-3">

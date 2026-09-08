@@ -25,6 +25,7 @@ export interface BenefitFact {
   confidence?: 'user_stated' | 'doc_verified' | 'inferred';
   captured_at?: string;
   source_note?: string;
+  catalogKey?: string; // set when added from a catalog suggestion (Stage 4)
 }
 
 export interface UserContext {
@@ -68,8 +69,34 @@ export async function addBenefit(userId: string, fact: Omit<BenefitFact, 'id' | 
     ...fact,
     captured_at: new Date().toISOString(),
   };
-  return writeContext(userId, { ...ctx, benefits: [...benefits, full] });
+  const next = { ...ctx, benefits: [...benefits, full] };
+  await writeContext(userId, next);
+  // Feed the shared "general database" flywheel — aggregate pattern only, no identity.
+  await recordBenefitPattern(next, full).catch(() => {});
+  return next;
 }
+
+const norm = (s?: string) => (s || '').trim().toLowerCase().slice(0, 160);
+
+// Record that someone with this employer/occupation has this benefit — an
+// AGGREGATE count, never the individual. Surfaced to others only past a threshold.
+export async function recordBenefitPattern(ctx: UserContext, fact: BenefitFact): Promise<void> {
+  const employer_norm = norm(ctx.employer);
+  const occupation_norm = norm(ctx.occupation);
+  if (!employer_norm && !occupation_norm) return; // nothing to generalise from
+  await query(
+    `INSERT INTO benefit_patterns (employer_norm, occupation_norm, benefit_type, benefit_label, typical_base, typical_boost, user_count)
+       VALUES ($1,$2,$3,$4,$5,$6,1)
+     ON CONFLICT (employer_norm, occupation_norm, benefit_type, benefit_label)
+       DO UPDATE SET user_count = benefit_patterns.user_count + 1,
+                     typical_base  = COALESCE(EXCLUDED.typical_base,  benefit_patterns.typical_base),
+                     typical_boost = COALESCE(EXCLUDED.typical_boost, benefit_patterns.typical_boost),
+                     updated_at = now()`,
+    [employer_norm, occupation_norm, fact.type, fact.label, fact.value_base ?? null, fact.value_boosted_to ?? null]
+  );
+}
+
+export { norm as normalizeCtx };
 
 export async function removeBenefit(userId: string, id: string): Promise<UserContext> {
   const ctx = await getContext(userId);

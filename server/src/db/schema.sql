@@ -133,6 +133,23 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- Personalization Stage 2: occupation/employer + structured benefit facts.
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS context JSONB NOT NULL DEFAULT '{}';
 
+-- Personalization Stage 4: crowd-learned benefit patterns (the shared "general
+-- database"). Stores AGGREGATE patterns only — "employer/occupation → typical
+-- benefit" with a count — never an individual's identity. Surfaced to a new
+-- user only once enough others (≥ threshold) corroborate it. DPDP-safe.
+CREATE TABLE IF NOT EXISTS benefit_patterns (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employer_norm   VARCHAR(160) NOT NULL DEFAULT '',
+  occupation_norm VARCHAR(160) NOT NULL DEFAULT '',
+  benefit_type    VARCHAR(40)  NOT NULL,
+  benefit_label   VARCHAR(160) NOT NULL,
+  typical_base    BIGINT,
+  typical_boost   BIGINT,
+  user_count      INTEGER NOT NULL DEFAULT 1,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (employer_norm, occupation_norm, benefit_type, benefit_label)
+);
+
 CREATE TABLE IF NOT EXISTS score_history (
   score_id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id               UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,

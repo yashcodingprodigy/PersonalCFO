@@ -23,6 +23,7 @@ import { categorise } from '../adapters/aa';
 import { remember } from '../services/rag';
 import { aiAvailable, analyzeDocumentGeneric } from '../services/docAI';
 import { getContext, updateContextFields, addBenefit, removeBenefit } from '../services/context';
+import { suggestBenefits } from '../services/benefitsCatalog';
 import {
   listPolicies, createPolicy, attachPolicyFile, getPolicyFile, deletePolicy,
   listApplications, createApplication, withdrawApplication,
@@ -47,6 +48,13 @@ insightsRouter.get('/networth', async (req: AuthedRequest, res) => {
 // ── Context & benefits (Personalization Stage 2) ───────────────────
 insightsRouter.get('/context', async (req: AuthedRequest, res) => {
   res.json(await getContext(req.userId!));
+});
+
+// Proactive "people like you usually have…" suggestions (catalog + crowd-learned).
+insightsRouter.get('/context/suggestions', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.json([]);
+  res.json(await suggestBenefits(p));
 });
 
 const contextFieldsSchema = z.object({
