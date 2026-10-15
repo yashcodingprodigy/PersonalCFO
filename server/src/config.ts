@@ -28,6 +28,12 @@ export const config = {
   // Firebase service-account JSON (string) for FCM HTTP v1 push delivery.
   firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT || '',
   isDev: (process.env.NODE_ENV || 'development') !== 'production',
+  // One-tap demo login (POST /auth/demo) into a seeded, fake-data persona.
+  // On by default; set DEMO_LOGIN=off to disable. Real SMS OTP needs TRAI DLT
+  // registration (needs an incorporated entity), so this is how reviewers/
+  // mentors try the app until then.
+  demoLoginEnabled: (process.env.DEMO_LOGIN || 'on') !== 'off',
+  demoMobile: process.env.DEMO_MOBILE || '+919000000001',
 };
 
 // Fail fast in production if signing secrets were left at their dev defaults —

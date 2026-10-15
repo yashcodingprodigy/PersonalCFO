@@ -40,6 +40,17 @@ export default function Login() {
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
 
+  // One-tap demo: logs into a sample account (fake data) — no OTP needed.
+  async function tryDemo() {
+    setErr(''); setBusy(true);
+    try {
+      const res = await api('/auth/demo', { method: 'POST', body: '{}' });
+      clearCache();
+      setTokens(res.access_token, res.refresh_token);
+      router.push('/dashboard');
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
       <section className="hidden lg:flex flex-col justify-between bg-pine-950 text-white p-12">
@@ -70,8 +81,20 @@ export default function Login() {
           <h1 className="font-display text-3xl font-medium">Welcome</h1>
           <p className="text-sm text-ink-soft mt-2">Sign in or create your account with your mobile number.</p>
 
+          {/* One-tap demo — sample account, no OTP */}
+          <button
+            type="button" onClick={tryDemo} disabled={busy}
+            className="mt-6 w-full rounded-xl border-2 border-mint-500 bg-mint-100/60 px-4 py-3 text-left hover:bg-mint-100 transition disabled:opacity-60"
+          >
+            <span className="block text-sm font-bold text-pine-900">{busy ? 'Opening demo…' : 'Explore the live demo →'}</span>
+            <span className="block text-xs text-ink-soft mt-0.5">One tap, no sign-up. A sample account with example data.</span>
+          </button>
+          <div className="flex items-center gap-3 mt-6 text-xs text-ink-faint">
+            <span className="h-px flex-1 bg-paper-200" />or sign in<span className="h-px flex-1 bg-paper-200" />
+          </div>
+
           {step === 'mobile' ? (
-            <form onSubmit={sendOtp} className="mt-8 space-y-5">
+            <form onSubmit={sendOtp} className="mt-6 space-y-5">
               <div>
                 <label className="label" htmlFor="mobile">Mobile number</label>
                 <div className="flex">

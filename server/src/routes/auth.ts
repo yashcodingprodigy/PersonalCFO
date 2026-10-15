@@ -8,6 +8,8 @@ import { config } from '../config';
 import { sendOtpSms } from '../adapters/sms';
 import { rateLimit } from '../middleware/rateLimit';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { PERSONAS } from '../db/personas.data';
+import { upsertPersona } from '../db/personaSeed';
 
 export const authRouter = Router();
 
@@ -105,6 +107,31 @@ authRouter.post('/otp/verify', rateLimit({ windowMs: 60_000, max: 10, keyPrefix:
     access_token: accessToken,
     refresh_token: refreshToken,
     is_new_user: isNew,
+    user: { user_id: user!.user_id, name: user!.name, onboarding_status: user!.onboarding_status, plan: user!.plan },
+  });
+});
+
+// POST /auth/demo — one-tap login into the demo persona (fake data only).
+// The persona is re-seeded on every demo login, so each visitor starts from a
+// clean, fully-onboarded CFO-plan account and nobody's edits leak to the next.
+authRouter.post('/demo', rateLimit({ windowMs: 60_000, max: 10, keyPrefix: 'demo' }), async (_req, res) => {
+  if (!config.demoLoginEnabled) return res.status(404).json({ error: 'demo_disabled', message: 'Demo login is not available.' });
+  const persona = PERSONAS.find((p) => p.mobile === config.demoMobile);
+  if (!persona) return res.status(500).json({ error: 'demo_misconfigured', message: 'Demo account is not configured.' });
+
+  // Show the full product in the demo: CFO plan, active.
+  const { userId } = await upsertPersona({ ...persona, plan: 'cfo', plan_status: 'active' });
+  await query(`UPDATE users SET last_active_at = now() WHERE user_id = $1`, [userId]);
+  await query(`INSERT INTO audit_log (user_id, event) VALUES ($1, 'demo_login')`, [userId]);
+
+  const user = await one(`SELECT user_id, name, onboarding_status, plan FROM users WHERE user_id = $1`, [userId]);
+  const { accessToken, refreshToken } = issueTokens(userId);
+  await storeRefresh(userId, refreshToken);
+  res.json({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    is_new_user: false,
+    is_demo: true,
     user: { user_id: user!.user_id, name: user!.name, onboarding_status: user!.onboarding_status, plan: user!.plan },
   });
 });
