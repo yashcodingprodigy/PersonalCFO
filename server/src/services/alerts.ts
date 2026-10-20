@@ -3,7 +3,7 @@
 // autopilot, emergency-fund and insurance/renewal reminders into one stream of
 // dedup'd, actionable alerts. Education/organisation only — no security tips.
 
-import { ProfileData, deductionUsage } from './score';
+import { ProfileData, deductionUsage, liquidReserve } from './score';
 import { compareRegimes, taxCopilot, currentFY } from './tax';
 import { analyseInsurance } from './insurance';
 import { buildInvestmentGuidance } from './investment';
@@ -148,18 +148,18 @@ export function generateAlerts(p: ProfileData, s: AlertSignals, now = new Date()
       const stepUp = Math.max(0, goal.requiredMonthly - goal.monthlyContribution);
       out.push({
         kind: 'goal_offtrack', category: 'goal', severity: goal.health === 'off_track' ? 'warning' : 'info',
-        title: `Goal "${goal.name}" is ${goal.health.replace('_', ' ')}`,
+        title: goal.health === 'off_track' ? `“${goal.name}” needs a decision` : `“${goal.name}” is a stretch`,
         body: stepUp > 0
-          ? `Raise your monthly contribution by about ${inr(stepUp)} to get back on track for this goal.`
-          : 'Review the target date or amount to bring this goal back on track.',
-        actionLabel: 'Open goals', actionHref: '/goals',
+          ? `Your plan can set aside ${inr(goal.monthlyContribution)} of the ${inr(goal.requiredMonthly)} a month it needs (${inr(stepUp)} short). Open it to see the options that make it a yes.`
+          : 'Review the target date or amount to bring this dream back on track.',
+        actionLabel: 'See options', actionHref: '/goals',
         dedupeKey: `goal_${goal.name}_${ym}`,
       });
     }
   }
 
   // ── EMERGENCY FUND ─────────────────────────────────────────────────
-  const liquid = (Number(a.savings_balance) || 0) + (Number(a.liquid_funds) || 0);
+  const liquid = liquidReserve(a);
   if (p.monthlyExpenses && p.monthlyExpenses > 0) {
     const months = liquid / p.monthlyExpenses;
     if (months < 3) {

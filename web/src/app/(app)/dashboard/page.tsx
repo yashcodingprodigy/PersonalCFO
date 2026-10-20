@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { swr, patch } from '@/lib/api';
 import { inr, pct, DIMENSION_LABELS } from '@/lib/format';
 import { ScoreGauge, DimensionBar } from '@/components/ScoreGauge';
+import { NextMoves } from '@/components/NextMoves';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [monthly, setMonthly] = useState(25000); // "what if I invest" slider (₹/mo)
   const [touchedSlider, setTouchedSlider] = useState(false); // has the user moved it?
   const [briefing, setBriefing] = useState<any>(null);
+  const [brain, setBrain] = useState<any>(null);
   const [err, setErr] = useState('');
 
   async function load() {
@@ -28,6 +30,7 @@ export default function Dashboard() {
       swr('/aa/status', setAa),
     ]);
     swr('/alerts/briefing', setBriefing).catch(() => {});
+    swr('/brain', setBrain).catch(() => {});
   }
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
 
@@ -85,6 +88,9 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* The money brain: ranked next moves across tax, insurance, dreams & alerts */}
+      <NextMoves brain={brain} />
 
       {/* Money Health Score + your opportunity — hero */}
       <div className="grid lg:grid-cols-5 gap-6 items-start">

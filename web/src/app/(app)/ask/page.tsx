@@ -167,7 +167,7 @@ export default function AskPage() {
                   </div>
                 )}
                 {m.role === 'assistant' && m.review_status === 'pending_review' && (
-                  <p className="mt-2 text-[10px] text-signal-amber font-semibold">⏳ Flagged for human advisor review (CFO plan) — may be refined within 4 hours.</p>
+                  <p className="mt-2 text-[10px] text-signal-amber font-semibold">This touches on a specific decision — treat it as general guidance, not personal investment advice.</p>
                 )}
                 {m.role === 'assistant' && m.proposedAction && m._actionState !== 'dismissed' && (
                   <div className="mt-3 rounded-xl border border-pine-700/30 bg-mint-100/50 p-3">

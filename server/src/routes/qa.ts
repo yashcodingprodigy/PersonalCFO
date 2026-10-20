@@ -61,7 +61,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
     if (used!.c >= limit) {
       return res.status(403).json({
         error: 'plan_limit',
-        message: `You've used all ${limit} questions this month on the Starter plan. Upgrade to CFO for unlimited questions with human review.`,
+        message: `You've used all ${limit} questions this month on the Starter plan. Upgrade to CFO for unlimited questions.`,
       });
     }
   }

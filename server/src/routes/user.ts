@@ -17,7 +17,7 @@ userRouter.use(requireAuth);
 // GET /user/me
 userRouter.get('/me', async (req: AuthedRequest, res) => {
   const user = await one(
-    `SELECT user_id, mobile, name, email, city, state, age, employment_type, annual_gross_income, monthly_take_home,
+    `SELECT user_id, mobile, name, email, email_verified, city, state, age, employment_type, annual_gross_income, monthly_take_home,
             dependents_count, risk_appetite, plan, plan_status, onboarding_status, created_at
        FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
     [req.userId]
@@ -47,6 +47,14 @@ userRouter.patch('/me', async (req: AuthedRequest, res) => {
   const fields = parsed.data;
   const keys = Object.keys(fields) as (keyof typeof fields)[];
   if (keys.length === 0) return res.status(400).json({ error: 'empty_update' });
+
+  // An email proven by OTP is the user's login — it can't be swapped from Settings.
+  if (fields.email !== undefined) {
+    const cur = await one(`SELECT email, email_verified FROM users WHERE user_id = $1`, [req.userId]);
+    if (cur?.email_verified && String(cur.email).toLowerCase() !== fields.email.toLowerCase()) {
+      return res.status(400).json({ error: 'login_email_locked', message: 'This is your login email, so it can’t be changed here.' });
+    }
+  }
 
   const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
   const values = keys.map((k) => (k === 'onboarding_status' ? JSON.stringify(fields[k]) : fields[k]));

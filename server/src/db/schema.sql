@@ -31,6 +31,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS risk_appetite VARCHAR(20)
 -- Shareable connect-code so a CA can link to this user (and vice-versa).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS connect_code VARCHAR(12);
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_connect_code ON users(connect_code) WHERE connect_code IS NOT NULL;
+-- Email-OTP login (Oct 2026): a user can sign up with email only, so mobile
+-- becomes optional. Only emails proven via OTP (email_verified) can be used to
+-- log in — an email typed into Settings never grants login.
+ALTER TABLE users ALTER COLUMN mobile DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_login_email ON users(lower(email)) WHERE email_verified AND deleted_at IS NULL;
 
 -- ── CA (Chartered Accountant) portal ────────────────────────────────
 CREATE TABLE IF NOT EXISTS cas (
@@ -109,6 +115,10 @@ CREATE TABLE IF NOT EXISTS otp_codes (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_otp_mobile ON otp_codes(mobile, created_at DESC);
+-- Email OTPs live in the same table (exactly one of mobile/email is set).
+ALTER TABLE otp_codes ALTER COLUMN mobile DROP NOT NULL;
+ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS email VARCHAR(160);
+CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes(email, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -428,3 +438,29 @@ CREATE TABLE IF NOT EXISTS audit_log (
   meta       JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ── Security: lock tables away from Supabase's public API (Oct 2026) ──────
+-- Supabase exposes the `public` schema over its REST API to the `anon` /
+-- `authenticated` roles. PayWatch never uses that API (the Express server talks
+-- to Postgres directly as the table owner), so: enable Row Level Security on
+-- every table this role owns (owners bypass RLS, so the app keeps working) and
+-- revoke all access from the API roles. Idempotent; MUST stay at the end of
+-- this file so it covers every table above. Role checks keep it safe on a
+-- plain local Postgres where `anon`/`authenticated` don't exist.
+DO $$
+DECLARE t record;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tableowner = current_user LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon';
+    EXECUTE 'REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA public FROM authenticated';
+    EXECUTE 'REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM authenticated';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM authenticated';
+  END IF;
+END $$;

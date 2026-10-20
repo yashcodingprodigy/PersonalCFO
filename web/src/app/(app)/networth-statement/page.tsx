@@ -28,7 +28,7 @@ export default function NetWorthStatementPage() {
       <div className="card p-8">
         <div className="text-center border-b border-paper-200 pb-4 mb-5">
           <h1 className="font-display text-2xl font-semibold">Statement of Net Worth</h1>
-          <p className="text-sm text-ink-soft mt-1">{user.name || user.mobile} · as on {today}</p>
+          <p className="text-sm text-ink-soft mt-1">{user.name || user.mobile || user.email} · as on {today}</p>
         </div>
 
         <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-2">Assets</h2>

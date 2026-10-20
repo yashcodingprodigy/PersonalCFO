@@ -5,13 +5,26 @@ import { query, one } from '../db';
 import { loadProfileData } from './profile';
 import { generateAlerts, AlertSignals } from './alerts';
 import { computeGoalMath } from './goals';
+import { buildMoneyMap } from './brain/cashflow';
+import { planDreams, goalToDream } from './brain/dreams';
 
 export async function gatherSignals(userId: string): Promise<AlertSignals> {
   const goalsRows = await query(`SELECT * FROM goals WHERE user_id = $1`, [userId]);
-  const goals = goalsRows.map((g) => {
-    const math = computeGoalMath(g);
-    return { name: g.name, health: math.health, requiredMonthly: math.requiredMonthly, monthlyContribution: Number(g.monthly_contribution) || 0 };
-  });
+  // Goal health comes from the money brain's dreams plan (what the user's real
+  // surplus can fund), so alerts never contradict the Dreams page. Falls back to
+  // the per-goal maths if the profile can't be loaded.
+  let goals: AlertSignals['goals'];
+  const prof = await loadProfileData(userId);
+  if (prof) {
+    const plan = planDreams(buildMoneyMap(prof), goalsRows.map(goalToDream));
+    const H: Record<string, string> = { needs_tradeoff: 'off_track', stretch: 'at_risk', on_track: 'on_track', achieved: 'achieved' };
+    goals = plan.items.filter((i) => !i.virtual).map((i) => ({ name: i.name, health: H[i.status], requiredMonthly: i.need, monthlyContribution: i.allocated }));
+  } else {
+    goals = goalsRows.map((g) => {
+      const math = computeGoalMath(g);
+      return { name: g.name, health: math.health, requiredMonthly: math.requiredMonthly, monthlyContribution: Number(g.monthly_contribution) || 0 };
+    });
+  }
 
   const spike = await one(
     `WITH this AS (

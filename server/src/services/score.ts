@@ -47,6 +47,14 @@ const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 const sum = (arr: any[], field: string) =>
   (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[field]) || 0), 0);
 
+// Money available for emergencies — ONE definition used by every engine (score,
+// actions, alerts, investment, the brain) so the app never disagrees with itself.
+// Savings + liquid funds + fixed deposits (FDs can be broken in a pinch).
+export function liquidReserve(assets: any): number {
+  const a = assets || {};
+  return (Number(a.savings_balance) || 0) + (Number(a.liquid_funds) || 0) + (Number(a.fd_total) || 0);
+}
+
 export function totalMonthlyEmi(liabilities: any): number {
   return (
     sum(liabilities?.home_loans, 'emi') +
@@ -157,7 +165,7 @@ function diversificationScore(p: ProfileData): DimensionScore {
 // ── Emergency Fund (15%) ────────────────────────────────────────────
 function emergencyFundScore(p: ProfileData): DimensionScore {
   const a = p.assets || {};
-  const liquid = (Number(a.savings_balance) || 0) + (Number(a.liquid_funds) || 0);
+  const liquid = liquidReserve(a);
   if (p.monthlyExpenses == null || p.monthlyExpenses === 0) {
     return { score: 0, weight: 0.15, explanation: 'Add monthly expenses to measure your emergency runway.', available: false };
   }

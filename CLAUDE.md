@@ -3,11 +3,21 @@
 > Single source of truth for the PayWatch project. Read this first before working on the codebase.
 > Keep it updated when architecture, features, deployment, branding, or compliance decisions change.
 
-Last updated: Aug 2026 (accepted into XElevate Accelerator Cohort 3; first intern hired; incubated at MAHE
-Innovation Centre; pricing restructure; investment/MFD path; CA-marketplace legality; premium landing +
-brand/loading system; tabbed Tax page). **Companion docs added: `WORKFLOW.md` (end-to-end runtime flow —
-function/API/data flow per feature) and `DECISIONS.md` (why we chose what we chose). Read all three together;
-keep all three updated.**
+Last updated: **Oct 2026** (vision shift to the **Money Brain / dreams-first** product; brain engine built;
+email-OTP login + demo login; Supabase RLS lockdown; mentor sessions with Upendra Namburi & Ellen van Andel; canvases;
+promo video). **Companion docs: `STRATEGY.md` (vision, canvases, journeys, lifecycle economics, action plan — READ
+FIRST for "what are we doing and why"), `WORKFLOW.md` (runtime flow per feature) and `DECISIONS.md` (why we chose what
+we chose, D-01…D-42). Keep all four updated.**
+
+**Vision (Oct 2026 — supersedes "CFO in your pocket" as the lead message):** PayWatch is **one money brain that turns
+every dream into a plan** — it quietly handles tax, insurance and investing in the background so the user can focus on
+the life they want (a trip, a café, parents' health, a gol gappa). Primary persona **"Daisy": 22–30 first earners,
+small-town & metro, phone-first, no advisor.** Closest competitors: **FOLO** (net-worth tracker, family sharing) and
+**Jumpp** (Finvasia×YES Bank AI super-app: bank/trade/pay, Hindi voice); substitute = CA/advisor. Line: *"FOLO shows what
+you have, Jumpp helps you transact — PayWatch tells you what to do next to get the life you want."* Canvases live in the
+root: `PayWatch-Value-Proposition-Canvas.png`, `PayWatch-Blue-Ocean-Canvas.png`, `PayWatch-Business-Model-Canvas.png`,
+`PayWatch-Homework-Value-Proposition-Competition.docx`, `PayWatch-Vision-OnePager.docx`, promo `PayWatch-Promo-v3.mp4`
+(source in `video-assets/source`).
 
 **Business status (Aug 2026):** PayWatch is **incubated at the MAHE Innovation Centre** (mentor: Dr. Mathew
 Peter / Dr. Mohammed Zuber) and has been **accepted into the XElevate Super Accelerator Program — Cohort 3**
@@ -20,6 +30,13 @@ trusted family member/co-founder with a small stake); **trademark** "PayWatch" t
 before heavy public promotion; public LinkedIn launch announcement deliberately held until trademark filed +
 traction. Not yet incorporated, no live users/revenue — prototype stage (TRL 7), now moving to validation +
 commercialisation. Tagline: **"Watch your money grow."**
+**Oct 2026 update:** mentors — **Upendra Namburi** (XElevate expert; "be bold, think 50 years ahead, build deep
+personas from real interviews, delight > features, become headless/everywhere") and **Ellen van Andel** (TU Delft VPC /
+BMC / Blue Ocean sessions). Research assets: Vighnesh's Task 1 (empathy maps, 20 conversations + 49 surveys), Task 3
+(56 interviews: WTP — ₹999/yr most-picked; only ~10% pay without a trial; trust is the barrier), Task 4 (verification
+form + TAM/SAM/SOM + tester cohort), **Task 5 "Finding Daisy"** (re-mine Tasks 1/3/4 + 8 deep follow-ups → persona pages
++ combined Daisy, due 31 Oct). Market anchor: 7+ crore ITRs filed AY 2025-26. **Operating rule from now: build the
+product to launch-ready behind integration seams; research is time-boxed and feeds the product weekly (see STRATEGY.md).**
 Non-code deliverables live in the project root: `PayWatch-Detailed-Deck.pptx/pdf` (self-explanatory investor/
 mentor deck), `PayWatch-Pitch-Deck.pptx`, `PayWatch-Poster.*`, `PayWatch-Hiring-Poster.*` (intern recruiting),
 `PayWatch-Insurance-Partnership-Brief.md`. **Defensibility framing (from research):** PFM apps die from
@@ -71,7 +88,13 @@ PayWatch/
 ```
 
 - **Money stored in paise everywhere** (₹1 = 100 paise). Web `inr()` formats paise → ₹.
-- **Auth:** mobile OTP (+91), JWT 15-min access + 90-day rotating refresh. Tokens in `localStorage`
+- **Auth (Oct 2026):** **email OTP is the primary real-user login** (`/auth/email/send|verify`, via Resend) because
+  Indian SMS OTP needs TRAI DLT registration (needs an incorporated company). Only OTP-proven emails
+  (`users.email_verified`) can log in; a verified login email is locked in Settings; `users.mobile` is now nullable.
+  **One-tap demo** `POST /auth/demo` logs into persona Aarav (+919000000001, re-seeded each login, CFO plan; disable
+  with `DEMO_LOGIN=off`). Mobile OTP (+91) still exists for existing/legacy accounts. JWT 15-min access + 90-day rotating refresh.
+  **Security:** schema.sql ends with an idempotent block enabling RLS on every owned public table and revoking
+  Supabase `anon`/`authenticated` access (the app connects as table owner, so it bypasses RLS) — keep it LAST. Tokens in `localStorage`
   (`paywatch_access` / `paywatch_refresh`). OTP is **never** returned to the client — read from Railway
   logs in dev (`424242` when `NODE_ENV!=production`; random in prod), or SMS via msg91.
 - **Audiences:** working professionals AND **students (~19–23)**. `employment_type` includes `'student'`
@@ -162,7 +185,12 @@ unread-alerts badge, native biometric lock overlay).
   **"Profile updated" toast** (`lib/toast` + `Toaster` in app layout); every remove asks for confirmation.
   CA-thread documents are removable too (`DELETE …/documents/:docId` both sides).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
-- **Goals** (moved up in nav; shows a dummy **Example** goal when empty), **Ask PayWatch** (`ask`, RAG
+- **Dreams** (`goals` route, nav label "Dreams") — dreams-first planner on top of the brain: quick-pick dreams (trip,
+  gadget, parents' health cover, course, emergency fund, vehicle, home, wedding, own business), priority (must-have /
+  important / nice), per-dream need vs plan allocation, "done by" date (cascade), status chips, **"Make it a yes"**
+  levers, virtual safety-net card, plan strip (free to plan, guilt-free money, spare cash, safety net), and the
+  **"Can I afford it?"** checker (`POST /brain/afford`). Dashboard opens with **`NextMoves`** (ranked moves from `/brain`).
+- **Ask PayWatch** (`ask`, RAG
   Q&A — renamed from "Ask your CFO"; can **create goals from chat**; topical scope guard rejects
   off-topic/abuse), **Reports**, **Plans** (pricing/subscribe), **Settings** (+ Vehicle asset field).
 - Public: `onboarding` (3-session, state→city dropdowns, risk question), `login` (+ **User/CA toggle**),
@@ -253,6 +281,17 @@ unread-alerts badge, native biometric lock overlay).
   (`benefit_patterns` table, aggregate only, surfaced past a ≥3-user threshold — DPDP-safe) → proactive
   "people like you often have…" suggestions (`GET /v1/context/suggestions`). Manual UI in Settings → Profile →
   Work & benefits. Routes: `GET/PUT /v1/context`, `POST/DELETE /v1/context/benefits`, `GET /v1/context/suggestions`.
+
+- **`brain/` — THE money brain (single source of truth, Oct 2026):** `cashflow.ts` `buildMoneyMap()` (free = take-home −
+  expenses incl. EMIs − SIP; shared `liquidReserve()` = savings + liquid funds + FDs; safety net 6×, students 3×);
+  `dreams.ts` `planDreams()` (waterfall safety ≤50% free → future-you 10% if no SIP → joy 10% → dreams by priority/date;
+  cascade completion dates; levers use_cash/joy/trim/extend/reduce/lump_sum/reprioritise/free_up), `affordCheck()`,
+  `goalToDream()` (dreams = goals with `meta.kind`/`meta.priority`; handles pg Date objects); `lifeEvents.ts`
+  `detectLifeEvents()` (salary hike/drop, bonus, new EMI, big purchase); `nextMoves.ts` `buildNextMoves()` (alerts +
+  events + dream decisions + rule actions, dedup, ranked); `readiness.ts` integration seams; `index.ts` `runBrain()` /
+  `brainAfford()`. Route `routes/brain.ts`: `GET /v1/brain`, `POST /v1/brain/afford`, `GET /v1/brain/readiness`.
+  `cfo-ai.ts` `parseAffordIntent()` → deterministic verdict injected into Ask PayWatch; `monitor.gatherSignals` takes goal
+  health from the plan so alerts never contradict the Dreams page.
 
 ### Adapters
 `sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
@@ -504,7 +543,8 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **149 assertions** across `test/*.ts` (the script loops
+- **Test suite:** `cd server && npm test` runs **186 assertions** (incl. `brain.test.ts`, 37 checks: money map, planning maths
+  round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property
   & business loss / depreciation**, investment risk logic, goals), `services` (alerts, statement analyser,

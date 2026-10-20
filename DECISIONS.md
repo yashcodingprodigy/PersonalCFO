@@ -4,7 +4,7 @@
 > and business — each with the reasoning and the main alternative we rejected. Read this before
 > re-litigating a settled choice. **Append new decisions as they're made; don't delete history —
 > if a decision is reversed, add a new dated entry noting what changed and why.**
-> Format: **D-##  Decision** — Why · *Rejected: alternative (reason)*. Last updated: Aug 2026.
+> Format: **D-##  Decision** — Why · *Rejected: alternative (reason)*. Last updated: Oct 2026.
 
 ---
 
@@ -175,9 +175,49 @@ attorney (Mr. Pranav Bhat) before loud launch. Why: promote a name we have a cla
 position. *Placement note: IC confirmed no MIT placement-cell bar on having a registered startup; manageable via
 shutting/transferring directorship if a placement offer is taken.*
 
+**D-36  Vision shift (Oct 2026): "one money brain that turns every dream into a plan."** After mentor sessions
+(Upendra Namburi, XElevate) the product leads with the user's *life* — dreams and experiences (a trip, a café, parents'
+health, a gol gappa) — and money/insurance/tax/investing become invisible enablers handled in the background. Primary
+persona "Daisy": 22–30 first earners, small-town & metro, phone-first, no advisor. Why: people don't want to manage
+money; delight and engagement come from life outcomes. *Rejected: leading with "CFO / finance app" (tracking framing,
+red ocean vs FOLO/Jumpp/INDmoney).*
+
+**D-37  The Money Brain is the single source of truth.** `services/brain/` (money map → dreams plan → life events →
+ranked next moves) feeds the dashboard, Dreams page, alerts and Ask PayWatch, so every surface tells the same story
+with the same numbers. Goal alerts now come from the brain's plan; one `liquidReserve()` definition (savings + liquid
+funds + FDs) is shared by score, actions, alerts, investment and the brain. Why: a finance product that contradicts
+itself loses trust instantly. *Rejected: each page computing its own view.*
+
+**D-38  Dreams are stored as goals (meta.kind / meta.priority) — no new table.** Why: zero migration, chat goal-creation
+and existing routes keep working. Plan waterfall is fixed and explainable: safety net (≤50% of free cash) → future-you
+floor (10% if no SIP) → joy budget (10%, guilt-free) → dreams by priority then date; completed dreams cascade their money
+to the next. *Rejected: optimiser/black-box allocation (unexplainable to a beginner and to a regulator).*
+
+**D-39  "Can I afford it?" is deterministic, never guessed by the LLM.** `affordCheck()` returns yes-now / yes-by /
+stretch / not-yet + the dreams it would squeeze + levers; Ask PayWatch injects the verdict and the AI must lead with it.
+Why: affordability is the most emotional, most-asked question — it must be exact and consistent. Growth assumptions are
+conservative by horizon (6–10%) and labelled as planning estimates, not returns (SEBI lane).
+
+**D-40  Build launch-ready behind seams; stop research-only mode.** Every external dependency (AA bank data, insurance
+quote/issue, MF execution, ERI e-filing, SMS, email, payments, push, storage) has a mock/live seam and is listed in
+`GET /v1/brain/readiness` with what flips it live. Why: the founder can't get licences/APIs/real data yet, but the product
+must be one "link the API" away from launch. Research continues in parallel, time-boxed (see STRATEGY.md).
+
+**D-41  "Personal financial advisor" tagline — owner's choice, with a guardrail.** The owner chose the line for the promo;
+because PayWatch is not a SEBI RIA, public surfaces carry "Not a SEBI-registered investment adviser", and the in-app copy
+avoids "advisor" claims (Ask PayWatch no longer promises "human advisor review"). Revisit with counsel (Pranav) before
+public launch; personalised allocation/SIP suggestions may count as "financial planning" under the IA Regulations →
+options: RIA partner, own RIA registration, or keep investing educational.
+
+**D-42  Login = email OTP until SMS is legal for us.** Indian SMS OTP needs TRAI DLT (needs an incorporated company).
+Email OTP via Resend; only OTP-proven emails can log in; one-tap demo login for mentors/reviewers (fake-data persona,
+re-seeded each login). Supabase tables locked with RLS + revoked anon/authenticated access in the idempotent schema.
+
 ---
 
 ## E. Reversals / revisits log
-*(Add an entry here whenever a past decision is changed, with the date and reason. None yet beyond those noted
-inline above — e.g. D-31 pricing supersedes the earlier Family-plan model; D-03 supersedes an earlier
-"replace your CA" framing.)*
+*(Add an entry here whenever a past decision is changed, with the date and reason.)*
+- D-31 pricing supersedes the earlier Family-plan model; D-03 supersedes an earlier "replace your CA" framing.
+- **Oct 2026:** D-36 supersedes the "CFO in your pocket / finance OS" lead message (D-01 remains true underneath —
+  the OS is now the invisible brain behind dreams). Research recommends testing a ₹999/yr plan + free trial alongside
+  D-31 monthly prices (56-interview willingness-to-pay data).

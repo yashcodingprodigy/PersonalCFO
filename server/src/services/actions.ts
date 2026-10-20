@@ -2,7 +2,7 @@
 // Every action carries: what to do, a specific number, expected impact,
 // urgency, and difficulty. Vague actions are structurally impossible.
 
-import { ProfileData, totalMonthlyEmi, deductionUsage } from './score';
+import { ProfileData, totalMonthlyEmi, deductionUsage, liquidReserve } from './score';
 import { compareRegimes } from './tax';
 
 export interface GeneratedAction {
@@ -54,7 +54,7 @@ export function generateActions(p: ProfileData): GeneratedAction[] {
 
   const termCover = sum(p.insurance?.term, 'sum_assured');
   const healthCover = sum(p.insurance?.health, 'sum_insured');
-  const savings = Number(p.assets?.savings_balance) || 0;
+  const savings = liquidReserve(p.assets); // savings + liquid funds + FDs (shared definition)
   const expenses = p.monthlyExpenses || 0;
   const emi = totalMonthlyEmi(p.liabilities);
   const ccOutstanding = sum(p.liabilities?.credit_cards, 'outstanding');

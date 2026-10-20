@@ -20,6 +20,7 @@ import { alertsRouter } from './routes/alerts';
 import { documentsRouter } from './routes/documents';
 import { recordsRouter } from './routes/records';
 import { cronRouter } from './routes/cron';
+import { brainRouter } from './routes/brain';
 import { rateLimit } from './middleware/rateLimit';
 
 const app = express();
@@ -77,6 +78,7 @@ app.use('/v1/score', scoreRouter);
 app.use('/v1/actions', actionsRouter);
 app.use('/v1', insightsRouter);       // /networth /tax /insurance /transactions /spend
 app.use('/v1/goals', goalsRouter);
+app.use('/v1/brain', brainRouter);   // money brain: map, dreams plan, next moves, afford
 app.use('/v1/qa', qaRouter);
 app.use('/v1/billing', billingRouter);
 app.use('/v1', complianceRouter);     // /data/export /user/me(DELETE) /consents

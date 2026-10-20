@@ -8,7 +8,7 @@
 // not investment advice under the SEBI (Investment Advisers) Regulations 2013.
 // All monetary values are in paise.
 
-import { ProfileData } from './score';
+import { ProfileData, liquidReserve } from './score';
 import { deriveLifePhase, phaseEquityAdj, LifePhase } from './lifestage';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
@@ -123,7 +123,7 @@ export function buildInvestmentGuidance(p: ProfileData): InvestmentGuidance {
 
   // ── Guardrails first: emergency fund + high-cost debt ──────────────
   const a = p.assets || {};
-  const liquid = n(a.savings_balance) + n(a.liquid_funds);
+  const liquid = liquidReserve(a);
   const expenses = p.monthlyExpenses || 0;
   const months = expenses > 0 ? liquid / expenses : 0;
   const emergencyFirst = expenses > 0 && months < 3;

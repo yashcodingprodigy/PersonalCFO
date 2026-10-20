@@ -90,6 +90,23 @@ Read side: `GET /v1/score` → latest `score_history` row → dashboard `ScoreGa
 
 ---
 
+## 4b. THE money brain (`services/brain/*`, `routes/brain.ts`) — Oct 2026
+One pass, used by dashboard (`NextMoves`), Dreams page (`/goals`), alerts and Ask PayWatch:
+```
+loadProfileData + goals + last-6-months transactions
+  → buildMoneyMap(p)            free = take-home − expenses(incl. EMIs) − SIP; liquidReserve(); safety net 6× (3× students)
+  → planDreams(map, dreams)     waterfall: safety (≤50% free) → future-you floor → joy 10% → dreams by priority/date
+                                + cascade dates + levers (use spare cash / joy / trim category / extend / reduce / lump sum / reprioritise)
+  → detectLifeEvents(txns)      salary hike/drop, bonus, new EMI, big purchase
+  → buildNextMoves(...)         alerts + events + dream decisions + rule actions → dedup → rank (impact × urgency × protects-a-dream)
+GET  /v1/brain            → { map, plan, moves, events, phase }
+POST /v1/brain/afford     → affordCheck(): yes_now | yes_by | stretch | not_yet (+ affects, levers)
+GET  /v1/brain/readiness  → integration seams: live/mock/off + what flips each live
+```
+Ask PayWatch (`cfo-ai.ts`): `parseAffordIntent()` → `brainAfford()` verdict injected into the AI context (and prepended in
+rules mode); plan summary + every dream's status are in the context. `monitor.gatherSignals` derives goal health from
+`planDreams` so goal alerts match the Dreams page. Tests: `server/test/brain.test.ts` (37 checks, incl. engine-agreement).
+
 ## 5. Per-feature pipelines (function + API + data flow)
 
 ### Overview / Dashboard (`(app)/dashboard`)

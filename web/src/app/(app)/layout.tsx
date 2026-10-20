@@ -18,7 +18,7 @@ const NAV = [
   { href: '/ask', label: 'Ask PayWatch', icon: ASK_ICON, accent: true },
   { href: '/alerts', label: 'Alerts', icon: 'M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z' },
   { href: '/actions', label: 'Actions', icon: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z' },
-  { href: '/goals', label: 'Goals', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
+  { href: '/goals', label: 'Dreams', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 16a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z' },
   { href: '/networth', label: 'Net worth', icon: 'M4 19h16v2H4v-2Zm2-4 4-6 4 3 5-7 1.5 1.2L15 14l-4-3-3.5 5H6Z' },
   { href: '/invest', label: 'Invest', icon: 'M3 13h2v7H3v-7Zm4-4h2v11H7V9Zm4-5h2v16h-2V4Zm4 8h2v8h-2v-8Z' },
   { href: '/markets', label: 'Markets & news', icon: 'M3 3v18h18v-2H5V3H3Zm4 11 3-3 3 3 5-5-1.4-1.4L15 11l-3-3-4 4 1 1Z' },
@@ -122,7 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {user && (
             <div className="flex items-center justify-between">
               <Link href="/plans" className="min-w-0">
-                <p className="text-sm font-semibold truncate">{user.name || user.mobile}</p>
+                <p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p>
                 <p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan ›</p>
               </Link>
               <button onClick={logout} className="text-white/50 hover:text-white text-xs underline">Sign out</button>
@@ -174,7 +174,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               )}
               {user && (
                 <div className="flex items-center justify-between">
-                  <Link href="/plans" className="min-w-0"><p className="text-sm font-semibold truncate">{user.name || user.mobile}</p><p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan ›</p></Link>
+                  <Link href="/plans" className="min-w-0"><p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p><p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan ›</p></Link>
                   <button onClick={logout} className="text-white/50 text-xs underline">Sign out</button>
                 </div>
               )}
@@ -225,7 +225,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {!locked && <Walkthrough />}
 
       {/* "Hello, {name}" welcome splash — plays once per app-open, then lifts away */}
-      {!locked && <WelcomeSplash name={user?.name || user?.mobile} />}
+      {!locked && <WelcomeSplash name={user?.name || user?.mobile || user?.email} />}
 
       {/* Context-aware curtain on every in-app navigation */}
       {!locked && <NavTransition />}

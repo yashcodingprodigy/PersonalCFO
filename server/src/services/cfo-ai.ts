@@ -13,6 +13,7 @@ import { deriveLifePhase, phaseInfo } from './lifestage';
 import { contextSummaryForAI } from './context';
 import { retrieve, RetrievedDoc } from './rag';
 import { query } from '../db';
+import { runBrain, brainAfford } from './brain';
 
 export const AI_DISCLAIMER =
   'This is educational information based on your financial data and standard planning principles — not SEBI-registered investment advice. For personalised investment recommendations, consult a SEBI Registered Investment Adviser.';
@@ -105,6 +106,40 @@ export function parseGoalIntent(qRaw: string): GoalParse {
   if (perMonth) monthly = Math.round(parseFloat(perMonth[1].replace(/,/g, '')) * 100);
 
   return { wantsGoal: true, goal: { goal_type, name, target_amount: amount, target_date, monthly_contribution: monthly } };
+}
+
+// ── "Can I afford it?" intent → the brain answers with real numbers ─────
+export interface AffordIntent { amount: number; months: number | null; label: string }
+export function parseAffordIntent(qRaw: string): AffordIntent | null {
+  const q = qRaw.toLowerCase();
+  if (!/\bafford\b|can i (buy|get|take|go|do)\b|should i (buy|get)\b|is it (ok|okay|fine) to (buy|spend)|enough (money|budget) for/.test(q)) return null;
+  const qNoDate = q.replace(/by\s+20\d{2}/g, ' ').replace(/(?:in|within|next)\s+\d{1,2}\s*(?:years?|yrs?|months?)/g, ' ');
+  const noCommas = qNoDate.replace(/,/g, '');
+  let amount = 0;
+  const cr = qNoDate.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:cr|crore)s?\b/);
+  const lakh = qNoDate.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:l|lakh|lac|lakhs)\b/);
+  const thousand = qNoDate.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d+)?)\s*(?:k|thousand)\b/);
+  const withRs = noCommas.match(/(?:₹|rs\.?\s*)(\d{3,})/);
+  const plainBig = noCommas.match(/\b(\d{4,})\b/);
+  if (cr) amount = Math.round(parseFloat(cr[1]) * 1e7 * 100);
+  else if (lakh) amount = Math.round(parseFloat(lakh[1]) * 1e5 * 100);
+  else if (thousand) amount = Math.round(parseFloat(thousand[1]) * 1000 * 100);
+  else if (withRs) amount = Math.round(parseInt(withRs[1], 10) * 100);
+  else if (plainBig && !/^20\d{2}$/.test(plainBig[1])) amount = Math.round(parseInt(plainBig[1], 10) * 100);
+  if (amount <= 0) return null;
+  let months: number | null = null;
+  const inYears = q.match(/(?:in|within|next)\s+(\d{1,2})\s*(?:years|yrs|year)/);
+  const inMonths = q.match(/(?:in|within|next)\s+(\d{1,2})\s*(?:months|month)/);
+  const byYear = q.match(/by\s+(20\d{2})/);
+  const now = new Date();
+  if (inMonths) months = parseInt(inMonths[1], 10);
+  else if (inYears) months = parseInt(inYears[1], 10) * 12;
+  else if (/next year/.test(q)) months = 12;
+  else if (byYear) months = Math.max(1, (parseInt(byYear[1], 10) - now.getFullYear()) * 12 + (11 - now.getMonth()));
+  if (months != null) months = Math.min(120, Math.max(1, months));
+  const thing = q.match(/(?:afford|buy|get)\s+(?:(?:a|an|the|my)\s+)?(?:₹?\s*[\d.,]+\s*(?:crores?|cr|lakhs?|lacs?|l|thousand|k)?\b\s*)?([a-z][a-z ]{1,30}?)(?:\s+(?:in|by|next|within|for|worth|costing|of|that|which)\b|[?.!]|$)/);
+  const label = thing && !/^(it|this|that|one)$/.test(thing[1].trim()) ? thing[1].trim() : 'this';
+  return { amount, months, label: label === 'this' ? 'this' : `a ${label}`.replace(/^a ([aeiou])/, 'an $1') };
 }
 
 // ── Context builder ─────────────────────────────────────────────────
@@ -348,6 +383,26 @@ export async function answerQuestion(
     }
   } catch { /* insurance context is best-effort */ }
 
+  // The money brain: dreams plan summary + a deterministic verdict for
+  // "can I afford X?" questions, so the AI never guesses affordability.
+  let affordNote: string | null = null;
+  try {
+    const brain = await runBrain(userId);
+    if (brain?.plan.hasData) {
+      userContext += `\nPayWatch plan: ${brain.plan.summary} Free to plan each month: ${inr(brain.map.free)}; spare cash above safety net: ${inr(brain.map.excessCash)}.`;
+      const dreamsLine = brain.plan.items.filter((i) => !i.virtual).map((i) => `${i.name} (${i.status.replace('_', ' ')}, needs ${inr(i.need)}/mo, plan sets aside ${inr(i.allocated)}/mo${i.projectedDate ? `, done ~${i.projectedDate}` : ''})`).join('; ');
+      if (dreamsLine) userContext += `\nDreams: ${dreamsLine}`;
+    }
+    const ai = parseAffordIntent(question);
+    if (ai) {
+      const r = await brainAfford(userId, ai.amount, ai.months, ai.label);
+      if (r) {
+        affordNote = r.headline + (r.levers.length ? '\n\nWays to make it work:\n' + r.levers.slice(0, 3).map((l) => `• ${l.label}`).join('\n') : '');
+        userContext += `\nPAYWATCH BRAIN VERDICT for this question (computed from the user's real plan — lead with it and never contradict its numbers): ${affordNote.replace(/\n+/g, ' ')}`;
+      }
+    }
+  } catch { /* brain context is best-effort; answers still work without it */ }
+
   let content: string;
   let engine: 'claude' | 'rules';
   if (config.anthropicApiKey) {
@@ -363,6 +418,7 @@ export async function answerQuestion(
     content = rulesAnswer(question, p, docs, insPolicies);
     engine = 'rules';
   }
+  if (affordNote && engine === 'rules') content = `${affordNote}\n\n${content}`;
 
   const citations = docs.slice(0, 4).map((d) => ({ tag: d.source_tag, title: d.title }));
   // (guardrail/off-topic messages return earlier, so we only reach here for real answers)

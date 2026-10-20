@@ -6,7 +6,7 @@ import { config } from '../config';
 const isLocalDb = /@(localhost|127\.0\.0\.1)[:/]/.test(config.databaseUrl);
 export const pool = new Pool({
   connectionString: config.databaseUrl,
-  max: 10,
+  max: Number(process.env.DB_POOL_MAX) || 10,
   ssl: isLocalDb ? undefined : { rejectUnauthorized: false },
 });
 

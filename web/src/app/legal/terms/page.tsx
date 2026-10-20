@@ -19,8 +19,8 @@ export default function Terms() {
       <p>
         The service is not investment advice, and PayWatch is not a SEBI-registered Investment Adviser.
         Outputs are educational estimates computed from your inputs and published planning standards. You are
-        solely responsible for your financial decisions. Independent advisors available through any marketplace
-        feature are independently SEBI-registered and responsible for their own advice.
+        solely responsible for your financial decisions. Any Chartered Accountant you choose to connect is your own
+        professional, engaged by you, and responsible for their own work.
       </p>
 
       <h2>3. Your account</h2>

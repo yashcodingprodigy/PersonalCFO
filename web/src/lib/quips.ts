@@ -85,7 +85,7 @@ const ROUTE_QUIPS: [string, string[]][] = [
   ]],
   ['/advisor', [
     'Connecting you with your CA…',
-    'Opening the line to your advisor…',
+    'Opening the line to your CA…',
     'Loading your shared workspace…',
   ]],
   ['/records', [

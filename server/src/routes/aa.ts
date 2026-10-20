@@ -11,7 +11,7 @@ aaRouter.use(requireAuth);
 // POST /aa/initiate
 aaRouter.post('/initiate', async (req: AuthedRequest, res) => {
   const user = await one(`SELECT mobile FROM users WHERE user_id = $1`, [req.userId]);
-  const session = await initiateConsent(req.userId!, user!.mobile);
+  const session = await initiateConsent(req.userId!, user?.mobile || '');
   await query(`UPDATE users SET aa_consent_handle = $2 WHERE user_id = $1`, [req.userId, session.consentHandle]);
   await query(
     `INSERT INTO consents (user_id, consent_type, granted, meta) VALUES ($1, 'aa_data_fetch', true, $2)`,

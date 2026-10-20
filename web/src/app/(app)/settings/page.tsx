@@ -186,7 +186,7 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="font-display text-3xl font-medium">Settings</h1>
-        <p className="text-sm text-ink-soft mt-1">{user.name || user.mobile} · member since {new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
+        <p className="text-sm text-ink-soft mt-1">{user.name || user.mobile || user.email} · member since {new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -205,11 +205,20 @@ export default function SettingsPage() {
           <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Your details</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div><label className="label">Full name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></div>
-            <div><label className="label">Mobile</label><input className="input bg-paper-100 text-ink-faint" value={user.mobile} disabled /></div>
+            <div><label className="label">Mobile</label><input className="input bg-paper-100 text-ink-faint" value={user.mobile || 'Not added'} disabled /></div>
             <div className="sm:col-span-2">
               <label className="label">Email (for your monthly briefing & alert emails)</label>
-              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-              <p className="text-[11px] text-ink-faint mt-1">Optional — add it to get PayWatch reminders by email, not just in-app.</p>
+              {user.email_verified ? (
+                <>
+                  <input className="input bg-paper-100 text-ink-faint" type="email" value={user.email || ''} disabled />
+                  <p className="text-[11px] text-ink-faint mt-1">This is your login email, so it can’t be changed here.</p>
+                </>
+              ) : (
+                <>
+                  <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                  <p className="text-[11px] text-ink-faint mt-1">Optional — add it to get PayWatch reminders by email, not just in-app.</p>
+                </>
+              )}
             </div>
             <div><label className="label">Age</label><input className="input" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="29" /></div>
             <div>
