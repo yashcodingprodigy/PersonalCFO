@@ -7,7 +7,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { post } from '@/lib/api';
-import { listen, speak, stopSpeaking, voiceStatus, cleanForSpeech, ListenHandle, VoiceLang } from '@/lib/voice';
+import { listen, speak, stopSpeaking, voiceStatus, cleanForSpeech, ListenHandle, VoiceLang, ListenError } from '@/lib/voice';
+import type { TKey } from '@/lib/i18n';
+
+const ERR_KEY: Record<ListenError, TKey> = {
+  denied: 'vo.err.denied', 'no-mic': 'vo.err.noMic', unsupported: 'vo.err.unsupported', network: 'vo.err.network',
+  'dictation-off': 'vo.err.dictation', 'no-speech': 'vo.didntCatch', 'stt-failed': 'vo.err.stt',
+};
 import { useLang } from '@/lib/i18n';
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -40,14 +46,13 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
 
   async function turn() {
     if (!alive.current) return;
-    if (typeof navigator === 'undefined' || (!navigator.mediaDevices && !(window as any).webkitSpeechRecognition && !(window as any).SpeechRecognition)) { setNote(t('vo.noMic')); return; }
-    setNote(''); setP('listening');
-    const h = listen(lang as VoiceLang, (v) => setLevel(v));
+    setNote(''); setHeard(''); setP('listening');
+    const h = listen(lang as VoiceLang, (v) => setLevel(v), (partial) => setHeard(partial));
     handleRef.current = h;
-    const { text, language } = await h.result;
+    const { text, language, error } = await h.result;
     handleRef.current = null;
     if (!alive.current) return;
-    if (!text) { setP('idle'); setNote(t('vo.didntCatch')); return; }
+    if (!text) { setP('idle'); setHeard(''); setNote(t(ERR_KEY[error || 'no-speech'])); return; }
     setHeard(text); setReply(''); setP('thinking');
     const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
     try {

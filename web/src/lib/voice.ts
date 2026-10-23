@@ -100,70 +100,134 @@ export function stopSpeaking() {
 }
 
 // ── listening ────────────────────────────────────────────────────────
-export interface ListenHandle { stop: () => void; result: Promise<{ text: string; language: string | null }> }
+/** Why listening produced no text — shown to the user so they know what to fix. */
+export type ListenError = 'denied' | 'no-mic' | 'unsupported' | 'network' | 'dictation-off' | 'no-speech' | 'stt-failed';
+export interface ListenResult { text: string; language: string | null; error?: ListenError }
+export interface ListenHandle { stop: () => void; result: Promise<ListenResult> }
 
 function blobToBase64(b: Blob): Promise<string> {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(b); });
 }
 
-/** Start listening. `onLevel` gets 0..1 mic loudness for the orb animation. */
-export function listen(lang: VoiceLang, onLevel?: (v: number) => void): ListenHandle {
+function micError(e: any): ListenError {
+  const n = e?.name || '';
+  if (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError') return 'denied';
+  if (n === 'NotFoundError' || n === 'DevicesNotFoundError' || n === 'NotReadableError' || n === 'OverconstrainedError') return 'no-mic';
+  return 'no-mic';
+}
+
+/** Mic level meter so the orb visibly reacts — proves the mic is actually hearing you. */
+function meter(stream: MediaStream, onLevel?: (v: number) => void) {
+  let raf = 0, ctx: AudioContext | null = null, lastLoud = 0, spoke = false;
+  try {
+    ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    ctx.resume?.().catch(() => {});
+    const an = ctx.createAnalyser(); an.fftSize = 512; ctx.createMediaStreamSource(stream).connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const tick = () => {
+      an.getByteTimeDomainData(buf);
+      let sum = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / buf.length);
+      onLevel?.(Math.min(1, rms * 6));
+      if (rms > 0.035) { spoke = true; lastLoud = Date.now(); }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  } catch { /* level meter is cosmetic */ }
+  return {
+    get spoke() { return spoke; }, get lastLoud() { return lastLoud; },
+    /** false when the browser kept the meter suspended — then we can't detect silence. */
+    get working() { return !!ctx && ctx.state === 'running'; },
+    stop() { cancelAnimationFrame(raf); onLevel?.(0); ctx?.close().catch(() => {}); },
+  };
+}
+
+/** Start listening. `onLevel` gets 0..1 mic loudness; `onPartial` gets live words as you speak. */
+export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial?: (t: string) => void): ListenHandle {
   let stopFn = () => {};
-  const result = (async () => {
+  const result = (async (): Promise<ListenResult> => {
     const st = await voiceStatus();
-    const canRecord = !!((navigator.mediaDevices as any)?.getUserMedia && (window as any).MediaRecorder);
-    if (st.stt === 'elevenlabs' && canRecord) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-      const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((m) => (window as any).MediaRecorder.isTypeSupported?.(m)) || '';
+    const md: any = navigator.mediaDevices;
+    if (!md?.getUserMedia) return { text: '', language: null, error: 'unsupported' };
+
+    // 1) Ask for the mic first — gives a clear "blocked / no mic" answer instead of silence.
+    let stream: MediaStream;
+    try { stream = await md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch (e) { return { text: '', language: null, error: micError(e) }; }
+    const m = meter(stream, onLevel);
+    const release = () => { m.stop(); stream.getTracks().forEach((t) => t.stop()); };
+
+    // 2a) ElevenLabs Scribe: record → transcribe on our server (works in every modern browser).
+    if (st.stt === 'elevenlabs' && (window as any).MediaRecorder) {
+      const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((x) => (window as any).MediaRecorder.isTypeSupported?.(x)) || '';
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       const chunks: BlobPart[] = [];
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-      // Voice-activity detection: stop ~1.1s after speech ends (max 20s).
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const src = ctx.createMediaStreamSource(stream);
-      const an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
-      const buf = new Uint8Array(an.fftSize);
-      let spoke = false, lastLoud = Date.now(); const started = Date.now();
-      let raf = 0;
+      const started = Date.now();
       const done = new Promise<void>((resolve) => {
         rec.onstop = () => resolve();
-        const tick = () => {
-          an.getByteTimeDomainData(buf);
-          let sum = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
-          const rms = Math.sqrt(sum / buf.length);
-          onLevel?.(Math.min(1, rms * 6));
-          if (rms > 0.035) { spoke = true; lastLoud = Date.now(); }
+        const iv = setInterval(() => {
           const now = Date.now();
-          if ((spoke && now - lastLoud > 1100) || now - started > 20000 || (!spoke && now - started > 8000)) { try { rec.stop(); } catch {} return; }
-          raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
+          const limit = m.working ? 8000 : 7000; // no meter → just record a fixed window
+          if ((m.spoke && now - m.lastLoud > 1100) || now - started > 20000 || (!m.spoke && now - started > limit)) { clearInterval(iv); try { rec.stop(); } catch {} }
+        }, 100);
+        stopFn = () => { clearInterval(iv); try { rec.stop(); } catch {} };
       });
-      stopFn = () => { try { rec.stop(); } catch {} };
       rec.start(250);
       await done;
-      cancelAnimationFrame(raf); onLevel?.(0);
-      stream.getTracks().forEach((t) => t.stop()); ctx.close().catch(() => {});
-      if (!spoke || !chunks.length) return { text: '', language: null };
+      const spoke = m.spoke || !m.working;
+      release();
+      if (!spoke || !chunks.length) return { text: '', language: null, error: 'no-speech' };
       const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
       try {
         const r = await api<{ text: string; language: string | null }>('/voice/stt', { method: 'POST', body: JSON.stringify({ audio: await blobToBase64(blob), mime: blob.type }) });
-        return { text: r.text || '', language: r.language };
-      } catch { return { text: '', language: null }; }
+        return r.text ? { text: r.text, language: r.language } : { text: '', language: null, error: 'no-speech' };
+      } catch { return { text: '', language: null, error: 'stt-failed' }; }
     }
-    // Browser recogniser fallback (Chrome/Edge/Android; Safari partially).
+
+    // 2b) Browser speech recognition (Chrome, Edge, Safari with Dictation on, Android).
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return { text: '', language: null };
-    return await new Promise<{ text: string; language: string | null }>((resolve) => {
-      const r = new SR(); r.lang = lang === 'hi' ? 'hi-IN' : 'en-IN'; r.interimResults = false; r.maxAlternatives = 1;
-      let got = '';
-      r.onresult = (e: any) => { got = e.results?.[0]?.[0]?.transcript?.trim() || ''; };
-      r.onend = () => { onLevel?.(0); resolve({ text: got, language: lang }); };
-      r.onerror = () => { onLevel?.(0); resolve({ text: got, language: lang }); };
-      r.onsoundstart = () => onLevel?.(0.5);
-      stopFn = () => { try { r.stop(); } catch {} };
-      try { r.start(); } catch { resolve({ text: '', language: null }); }
+    if (!SR) { release(); return { text: '', language: null, error: 'unsupported' }; }
+    // Mobile Chrome can't share the mic between our level meter and its recogniser — hand it over.
+    const shareMic = !/Android|iPhone|iPad/i.test(navigator.userAgent);
+    let released = false;
+    const releaseOnce = () => { if (!released) { released = true; release(); } };
+    if (!shareMic) releaseOnce();
+    return await new Promise<ListenResult>((resolve) => {
+      const r = new SR();
+      r.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+      r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+      let finalText = '', interim = '', err: ListenError | undefined, settled = false;
+      const finish = () => {
+        if (settled) return; settled = true; releaseOnce();
+        const text = (finalText || interim).trim();
+        resolve(text ? { text, language: lang } : { text: '', language: null, error: err || 'no-speech' });
+      };
+      r.onresult = (e: any) => {
+        interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0]?.transcript || '';
+          if (e.results[i].isFinal) finalText += t; else interim += t;
+        }
+        onPartial?.((finalText + ' ' + interim).trim());
+      };
+      r.onerror = (e: any) => {
+        const c = e?.error;
+        err = c === 'not-allowed' ? 'denied'
+          : c === 'service-not-allowed' ? 'dictation-off'
+          : c === 'audio-capture' ? 'no-mic'
+          : c === 'network' ? 'network'
+          : c === 'language-not-supported' ? 'unsupported'
+          : 'no-speech';
+      };
+      r.onend = finish;
+      r.onsoundstart = () => { if (!shareMic) onLevel?.(0.5); };
+      r.onspeechend = () => { if (!shareMic) onLevel?.(0); };
+      stopFn = () => { try { r.stop(); } catch { finish(); } };
+      // Safety: never hang forever.
+      setTimeout(() => { try { r.stop(); } catch {} setTimeout(finish, 800); }, 25000);
+      try { r.start(); } catch { err = 'unsupported'; finish(); }
     });
-  })().catch(() => ({ text: '', language: null }));
+  })().catch(() => ({ text: '', language: null, error: 'no-mic' as ListenError }));
   return { stop: () => stopFn(), result };
 }

@@ -305,6 +305,11 @@ unread-alerts badge, native biometric lock overlay).
 - **Voice (D-44):** `routes/voice.ts` — `GET /voice/status`, `POST /voice/tts` (ElevenLabs `eleven_multilingual_v2`, LRU
   cache), `POST /voice/stt` (Scribe). Env `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_HI`
   (opt `ELEVENLABS_TTS_MODEL`/`ELEVENLABS_STT_MODEL`). No key → browser voice. Ask accepts `{lang, mode:'chat'|'voice'}`.
+  **Mic gotcha:** `web/next.config.mjs` Permissions-Policy must keep `microphone=(self)` (it was `microphone=()`, which
+  silently blocked the mic site-wide). `lib/voice.listen()` asks for the mic first and returns a typed `error`
+  (denied / no-mic / unsupported / network (Brave/Arc) / dictation-off (Safari) / no-speech / stt-failed) that
+  VoiceMode shows in EN/HI; live partial transcript while speaking. Native: Android `RECORD_AUDIO`, iOS
+  `NSMicrophoneUsageDescription` + `NSSpeechRecognitionUsageDescription`.
 - **Language (D-45):** `users.language` ('en'|'hi'); `services/translate.ts` + `routes/i18n.ts` (`POST /i18n/translate`,
   `GET /i18n/status` = key set? + last error; `translations` cache table; env `TRANSLATE_MODEL` default Haiku 4.5, falls
   back to `ANTHROPIC_MODEL`; **needs `ANTHROPIC_API_KEY`**). Translates in parallel chunks of 20 with keyed JSON so a
