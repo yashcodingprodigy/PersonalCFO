@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Wordmark } from '@/components/Logo';
@@ -152,7 +154,7 @@ export default function Onboarding() {
   return (
     <main className="min-h-screen bg-paper">
       <header className="max-w-2xl mx-auto px-6 pt-8 flex items-center justify-between">
-        <Wordmark size="sm" />
+        <Link href="/" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark size="sm" /></Link>
         <span className="text-xs text-ink-faint font-semibold">{pctDone}% complete</span>
       </header>
       <div className="max-w-2xl mx-auto px-6 mt-3">

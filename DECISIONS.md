@@ -236,6 +236,11 @@ side panel/bottom sheet chat on top of the current page. `/ask` remains only for
 monthly money river → "while you were away" → future you + numbers. three.js loaded lazily, paused off-screen,
 static under reduced-motion, CSS-orb fallback without WebGL.
 
+**D-48  The public home page sells the dream too, in both languages.** paywatch.in mirrors the in-app story (3D money
+brain, "say it like you'd tell a friend", dream cards, money river, autopilot feed) instead of the old "score + CFO"
+pitch. Landing copy is hand-written EN + हिंदी (no AI dependency for the first impression). A dream typed on the home
+page becomes a real plan right after sign-in.
+
 ---
 
 ## E. Reversals / revisits log

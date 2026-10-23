@@ -9,7 +9,9 @@ import { getTokens } from '@/lib/api';
 export function AuthRedirect() {
   const router = useRouter();
   useEffect(() => {
-    if (getTokens().access) router.replace('/dashboard');
+    // Logo clicks from inside the app land here with ?home=1 — let them see the home page.
+    const wantsHome = new URLSearchParams(window.location.search).has('home');
+    if (getTokens().access && !wantsHome) router.replace('/dashboard');
   }, [router]);
   return null;
 }

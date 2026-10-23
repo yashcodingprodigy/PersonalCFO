@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { swr, patch } from '@/lib/api';
+import { swr, patch, post } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { useAssistant, DATA_CHANGED } from '@/components/assistant/Assistant';
@@ -49,6 +49,17 @@ export default function Dashboard() {
   }, [lang]);
 
   useEffect(() => { load().catch((e) => setErr(e.message)); }, [load]);
+  // A dream typed on the home page before signing in → captured into a real plan now.
+  useEffect(() => {
+    let text = '';
+    try { text = localStorage.getItem('paywatch_pending_dream') || ''; localStorage.removeItem('paywatch_pending_dream'); } catch {}
+    if (!text) return;
+    const q = /want|wanna|chahiye|chahta|chahti|lena|jana|चाहिए|लेना|जाना|चाहता|चाहती/i.test(text) ? text : `I want ${text}`;
+    post('/brain/capture', { text: q, source: 'landing' })
+      .then((r: any) => (r?.captured ? window.dispatchEvent(new Event(DATA_CHANGED)) : assistant.open('chat', text)))
+      .catch(() => assistant.open('chat', text));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // The assistant captured a dream / changed data → refresh + pulse the brain.
   useEffect(() => {
     const on = () => { setPulse((p) => p + 1); load().catch(() => {}); setTimeout(() => load().catch(() => {}), 2500); };
@@ -67,13 +78,17 @@ export default function Dashboard() {
     progress: d.adjustedTarget > 0 ? Math.min(1, (d.saved || 0) / d.adjustedTarget) : 0,
   }));
   const firstName = (me?.name || '').split(' ')[0];
-  const headline = dreams.length ? t('ov.dreamsOnTrack', { k: onTrack, n: dreams.length }) : t('ov.noDreams');
+  const n = dreams.length;
+  const headline = !n ? t('ov.noDreams')
+    : onTrack === n ? (n === 1 ? t('ov.h.oneOk') : t('ov.h.allOk', { n }))
+    : onTrack === 0 ? (n === 1 ? t('ov.h.oneHelp') : t('ov.h.noneOk', { n }))
+    : t('ov.dreamsOnTrack', { k: onTrack, n });
   const ask = (q: string) => assistant.open('chat', q);
 
   return (
     <div className="space-y-16 md:space-y-24 pb-6">
       {/* ── 1 · HERO ───────────────────────────────────────────────────── */}
-      <section className="relative -mx-4 sm:-mx-8 -mt-16 md:-mt-8 overflow-hidden text-white pw-voice-bg md:rounded-b-[2.5rem]">
+      <section className="pw-bleed relative -mt-16 md:-mt-8 overflow-hidden text-white pw-voice-bg md:rounded-bl-[2.5rem]">
         <div className="absolute inset-0 opacity-60 pointer-events-none" aria-hidden
           style={{ background: 'radial-gradient(60% 50% at 80% 30%, rgba(47,188,155,.25), transparent 70%), radial-gradient(40% 40% at 10% 90%, rgba(70,201,224,.18), transparent 70%)' }} />
         <div className="relative grid lg:grid-cols-[1.05fr_1fr] items-center min-h-[560px] md:min-h-[620px]">
@@ -291,7 +306,7 @@ function FutureYou({ networth, onRisk }: { networth: any; onRisk: (r: string) =>
 function OverviewSkeleton() {
   return (
     <div className="space-y-10">
-      <div className="-mx-4 sm:-mx-8 -mt-16 md:-mt-8 h-[560px] pw-voice-bg md:rounded-b-[2.5rem] grid place-items-center">
+      <div className="pw-bleed -mt-16 md:-mt-8 h-[560px] pw-voice-bg md:rounded-bl-[2.5rem] grid place-items-center">
         <span className="relative w-40 h-40 rounded-full pw-orb" />
       </div>
       <div className="grid sm:grid-cols-3 gap-5">{[0, 1, 2].map((i) => <div key={i} className="h-72 rounded-3xl bg-paper-100 animate-pulse" />)}</div>

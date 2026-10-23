@@ -44,10 +44,10 @@ export function ScoreGauge({ score, size = 220 }: { score: number; size?: number
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="font-display text-6xl font-semibold tabular-nums" style={{ color }}>
+        <div className="font-display font-semibold tabular-nums leading-none" style={{ color, fontSize: Math.round(size * 0.27) }}>
           {display}
         </div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint mt-1">Money Health</div>
+        {size >= 180 && <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint mt-2">Money Health</div>}
       </div>
     </div>
   );

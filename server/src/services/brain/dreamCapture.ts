@@ -42,7 +42,7 @@ const CATALOG: CatalogItem[] = [
   { re: /(?:parents?|mom|mother|dad|father|mummy|papa|maa)[^.]{0,30}(?:health|insurance|medical|cover)|माता-पिता|मम्मी|पापा|हेल्थ इंश्योरेंस/i, en: 'Parents’ health cover', hi: 'माता-पिता का हेल्थ कवर', kind: 'family', goalType: 'custom', rupees: 35000, months: 6, inflation: 0.1 },
   { re: /\b(?:emergency fund|safety net)\b|इमरजेंसी/i, en: 'Emergency fund', hi: 'इमरजेंसी फंड', kind: 'safety', goalType: 'emergency_fund', rupees: 0, months: 12, inflation: 0 },
   { re: /\b(?:mba|masters|ms abroad|course|certification|degree|coaching|upsc|cat prep)\b|कोर्स|पढ़ाई/i, en: 'Course', hi: 'कोर्स', kind: 'purchase', goalType: 'custom', rupees: 200000, months: 12, inflation: 0.08 },
-  { re: /\b(?:caf[eé]|business|startup|shop|restaurant|bakery|dukaan|dukan)\b|कैफ़े|बिज़नेस|दुकान/i, en: 'My own business', hi: 'मेरा अपना बिज़नेस', kind: 'milestone', goalType: 'custom', rupees: 500000, months: 36, inflation: 0.05 },
+  { re: /\b(?:caf[eé]|business|startup|shop|restaurant|bakery|dukaan|dukan)(?![a-z])|कैफ़े|बिज़नेस|दुकान/i, en: 'My own business', hi: 'मेरा अपना बिज़नेस', kind: 'milestone', goalType: 'custom', rupees: 500000, months: 36, inflation: 0.05 },
   { re: /\b(?:iphone|phone|mobile|smartphone|pixel|samsung)\b|फ़ोन|फोन|मोबाइल/i, en: 'New phone', hi: 'नया फ़ोन', kind: 'purchase', goalType: 'custom', rupees: 70000, months: 6, inflation: 0 },
   { re: /\b(?:laptop|macbook|computer|pc)\b|लैपटॉप/i, en: 'Laptop', hi: 'लैपटॉप', kind: 'purchase', goalType: 'custom', rupees: 90000, months: 6, inflation: 0 },
   { re: /\b(?:camera|dslr|gopro)\b|कैमरा/i, en: 'Camera', hi: 'कैमरा', kind: 'purchase', goalType: 'custom', rupees: 60000, months: 6, inflation: 0 },

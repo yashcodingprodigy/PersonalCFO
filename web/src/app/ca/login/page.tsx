@@ -66,7 +66,7 @@ export default function CaLogin() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-pine-950 text-white px-4 py-10">
       <div className="w-full max-w-md">
-        <div className="flex justify-center mb-6"><Wordmark dark size="lg" /></div>
+        <div className="flex justify-center mb-6"><Link href="/" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark dark size="lg" /></Link></div>
         <p className="text-center text-xs uppercase tracking-[0.2em] text-mint-300 font-bold mb-6">For Chartered Accountants</p>
 
         <div className="card bg-white text-ink p-6">

@@ -222,3 +222,13 @@ body {
 }
 /* Tilt cards inside a stagger group keep their 3D transform once revealed */
 .pw-stagger.in > .pw-tilt { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s; }
+
+/* Full-bleed band inside the app shell: from the sidebar edge to the right edge of the window */
+.pw-bleed { margin-left: -1rem; width: 100vw; }
+@media (min-width: 640px) { .pw-bleed { margin-left: -2rem; } }
+@media (min-width: 768px) { .pw-bleed { width: calc(100vw - 15rem); } }
+
+/* Voice equaliser bars (landing voice section) */
+@keyframes pw-eq { 0%,100% { height: 20%; } 50% { height: 100%; } }
+.pw-eq { height: 30%; animation: pw-eq 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pw-eq { animation: none; height: 50%; } }

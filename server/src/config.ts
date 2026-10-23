@@ -16,7 +16,7 @@ export const config = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
   // Cheaper/faster model for bulk Hindi translation (falls back to the main model).
-  translateModel: process.env.TRANSLATE_MODEL || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+  translateModel: process.env.TRANSLATE_MODEL || 'claude-haiku-4-5-20251001', // fast + cheap; falls back to ANTHROPIC_MODEL
   // ElevenLabs — human-sounding multilingual voice (TTS) + speech-to-text (Scribe).
   elevenLabsKey: process.env.ELEVENLABS_API_KEY || '',
   elevenVoiceEn: process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',

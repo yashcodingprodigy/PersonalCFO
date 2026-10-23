@@ -68,7 +68,7 @@ export default function Login() {
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
       <section className="hidden lg:flex flex-col justify-between bg-pine-950 text-white p-12">
-        <Wordmark dark />
+        <Link href="/" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark dark /></Link>
         <div>
           <p className="text-mint-300 text-sm font-bold uppercase tracking-[0.2em] mb-4">Watch your money grow</p>
           <h2 className="font-display text-4xl leading-tight font-medium max-w-md">
@@ -84,7 +84,7 @@ export default function Login() {
 
       <section className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden mb-10"><Wordmark /></div>
+          <div className="lg:hidden mb-10"><Link href="/" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark /></Link></div>
 
           {/* User / CA toggle */}
           <div className="inline-flex rounded-full bg-paper-100 p-1 w-full mb-6">

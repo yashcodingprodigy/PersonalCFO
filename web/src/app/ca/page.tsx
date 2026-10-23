@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Wordmark } from '@/components/Logo';
@@ -45,7 +47,7 @@ export default function CaHome() {
   return (
     <main className="min-h-screen bg-paper">
       <header className="bg-pine-950 text-white px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2"><Wordmark dark size="sm" /><span className="text-[10px] uppercase tracking-wider text-mint-300 font-bold">CA</span></div>
+        <div className="flex items-center gap-2"><Link href="/ca" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark dark size="sm" /></Link><span className="text-[10px] uppercase tracking-wider text-mint-300 font-bold">CA</span></div>
         <button onClick={logout} className="text-xs text-white/60 underline">Sign out</button>
       </header>
 

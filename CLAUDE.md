@@ -306,7 +306,10 @@ unread-alerts badge, native biometric lock overlay).
   cache), `POST /voice/stt` (Scribe). Env `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_HI`
   (opt `ELEVENLABS_TTS_MODEL`/`ELEVENLABS_STT_MODEL`). No key → browser voice. Ask accepts `{lang, mode:'chat'|'voice'}`.
 - **Language (D-45):** `users.language` ('en'|'hi'); `services/translate.ts` + `routes/i18n.ts` (`POST /i18n/translate`,
-  `translations` cache table, env `TRANSLATE_MODEL`, needs `ANTHROPIC_API_KEY`).
+  `GET /i18n/status` = key set? + last error; `translations` cache table; env `TRANSLATE_MODEL` default Haiku 4.5, falls
+  back to `ANTHROPIC_MODEL`; **needs `ANTHROPIC_API_KEY`**). Translates in parallel chunks of 20 with keyed JSON so a
+  truncated reply still saves what it can. Web `AutoTranslate` walks the whole `document.body` (overlays included),
+  caches only real Hindi on the device (`paywatch_tr_hi_v2`), retries with backoff, shows a "हिंदी में बदल रहे हैं…" pill.
 
 ### Adapters
 `sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
@@ -351,7 +354,12 @@ aggregates for the shared catalog), and the **CA portal**: `cas`,
   upload + look-through, used inside Invest), **`CaThread.tsx`** (shared messaging + documents panel for
   both CA & user sides; `fileToBase64`).
 - Sidebar nav scrolls (`overflow-y-auto min-h-0`) so the account/sign-out footer stays visible.
-- **Landing page** (`app/page.tsx`, client) — premium rebuild: aurora gradient hero + floating blobs, 3D
+- **Landing page (Oct 2026, D-48)** (`app/page.tsx`) — dream-first story, fully bilingual via its own `COPY.en/hi`
+  (no AI needed): 3D money-brain hero (`BrainScene` with demo dreams) → animated chat demo (EN/Hinglish/Hindi) → demo
+  `DreamCard`s → how it works (+ `MoneyFlow`, `AwayFeed`) → background engines → voice → future-you slider → pricing →
+  "What's your dream?" box (saved to localStorage `paywatch_pending_dream`; the Overview captures it via
+  `POST /brain/capture` right after sign-in). EN/हिं toggle in nav; signed-in users see "Open my app". Logo clicks from
+  inside the app go to `/?home=1` (AuthRedirect skips the auto-redirect so the home page shows). Older notes: aurora gradient hero + floating blobs, 3D
   tilt score card, animated count-up **Gauge**, scroll-reveals (`.pw-reveal` + IntersectionObserver),
   glass feature showcase, an **interactive "cost of waiting"** projection (monthly slider → 10yr idle vs
   PayWatch FV, illustrative/compliant), animated stat counters, gradient pricing + CTA. Brand gradient/motion
@@ -558,7 +566,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **193 assertions** (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **198 assertions** (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

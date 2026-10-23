@@ -68,6 +68,10 @@ export function BrainScene({ planets, pulseKey = 0, className = '' }: { planets:
       let renderer: import('three').WebGLRenderer;
       try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' }); }
       catch { setFailed(true); return; }
+      // Browsers cap live WebGL contexts; if ours is lost (or never really started) show the CSS orb.
+      const gl = renderer.getContext();
+      if (!gl || (gl as any).isContextLost?.()) { renderer.dispose(); setFailed(true); return; }
+      renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); setFailed(true); }, { once: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       el.appendChild(renderer.domElement);
       renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
@@ -105,7 +109,7 @@ export function BrainScene({ planets, pulseKey = 0, className = '' }: { planets:
         const tilt = new THREE.Group();
         tilt.rotation.order = 'YXZ'; // tilt the ring flat first, then spin it around the vertical axis
         tilt.rotation.x = Math.PI / 2 - 0.22 - (i % 3) * 0.16; tilt.rotation.y = i * 0.95; tilt.rotation.z = (i % 2 ? 1 : -1) * 0.12; world.add(tilt);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.006, 6, 160), new THREE.MeshBasicMaterial({ color: 0x7fe0c8, transparent: true, opacity: 0.16 }));
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.006, 6, 160), new THREE.MeshBasicMaterial({ color: 0x7fe0c8, transparent: true, opacity: 0.24 }));
         tilt.add(ring);
         // Progress arc: brighter section of the orbit = how funded the dream is
         if (p.progress > 0.02) {
@@ -119,7 +123,7 @@ export function BrainScene({ planets, pulseKey = 0, className = '' }: { planets:
         mesh.position.set(radius, 0, 0); mesh.userData = p; pivot.add(mesh);
         const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
         g.scale.set(0.9, 0.9, 1); mesh.add(g);
-        pivot.rotation.z = (i / list.length) * Math.PI * 2;
+        pivot.rotation.z = 0.9 + (i / list.length) * Math.PI * 2; // start beside the core, not in front of it
         orbiters.push({ pivot, mesh, speed: 0.18 / (1 + i * 0.35), p });
       });
 

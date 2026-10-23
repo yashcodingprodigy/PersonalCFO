@@ -35,27 +35,58 @@ export async function translateTexts(texts: string[], lang: string): Promise<str
   const missing = todo.filter((t) => !mem.has(`${lang}:${t.h}`));
   if (!missing.length || !config.anthropicApiKey) return out;
 
-  // Translate the misses in one batch (deduped), capped per call.
-  const uniq = [...new Map(missing.map((t) => [t.h, t.s])).entries()].slice(0, 120);
-  try {
-    const sys = `Translate each English string for an Indian personal-finance app into natural, simple everyday Hindi (Devanagari) that a young Indian would actually say. Keep ₹ amounts, numbers, dates, % and brand names (PayWatch, SIP, EMI, ITR, PAN, UPI, CA) exactly as they are. Keep markdown (**bold**, bullets) and punctuation structure. Keep it the same length or shorter. Return STRICT JSON: an array of strings in the same order, nothing else.`;
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: config.translateModel, max_tokens: 4000, system: sys, messages: [{ role: 'user', content: JSON.stringify(uniq.map(([, s]) => s)) }] }),
-    });
-    if (!res.ok) return out;
-    const data: any = await res.json();
-    const m = (data.content?.[0]?.text || '').match(/\[[\s\S]*\]/);
-    const arr: string[] = m ? JSON.parse(m[0]) : [];
-    if (!Array.isArray(arr) || arr.length !== uniq.length) return out;
-    for (let k = 0; k < uniq.length; k++) {
-      const [h, s] = uniq[k]; const d = String(arr[k] || '').trim();
-      if (!d) continue;
+  // Translate the misses in small parallel chunks (Hindi uses many tokens — one huge
+  // call gets truncated and fails). Keyed JSON so a partial reply still saves what it can.
+  const uniq = [...new Map(missing.map((t) => [t.h, t.s])).entries()];
+  const chunks: [string, string][][] = [];
+  for (let k = 0; k < uniq.length; k += 20) chunks.push(uniq.slice(k, k + 20));
+  const runChunk = async (chunk: [string, string][]) => {
+    const got = await callClaude(chunk.map(([, s]) => s));
+    chunk.forEach(([h, s], k) => {
+      const d = (got[k] || '').trim();
+      if (!d || d === s) return;
       mem.set(`${lang}:${h}`, d);
       query(`INSERT INTO translations (src_hash, lang, src, dst) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, [h, lang, s, d]).catch(() => {});
-    }
-    for (const t of missing) { const d = mem.get(`${lang}:${t.h}`); if (d) out[t.i] = texts[t.i].replace(t.s, d); }
-  } catch { /* fall back to English */ }
+    });
+  };
+  for (let k = 0; k < chunks.length; k += 4) await Promise.all(chunks.slice(k, k + 4).map((c) => runChunk(c).catch(() => {})));
+  for (const t of missing) { const d = mem.get(`${lang}:${t.h}`); if (d) out[t.i] = texts[t.i].replace(t.s, d); }
   return out;
+}
+
+const SYS = `You translate English text from an Indian personal-finance app into natural, simple everyday Hindi (Devanagari) that a young Indian would actually say — warm and clear, not formal/sarkari Hindi. Keep ₹ amounts, numbers, dates, %, and these terms exactly as written: PayWatch, SIP, EMI, ITR, PAN, UPI, CA, KYC, GST, TDS, HRA, NPS, EPF, PPF, ELSS, 80C, 80D, AI. Keep markdown (**bold**, bullets), emoji and punctuation. Similar length or shorter.
+Input is a JSON object of id → English. Return ONLY a JSON object with the same ids → Hindi. No commentary.`;
+
+let lastError = '';
+export const translationStatus = () => ({ available: translationAvailable(), model: config.translateModel, lastError });
+
+/** One Claude call for up to ~20 strings. Returns translations by index ('' when missing). */
+async function callClaude(src: string[]): Promise<string[]> {
+  const input: Record<string, string> = {};
+  src.forEach((s, i) => { input[String(i)] = s; });
+  const models = [config.translateModel, config.anthropicModel].filter((m, i, a) => m && a.indexOf(m) === i);
+  for (const model of models) {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: 8000, system: SYS, messages: [{ role: 'user', content: JSON.stringify(input) }] }),
+      });
+      if (!res.ok) { lastError = `${model}: HTTP ${res.status} ${(await res.text()).slice(0, 160)}`; console.warn('[translate]', lastError); continue; }
+      const data: any = await res.json();
+      const text: string = data.content?.[0]?.text || '';
+      const start = text.indexOf('{');
+      if (start < 0) { lastError = `${model}: no JSON in reply`; continue; }
+      const end = text.lastIndexOf('}');
+      const raw = end > start ? text.slice(start, end + 1) : text.slice(start);
+      let obj: Record<string, string> = {};
+      try { obj = JSON.parse(raw); } catch {
+        // truncated reply → salvage complete "id": "text" pairs
+        for (const mm of raw.matchAll(/"(\d+)"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) { try { obj[mm[1]] = JSON.parse(`"${mm[2]}"`); } catch {} }
+      }
+      lastError = '';
+      return src.map((_, i) => String(obj[String(i)] ?? ''));
+    } catch (e: any) { lastError = `${model}: ${e.message}`; console.warn('[translate]', lastError); }
+  }
+  return src.map(() => '');
 }

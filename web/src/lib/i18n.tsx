@@ -73,6 +73,10 @@ const D = {
   // overview
   'ov.hi': ['Hi', 'नमस्ते'],
   'ov.dreamsOnTrack': ['{k} of your {n} dreams are on track.', 'आपके {n} में से {k} सपने ट्रैक पर हैं।'],
+  'ov.h.oneOk': ['Your dream is on track.', 'आपका सपना ट्रैक पर है।'],
+  'ov.h.allOk': ['All {n} of your dreams are on track.', 'आपके सभी {n} सपने ट्रैक पर हैं।'],
+  'ov.h.oneHelp': ['Your dream needs a small push.', 'आपके सपने को थोड़ा सहारा चाहिए।'],
+  'ov.h.noneOk': ['Your {n} dreams need a small push.', 'आपके {n} सपनों को थोड़ा सहारा चाहिए।'],
   'ov.noDreams': ['What do you want this year?', 'इस साल आप क्या चाहते हैं?'],
   'ov.brainWorking': ['Your money brain is working on them — quietly, every day.', 'आपका मनी ब्रेन रोज़ चुपचाप इन पर काम कर रहा है।'],
   'ov.brainIdle': ['Say it out loud — a trip, a gadget, your parents’ health cover. I’ll turn it into a plan.', 'बोलकर बताइए — कोई ट्रिप, गैजेट, माता-पिता का हेल्थ कवर। मैं उसका प्लान बना दूँगा।'],
@@ -194,64 +198,84 @@ export function LanguageChooser() {
 }
 
 // ── Auto-translate everything not in the dictionary ────────────────────────
-const CACHE_KEY = 'paywatch_tr_hi_v1';
-const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'SVG', 'CANVAS']);
+// Walks every visible text node (pages, overlays, modals, toasts), batches the
+// English ones to /i18n/translate, and swaps in Hindi. Only real Hindi results are
+// cached on the device, so a failed attempt is retried later instead of sticking.
+const CACHE_KEY = 'paywatch_tr_hi_v2';
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA', 'INPUT', 'SELECT', 'SVG', 'CANVAS', 'NOSCRIPT']);
 const hasLatin = (s: string) => /[A-Za-z]{2,}/.test(s);
 const isDevanagari = (s: string) => /[ऀ-ॿ]/.test(s);
 
-export function AutoTranslate({ rootSelector = 'main' }: { rootSelector?: string }) {
+export function AutoTranslate() {
   const { lang } = useLang();
+  const [state, setState] = useState<'idle' | 'working' | 'off'>('idle');
   useEffect(() => {
-    if (lang !== 'hi') return;
+    if (lang !== 'hi') { setState('idle'); return; }
+    try { localStorage.removeItem('paywatch_tr_hi_v1'); } catch {}
     let cache: Record<string, string> = {};
     try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch {}
-    let disabled = false, timer: any = null, busy = false;
+    let stopped = false, timer: any = null, busy = false, fails = 0;
     const pending = new Set<string>();
+    const tried = new Map<string, number>(); // string → attempts this session
 
     const eligible = (n: Text) => {
-      const v = n.nodeValue || '';
-      const s = v.trim();
+      const s = (n.nodeValue || '').trim();
       if (!s || s.length < 2 || !hasLatin(s) || isDevanagari(s)) return false;
       let el = n.parentElement;
       while (el) { if (SKIP_TAGS.has(el.tagName) || el.hasAttribute('data-no-translate') || el.isContentEditable) return false; el = el.parentElement; }
       return true;
     };
-    const apply = (root: Element) => {
+    const want = (s: string) => { if ((tried.get(s) || 0) < 3) pending.add(s); };
+    const apply = () => {
+      const root = document.body; if (!root) return;
       const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       let n: Node | null;
       while ((n = w.nextNode())) {
         const tn = n as Text;
         if (!eligible(tn)) continue;
         const s = tn.nodeValue!.trim();
-        if (cache[s]) { if (cache[s] !== s) tn.nodeValue = tn.nodeValue!.replace(s, cache[s]); }
-        else pending.add(s);
+        if (cache[s]) tn.nodeValue = tn.nodeValue!.replace(s, cache[s]); else want(s);
       }
-      // translate placeholders / titles too
       root.querySelectorAll<HTMLElement>('[placeholder],[title],[aria-label]').forEach((el) => {
+        if (el.closest('[data-no-translate]')) return;
         for (const a of ['placeholder', 'title', 'aria-label']) {
-          const v = el.getAttribute(a); if (!v || !hasLatin(v) || isDevanagari(v) || el.closest('[data-no-translate]')) continue;
-          if (cache[v]) el.setAttribute(a, cache[v]); else pending.add(v);
+          const v = el.getAttribute(a); if (!v || !hasLatin(v) || isDevanagari(v)) continue;
+          if (cache[v]) el.setAttribute(a, cache[v]); else want(v);
         }
       });
     };
     const flush = async () => {
-      if (disabled || busy || !pending.size) return;
-      busy = true;
-      const batch = Array.from(pending).slice(0, 100); batch.forEach((s) => pending.delete(s));
+      if (stopped || busy || !pending.size) { if (!pending.size && !busy) setState((x) => (x === 'off' ? x : 'idle')); return; }
+      busy = true; setState('working');
+      const batch = Array.from(pending).slice(0, 60); batch.forEach((s) => { pending.delete(s); tried.set(s, (tried.get(s) || 0) + 1); });
       try {
         const r = await api<{ texts: string[]; available: boolean }>('/i18n/translate', { method: 'POST', body: JSON.stringify({ texts: batch, lang: 'hi' }) });
-        if (!r.available) { disabled = true; return; }
-        batch.forEach((s, i) => { cache[s] = r.texts[i] || s; });
+        if (!r.available) { stopped = true; setState('off'); setTimeout(() => setState('idle'), 7000); return; }
+        fails = 0;
+        batch.forEach((s, i) => { const d = r.texts[i]; if (d && d !== s && isDevanagari(d)) cache[s] = d; });
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch {}
-        const root = document.querySelector(rootSelector); if (root) apply(root);
-      } catch { disabled = true; } finally { busy = false; if (pending.size && !disabled) timer = setTimeout(flush, 200); }
+        apply();
+      } catch {
+        fails++; batch.forEach((s) => pending.add(s));
+      } finally {
+        busy = false;
+        if (!stopped && pending.size) timer = setTimeout(flush, fails ? Math.min(30000, 1000 * 2 ** fails) : 150);
+        else if (!stopped) setState('idle');
+      }
     };
-    const run = () => { const root = document.querySelector(rootSelector); if (!root) return; apply(root); clearTimeout(timer); timer = setTimeout(flush, 250); };
+    const run = () => { if (stopped) return; apply(); clearTimeout(timer); timer = setTimeout(flush, 120); };
     run();
-    const root = document.querySelector(rootSelector);
-    const mo = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(run, 300); });
-    if (root) mo.observe(root, { childList: true, subtree: true, characterData: true });
-    return () => { mo.disconnect(); clearTimeout(timer); };
-  }, [lang, rootSelector]);
-  return null;
+    const mo = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(run, 250); });
+    mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => { stopped = true; mo.disconnect(); clearTimeout(timer); };
+  }, [lang]);
+
+  if (lang !== 'hi' || state === 'idle') return null;
+  return (
+    <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[90] pointer-events-none pw-fade-in" data-no-translate>
+      <span className="inline-flex items-center gap-2 rounded-full bg-pine-950/90 text-white text-[11px] font-semibold px-3 py-1.5 shadow-lift">
+        {state === 'working' ? <><span className="pw-typing"><i /><i /><i /></span>हिंदी में बदल रहे हैं…</> : 'पूरा हिंदी अनुवाद अभी उपलब्ध नहीं — कुछ हिस्से अंग्रेज़ी में दिखेंगे'}
+      </span>
+    </div>
+  );
 }

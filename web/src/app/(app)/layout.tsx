@@ -91,7 +91,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex overflow-x-clip">
       {/* Biometric lock screen (native only) */}
       {locked && (
         <div className="fixed inset-0 z-[100] bg-pine-950 text-white flex flex-col items-center justify-center gap-6 px-6">
@@ -106,7 +106,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar — desktop */}
       <aside className="hidden md:flex w-60 flex-col bg-pine-950 text-white fixed inset-y-0 no-print">
-        <div className="px-5 py-6"><Link href="/dashboard"><Wordmark dark size="sm" plus={!!isPaid} /></Link></div>
+        <div className="px-5 py-6"><Link href="/?home=1" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark dark size="sm" plus={!!isPaid} /></Link></div>
         <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 py-1">
           {NAV.map((n) => (n as any).accent ? (
             <button key={n.href} onClick={() => openAssistant('chooser')}
@@ -140,7 +140,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           {user && (
             <div className="flex items-center justify-between">
               <Link href="/plans" className="min-w-0">
-                <p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p>
+                <p className="text-sm font-semibold truncate" data-no-translate>{user.name || user.mobile || user.email}</p>
                 <p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} {t('shell.plan')} ›</p>
               </Link>
               <button onClick={logout} className="text-white/50 hover:text-white text-xs underline">{t('shell.signout')}</button>
@@ -154,7 +154,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <button onClick={() => setMenuOpen(true)} aria-label="Menu" className="p-1.5 -ml-1">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z" /></svg>
         </button>
-        <Link href="/dashboard"><Wordmark dark size="sm" plus={!!isPaid} /></Link>
+        <Link href="/?home=1" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80"><Wordmark dark size="sm" plus={!!isPaid} /></Link>
         <Link href="/alerts" aria-label="Alerts" className="relative p-1.5 -mr-1">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.6L4 14v2h16v-2l-2-2.4V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z" /></svg>
           {unread > 0 && <span className="absolute top-0 right-0 min-w-[16px] h-[16px] px-0.5 rounded-full bg-mint-500 text-pine-950 text-[9px] font-bold flex items-center justify-center">{unread}</span>}
@@ -167,7 +167,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 bg-pine-950/60" onClick={() => setMenuOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 max-w-[82%] bg-pine-950 text-white flex flex-col shadow-lift">
             <div className="px-5 py-5 flex items-center justify-between border-b border-white/10">
-              <Wordmark dark size="sm" plus={!!isPaid} />
+              <Link href="/?home=1" aria-label="PayWatch home" className="inline-flex transition-opacity hover:opacity-80" onClick={() => setMenuOpen(false)}><Wordmark dark size="sm" plus={!!isPaid} /></Link>
               <button onClick={() => setMenuOpen(false)} aria-label="Close" className="text-white/60 p-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z" /></svg></button>
             </div>
             <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
@@ -198,7 +198,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               )}
               {user && (
                 <div className="flex items-center justify-between">
-                  <Link href="/plans" className="min-w-0"><p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p><p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} {t('shell.plan')} ›</p></Link>
+                  <Link href="/plans" className="min-w-0"><p className="text-sm font-semibold truncate" data-no-translate>{user.name || user.mobile || user.email}</p><p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} {t('shell.plan')} ›</p></Link>
                   <button onClick={logout} className="text-white/50 text-xs underline">{t('shell.signout')}</button>
                 </div>
               )}
