@@ -439,6 +439,36 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── Money Brain autopilot + language (Oct 2026) ─────────────────────────
+-- Preferred app language ('en' | 'hi'); drives brain text, AI replies and voice.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(5) NOT NULL DEFAULT 'en';
+-- Last brain snapshot per user — the autopilot diffs against it to notice changes.
+CREATE TABLE IF NOT EXISTS brain_snapshots (
+  user_id    UUID PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+  state      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- What the brain did automatically ("while you were away" feed).
+CREATE TABLE IF NOT EXISTS brain_activity (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  kind       VARCHAR(30) NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT,
+  meta       JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_brain_activity_user ON brain_activity(user_id, created_at DESC);
+-- Shared translation cache (UI strings + generated text), keyed by source hash.
+CREATE TABLE IF NOT EXISTS translations (
+  src_hash   VARCHAR(64) NOT NULL,
+  lang       VARCHAR(5) NOT NULL,
+  src        TEXT NOT NULL,
+  dst        TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (src_hash, lang)
+);
+
 -- ── Security: lock tables away from Supabase's public API (Oct 2026) ──────
 -- Supabase exposes the `public` schema over its REST API to the `anon` /
 -- `authenticated` roles. PayWatch never uses that API (the Express server talks

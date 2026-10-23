@@ -10,6 +10,8 @@ import { generateActions } from '../src/services/actions';
 import { parseAffordIntent } from '../src/services/cfo-ai';
 import { generateAlerts } from '../src/services/alerts';
 import { computeScore } from '../src/services/score';
+import { detectDream, parseRupees, parseMonths } from '../src/services/brain/dreamCapture';
+import { diffBrain, Snapshot } from '../src/services/brain/autopilot';
 
 let passed = 0, failed = 0;
 function check(name: string, fn: () => void) {
@@ -240,6 +242,64 @@ check('safety net covered ⇔ no emergency action/alert; score agrees (savings +
     const es = computeScore(p).dimensions.emergency_fund;
     assert.strictEqual(es.score, Math.round(Math.min(100, (months / 6) * 100)));
   }
+});
+
+console.log('\nAUTOPILOT — capture, earmark, diff, Hindi');
+check('hears dreams in English, Hinglish and Hindi — estimates price when not said', () => {
+  const a = detectDream('I really want to go to Bali next year', 'en', NOW)!;
+  assert.strictEqual(a.name, 'Bali trip'); assert.strictEqual(a.kind, 'experience'); assert(a.estimated); assert.strictEqual(a.months, 12);
+  const b = detectDream('mujhe 80k ka laptop lena hai 6 mahine me', 'en', NOW)!;
+  assert.strictEqual(b.name, 'Laptop'); assert.strictEqual(b.amount, R(80_000)); assert(!b.estimated); assert.strictEqual(b.months, 6);
+  const c = detectDream('मुझे अपने माता-पिता का हेल्थ इंश्योरेंस लेना है', 'hi', NOW)!;
+  assert.strictEqual(c.kind, 'family'); assert.strictEqual(c.name, 'माता-पिता का हेल्थ कवर');
+  const d = detectDream('my dream is to open my own cafe in 3 years', 'en', NOW)!;
+  assert.strictEqual(d.kind, 'milestone'); assert.strictEqual(d.months, 36);
+});
+check('ignores questions and non-dreams', () => {
+  assert.strictEqual(detectDream('what is my tax this year?', 'en', NOW), null);
+  assert.strictEqual(detectDream('I want to understand my score', 'en', NOW), null);
+});
+check('amount & horizon parsing (₹, k, lakh, crore, Hindi units; years are not amounts)', () => {
+  assert.strictEqual(parseRupees('₹1.5 lakh'), R(1_50_000)); assert.strictEqual(parseRupees('2 cr flat'), R(2_00_00_000));
+  assert.strictEqual(parseRupees('50 हज़ार'), R(50_000)); assert.strictEqual(parseRupees('trip by 2027'), 0);
+  assert.strictEqual(parseMonths('agle saal', NOW), 12); assert.strictEqual(parseMonths('in 2 years', NOW), 24);
+});
+check('earmarking: spare cash is auto-assigned to dreams (must-have first) and never double-counted', () => {
+  const map = buildMoneyMap(profile({ assets: { savings_balance: R(4_00_000) } }));   // excess = 4L − 2.7L = 1.3L
+  const plan = planDreams(map, [dream({ id: 'nice', priority: 3, targetAmount: R(1_00_000) }), dream({ id: 'must', priority: 1, targetAmount: R(1_00_000) })], { now: NOW, autoEarmark: true });
+  const must = plan.items.find((i) => i.id === 'must')!, nice = plan.items.find((i) => i.id === 'nice')!;
+  assert.strictEqual(must.earmarked, R(1_00_000)); assert.strictEqual(must.status, 'achieved');
+  assert.strictEqual(nice.earmarked, R(30_000));
+  assert.strictEqual(plan.earmarkedTotal, map.excessCash);
+  assert(!plan.items.some((i) => i.levers.some((l) => l.kind === 'use_cash')), 'no spare cash left to offer twice');
+});
+check('afford: money earmarked for a dream is not "free" today', () => {
+  const map = buildMoneyMap(profile({ assets: { savings_balance: R(4_00_000) } }));
+  const r = affordCheck(map, [dream({ id: 'goa', name: 'Goa trip', priority: 1, targetAmount: R(1_00_000) })], R(80_000), { now: NOW, autoEarmark: true, label: 'a laptop' });
+  assert.strictEqual(r.verdict, 'stretch'); assert(/Goa trip/.test(r.headline));
+  assert.strictEqual(affordCheck(map, [], R(80_000), { now: NOW, autoEarmark: true }).verdict, 'yes_now');
+});
+check('diff: first plan, status change, date move, new life event → activity (+ alerts for the important ones)', () => {
+  const base: Snapshot = { v: 1, free: R(30_000), excessCash: 0, events: [], dreams: [{ id: 'g', name: 'Goa trip', status: 'on_track', projectedDate: '2027-04', earmarked: 0 }] };
+  assert.strictEqual(diffBrain(null, base, 'en', R(3_000))[0].kind, 'plan_built');
+  const worse = { ...base, dreams: [{ ...base.dreams[0], status: 'needs_tradeoff', projectedDate: '2027-09' }] };
+  const a = diffBrain(base, worse, 'en', 0);
+  assert(a.some((x) => x.kind === 'dream_worse' && x.notify?.severity === 'warning'));
+  const later = { ...base, dreams: [{ ...base.dreams[0], projectedDate: '2027-06' }] };
+  assert(diffBrain(base, later, 'en', 0).some((x) => x.kind === 'dream_later'));
+  const ev = diffBrain(base, { ...base, events: ['bonus:2026-09'] }, 'en', 0, [{ kind: 'bonus', month: '2026-09', amount: 1, title: 'Bonus', detail: '', suggestion: 'x' }]);
+  assert(ev.some((x) => x.kind === 'event_bonus' && x.notify));
+  assert.strictEqual(diffBrain(base, base, 'en', 0).length, 0, 'no change → no noise');
+});
+check('Hindi: plan, levers, afford and moves speak Hindi with the same numbers', () => {
+  const map = buildMoneyMap(profile());
+  const en = planDreams(map, [dream({ name: 'Car', targetAmount: R(15_00_000), targetDate: '2027-10-01' })], { now: NOW, lang: 'en' });
+  const hi = planDreams(map, [dream({ name: 'Car', targetAmount: R(15_00_000), targetDate: '2027-10-01' })], { now: NOW, lang: 'hi' });
+  assert(/[ऀ-ॿ]/.test(hi.summary)); assert(/[ऀ-ॿ]/.test(hi.items.find((i) => i.id === 'd1')!.levers[0].label));
+  assert.deepStrictEqual(hi.items.map((i) => [i.need, i.allocated, i.projectedDate]), en.items.map((i) => [i.need, i.allocated, i.projectedDate]));
+  assert(/[ऀ-ॿ]/.test(affordCheck(map, [], R(20_000), { now: NOW, lang: 'hi' }).headline));
+  const moves = buildNextMoves({ map, plan: hi, actions: [], alerts: [], events: [], now: NOW, lang: 'hi' });
+  assert(moves.every((m) => m.source !== 'dream' || /[ऀ-ॿ]/.test(m.title)));
 });
 
 console.log('\nASK PAYWATCH — AFFORD INTENT');

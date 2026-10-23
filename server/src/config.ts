@@ -15,6 +15,14 @@ export const config = {
   aaProvider: process.env.AA_PROVIDER || 'mock',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+  // Cheaper/faster model for bulk Hindi translation (falls back to the main model).
+  translateModel: process.env.TRANSLATE_MODEL || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+  // ElevenLabs — human-sounding multilingual voice (TTS) + speech-to-text (Scribe).
+  elevenLabsKey: process.env.ELEVENLABS_API_KEY || '',
+  elevenVoiceEn: process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
+  elevenVoiceHi: process.env.ELEVENLABS_VOICE_ID_HI || process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
+  elevenTtsModel: process.env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2',
+  elevenSttModel: process.env.ELEVENLABS_STT_MODEL || 'scribe_v2',
   encryptionKey: process.env.ENCRYPTION_KEY || '',
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',

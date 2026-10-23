@@ -4,6 +4,7 @@ import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { computeGoalMath, GOAL_TYPES } from '../services/goals';
 import { PLANS, PlanKey } from '../config';
+import { scheduleBrainTick } from '../services/brain/autopilot';
 
 export const goalsRouter = Router();
 goalsRouter.use(requireAuth);
@@ -45,6 +46,7 @@ goalsRouter.post('/', async (req: AuthedRequest, res) => {
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
     [req.userId, g.goal_type, g.name, g.target_amount, g.target_date || null, g.current_amount, g.monthly_contribution, JSON.stringify({ ...defaultMeta, ...g.meta })]
   );
+  scheduleBrainTick(req.userId!, 'dream_added', 300);
   res.status(201).json({ ...row, math: computeGoalMath(row!) });
 });
 
@@ -61,11 +63,13 @@ goalsRouter.put('/:id', async (req: AuthedRequest, res) => {
      WHERE goal_id = $1 AND user_id = $2 RETURNING *`,
     [req.params.id, req.userId, merged.name, merged.target_amount, merged.target_date, merged.current_amount, merged.monthly_contribution, JSON.stringify(merged.meta)]
   );
+  scheduleBrainTick(req.userId!, 'dream_updated', 300);
   res.json({ ...row, math: computeGoalMath(row!) });
 });
 
 // DELETE /goals/:id
 goalsRouter.delete('/:id', async (req: AuthedRequest, res) => {
   await query(`DELETE FROM goals WHERE goal_id = $1 AND user_id = $2`, [req.params.id, req.userId]);
+  scheduleBrainTick(req.userId!, 'dream_removed', 300);
   res.json({ ok: true });
 });

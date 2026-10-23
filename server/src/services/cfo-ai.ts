@@ -14,6 +14,8 @@ import { contextSummaryForAI } from './context';
 import { retrieve, RetrievedDoc } from './rag';
 import { query } from '../db';
 import { runBrain, brainAfford } from './brain';
+import { translateTexts } from './translate';
+import { parseRupees, parseMonths, catalogName } from './brain/dreamCapture';
 
 export const AI_DISCLAIMER =
   'This is educational information based on your financial data and standard planning principles — not SEBI-registered investment advice. For personalised investment recommendations, consult a SEBI Registered Investment Adviser.';
@@ -112,7 +114,7 @@ export function parseGoalIntent(qRaw: string): GoalParse {
 export interface AffordIntent { amount: number; months: number | null; label: string }
 export function parseAffordIntent(qRaw: string): AffordIntent | null {
   const q = qRaw.toLowerCase();
-  if (!/\bafford\b|can i (buy|get|take|go|do)\b|should i (buy|get)\b|is it (ok|okay|fine) to (buy|spend)|enough (money|budget) for/.test(q)) return null;
+  if (!/\bafford\b|can i (buy|get|take|go|do)\b|should i (buy|get)\b|is it (ok|okay|fine) to (buy|spend)|enough (money|budget) for|le sak(ta|ti|te)|khareed sak|kharid sak|ले सक|खरीद सक|ख़रीद सक/.test(q)) return null;
   const qNoDate = q.replace(/by\s+20\d{2}/g, ' ').replace(/(?:in|within|next)\s+\d{1,2}\s*(?:years?|yrs?|months?)/g, ' ');
   const noCommas = qNoDate.replace(/,/g, '');
   let amount = 0;
@@ -126,6 +128,7 @@ export function parseAffordIntent(qRaw: string): AffordIntent | null {
   else if (thousand) amount = Math.round(parseFloat(thousand[1]) * 1000 * 100);
   else if (withRs) amount = Math.round(parseInt(withRs[1], 10) * 100);
   else if (plainBig && !/^20\d{2}$/.test(plainBig[1])) amount = Math.round(parseInt(plainBig[1], 10) * 100);
+  if (amount <= 0) amount = parseRupees(qRaw);
   if (amount <= 0) return null;
   let months: number | null = null;
   const inYears = q.match(/(?:in|within|next)\s+(\d{1,2})\s*(?:years|yrs|year)/);
@@ -136,9 +139,15 @@ export function parseAffordIntent(qRaw: string): AffordIntent | null {
   else if (inYears) months = parseInt(inYears[1], 10) * 12;
   else if (/next year/.test(q)) months = 12;
   else if (byYear) months = Math.max(1, (parseInt(byYear[1], 10) - now.getFullYear()) * 12 + (11 - now.getMonth()));
+  if (months == null) months = parseMonths(qRaw, now);
   if (months != null) months = Math.min(120, Math.max(1, months));
   const thing = q.match(/(?:afford|buy|get)\s+(?:(?:a|an|the|my)\s+)?(?:₹?\s*[\d.,]+\s*(?:crores?|cr|lakhs?|lacs?|l|thousand|k)?\b\s*)?([a-z][a-z ]{1,30}?)(?:\s+(?:in|by|next|within|for|worth|costing|of|that|which)\b|[?.!]|$)/);
   const label = thing && !/^(it|this|that|one)$/.test(thing[1].trim()) ? thing[1].trim() : 'this';
+  if (label === 'this') {
+    const hiScript = /[\u0900-\u097F]/.test(qRaw);
+    const named = catalogName(qRaw, hiScript ? 'hi' : 'en');
+    if (named) return { amount, months, label: hiScript ? named : `a ${named}`.replace(/^a ([aeiou])/, 'an $1') };
+  }
   return { amount, months, label: label === 'this' ? 'this' : `a ${label}`.replace(/^a ([aeiou])/, 'an $1') };
 }
 
@@ -213,7 +222,7 @@ async function extractBenefit(question: string): Promise<CfoAnswer['proposedActi
 }
 
 // ── Claude generation ───────────────────────────────────────────────
-async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[]): Promise<string> {
+async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[], opts: AnswerOpts = {}): Promise<string> {
   const kb = docs.map((d, i) => `[${i + 1}] (${d.source_tag}) ${d.title}: ${d.content}`).join('\n\n');
   const system = `You are PayWatch — the user's friendly personal-finance assistant and always-on CFO, inside the PayWatch app. You sound like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner. If asked who you are, you are "PayWatch".
 
@@ -240,7 +249,11 @@ COMPLIANCE — never break (legal requirements):
 1. NEVER name a specific stock, mutual fund scheme, or crypto asset. Talk in categories only (e.g. "a large-cap index fund", "a liquid fund").
 2. NEVER promise or imply guaranteed returns on market-linked products.
 3. Ground every number in the user's actual profile above; use Indian formats (₹, lakh, crore).
-4. For sizing guidance (like insurance cover), give a rounded range, not a falsely precise figure.`;
+4. For sizing guidance (like insurance cover), give a rounded range, not a falsely precise figure.${opts.lang === 'hi' ? `
+
+LANGUAGE: Reply in simple, natural everyday Hindi (Devanagari), the way a friendly young Indian speaks. Keep ₹ amounts, numbers and common terms (SIP, EMI, ITR, PAN, UPI, CA, tax regime) as they are.` : ''}${opts.voice ? `
+
+VOICE MODE: Your reply will be SPOKEN aloud. Answer in 2–4 short, natural spoken sentences (under 70 words). No markdown, no bullet points, no symbols. Say amounts the way people speak them (e.g. "about 62 thousand rupees a month").` : ''}`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -325,11 +338,13 @@ function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[], ins
 }
 
 // ── Main entry ──────────────────────────────────────────────────────
+export interface AnswerOpts { lang?: 'en' | 'hi'; voice?: boolean }
 export async function answerQuestion(
   userId: string,
   question: string,
   p: ProfileData,
-  history: { role: string; content: string }[]
+  history: { role: string; content: string }[],
+  opts: AnswerOpts = {}
 ): Promise<CfoAnswer> {
   const blocked = checkGuardrails(question);
   if (blocked) {
@@ -387,7 +402,7 @@ export async function answerQuestion(
   // "can I afford X?" questions, so the AI never guesses affordability.
   let affordNote: string | null = null;
   try {
-    const brain = await runBrain(userId);
+    const brain = await runBrain(userId, opts.lang);
     if (brain?.plan.hasData) {
       userContext += `\nPayWatch plan: ${brain.plan.summary} Free to plan each month: ${inr(brain.map.free)}; spare cash above safety net: ${inr(brain.map.excessCash)}.`;
       const dreamsLine = brain.plan.items.filter((i) => !i.virtual).map((i) => `${i.name} (${i.status.replace('_', ' ')}, needs ${inr(i.need)}/mo, plan sets aside ${inr(i.allocated)}/mo${i.projectedDate ? `, done ~${i.projectedDate}` : ''})`).join('; ');
@@ -395,9 +410,9 @@ export async function answerQuestion(
     }
     const ai = parseAffordIntent(question);
     if (ai) {
-      const r = await brainAfford(userId, ai.amount, ai.months, ai.label);
+      const r = await brainAfford(userId, ai.amount, ai.months, ai.label, opts.lang);
       if (r) {
-        affordNote = r.headline + (r.levers.length ? '\n\nWays to make it work:\n' + r.levers.slice(0, 3).map((l) => `• ${l.label}`).join('\n') : '');
+        affordNote = r.headline + (r.levers.length ? `\n\n${opts.lang === 'hi' ? 'इसे संभव बनाने के तरीके:' : 'Ways to make it work:'}\n` + r.levers.slice(0, 3).map((l) => `• ${l.label}`).join('\n') : '');
         userContext += `\nPAYWATCH BRAIN VERDICT for this question (computed from the user's real plan — lead with it and never contradict its numbers): ${affordNote.replace(/\n+/g, ' ')}`;
       }
     }
@@ -407,7 +422,7 @@ export async function answerQuestion(
   let engine: 'claude' | 'rules';
   if (config.anthropicApiKey) {
     try {
-      content = await askClaude(question, userContext, docs, history);
+      content = await askClaude(question, userContext, docs, history, opts);
       engine = 'claude';
     } catch (e) {
       console.error('[cfo-ai] Claude API failed, using rules engine:', e);
@@ -417,6 +432,10 @@ export async function answerQuestion(
   } else {
     content = rulesAnswer(question, p, docs, insPolicies);
     engine = 'rules';
+  }
+  if (engine === 'rules') {
+    if (opts.voice) content = content.split(/\n\s*\n/)[0].replace(/[*#_`>-]/g, '').slice(0, 400);
+    if (opts.lang === 'hi') content = (await translateTexts([content], 'hi'))[0];
   }
   if (affordNote && engine === 'rules') content = `${affordNote}\n\n${content}`;
 

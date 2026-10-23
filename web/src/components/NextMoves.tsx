@@ -6,6 +6,7 @@
 
 import Link from 'next/link';
 import { inr } from '@/lib/format';
+import { useLang } from '@/lib/i18n';
 
 const URG: Record<string, { label: string; cls: string }> = {
   now: { label: 'Now', cls: 'bg-signal-red/10 text-signal-red' },
@@ -14,6 +15,7 @@ const URG: Record<string, { label: string; cls: string }> = {
 };
 
 export function NextMoves({ brain, max = 4 }: { brain: any; max?: number }) {
+  const { t } = useLang();
   if (!brain) return null;
   const moves: any[] = (brain.moves || []).slice(0, max);
   const plan = brain.plan || {};
@@ -21,13 +23,13 @@ export function NextMoves({ brain, max = 4 }: { brain: any; max?: number }) {
     <section className="card p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-ink-faint">Your next moves</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-ink-faint">{t('ov.moves')}</p>
           <p className="font-display text-xl mt-1 leading-snug max-w-xl">{plan.summary || 'Here’s what matters most right now.'}</p>
         </div>
         {plan.hasData && (
           <div className="flex gap-2 flex-wrap">
-            <span className="chip bg-mint-100 text-pine-800">Guilt-free: {inr(plan.joyBudget)}/mo</span>
-            {brain.map?.excessCash > 0 && <span className="chip bg-paper-100 text-ink-soft">Spare cash: {inr(brain.map.excessCash)}</span>}
+            <span className="chip bg-mint-100 text-pine-800">{t('ov.guiltFree')}: {inr(plan.joyBudget)}{t('ov.perMonth')}</span>
+            {brain.map?.excessCash > 0 && <span className="chip bg-paper-100 text-ink-soft">{t('ov.spare')}: {inr(brain.map.excessCash)}</span>}
           </div>
         )}
       </div>

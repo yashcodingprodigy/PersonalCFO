@@ -20,13 +20,15 @@ export interface LifeEvent {
   month: string;                 // YYYY-MM it was seen
 }
 
+import { Lang, M } from './i18n';
 const inr = (p: number) => `₹${Math.round(p / 100).toLocaleString('en-IN')}`;
 const monthOf = (d: string) => d.slice(0, 7);
 const isSalary = (t: Txn) => t.direction === 'credit' && (t.category === 'salary' || /\bsal(ary)?\b|payroll/i.test(t.description));
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '').slice(0, 14);
 
-export function detectLifeEvents(txns: Txn[], monthlyTakeHome: number): LifeEvent[] {
+export function detectLifeEvents(txns: Txn[], monthlyTakeHome: number, lang: Lang = 'en'): LifeEvent[] {
   if (!txns.length) return [];
+  const T = M(lang);
   const months = [...new Set(txns.map((t) => monthOf(t.date)))].sort();
   const latest = months[months.length - 1];
   const prior = months.slice(-4, -1);
@@ -42,15 +44,15 @@ export function detectLifeEvents(txns: Txn[], monthlyTakeHome: number): LifeEven
     const change = (latestSal - avgPrior) / avgPrior;
     if (change >= 0.10) out.push({
       kind: 'salary_hike', month: latest, amount: Math.round(latestSal - avgPrior),
-      title: `Your salary went up by about ${inr(latestSal - avgPrior)} a month`,
-      detail: `${Math.round(change * 100)}% more than your usual credit.`,
-      suggestion: `Lock in half of the raise (${inr((latestSal - avgPrior) / 2)}/month) for your dreams before lifestyle quietly eats it — enjoy the other half.`,
+      title: T.evHikeTitle(inr(latestSal - avgPrior)),
+      detail: T.evHikeDetail(Math.round(change * 100)),
+      suggestion: T.evHikeTip(inr((latestSal - avgPrior) / 2)),
     });
     else if (change <= -0.10) out.push({
       kind: 'salary_drop', month: latest, amount: Math.round(avgPrior - latestSal),
-      title: `Your salary credit was ${inr(avgPrior - latestSal)} lower this month`,
-      detail: `${Math.round(-change * 100)}% below your usual.`,
-      suggestion: 'If this continues, I’ll re-plan your dreams around the new number so nothing bounces — your safety net comes first.',
+      title: T.evDropTitle(inr(avgPrior - latestSal)),
+      detail: T.evDropDetail(Math.round(-change * 100)),
+      suggestion: T.evDropTip,
     });
   }
 
@@ -61,9 +63,9 @@ export function detectLifeEvents(txns: Txn[], monthlyTakeHome: number): LifeEven
     if (big) {
       out.push({
         kind: 'bonus', month: latest, amount: t.amount,
-        title: `${inr(t.amount)} landed in your account`,
+        title: T.evBonusTitle(inr(t.amount)),
         detail: t.description.slice(0, 60),
-        suggestion: 'A lump sum like this can finish a dream early. Want me to show which dream it completes first?',
+        suggestion: T.evBonusTip,
       });
       break;
     }
@@ -74,9 +76,9 @@ export function detectLifeEvents(txns: Txn[], monthlyTakeHome: number): LifeEven
   const newEmi = txns.find((t) => t.direction === 'debit' && t.category === 'emi' && monthOf(t.date) === latest && !priorEmi.has(norm(t.description)));
   if (newEmi && prior.length) out.push({
     kind: 'new_emi', month: latest, amount: newEmi.amount,
-    title: `A new EMI of ${inr(newEmi.amount)} started`,
+    title: T.evEmiTitle(inr(newEmi.amount)),
     detail: newEmi.description.slice(0, 60),
-    suggestion: 'I’ve counted it in your monthly commitments. If it’s a loan, adding its details lets me check the interest and plan prepayment.',
+    suggestion: T.evEmiTip,
   });
 
   // Big one-off purchase
@@ -86,9 +88,9 @@ export function detectLifeEvents(txns: Txn[], monthlyTakeHome: number): LifeEven
       .sort((a, b) => b.amount - a.amount)[0];
     if (bigBuy && bigBuy.amount >= monthlyTakeHome * 0.5) out.push({
       kind: 'big_purchase', month: latest, amount: bigBuy.amount,
-      title: `A big spend of ${inr(bigBuy.amount)} this month`,
+      title: T.evBuyTitle(inr(bigBuy.amount)),
       detail: bigBuy.description.slice(0, 60),
-      suggestion: 'No judgement — I’ve adjusted this month’s plan. If it was for a dream, tell me and I’ll mark it as done.',
+      suggestion: T.evBuyTip,
     });
   }
   return out;

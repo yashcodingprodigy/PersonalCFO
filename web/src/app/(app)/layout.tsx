@@ -10,6 +10,8 @@ import { Walkthrough } from '@/components/Walkthrough';
 import { Toaster } from '@/components/Toaster';
 import { WelcomeSplash } from '@/components/WelcomeSplash';
 import { NavTransition } from '@/components/NavTransition';
+import { AssistantProvider, useAssistant } from '@/components/assistant/Assistant';
+import { useLang, useSyncLangFromUser, LanguageChooser, AutoTranslate, TKey } from '@/lib/i18n';
 
 const ASK_ICON = 'M4 4h16v12H7l-3 3V4Zm4 5h8v2H8V9Z';
 
@@ -36,6 +38,13 @@ const NAV = [
 const BOTTOM = ['/dashboard', '/actions', '/ask', '/invest'];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return <AssistantProvider><Shell>{children}</Shell></AssistantProvider>;
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  const { open: openAssistant } = useAssistant();
+  const { t, lang, setLang } = useLang();
+  const label = (href: string, fallback: string) => { const k = `nav.${href}` as TKey; const v = t(k); return v === k ? fallback : v; };
   const path = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -60,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => { setMenuOpen(false); }, [path]);
   const isPaid = user && (user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active';
   const bottomItems = BOTTOM.map((href) => NAV.find((n) => n.href === href)!);
+  useSyncLangFromUser(user?.language);
 
   // Native app: biometric app-lock + push registration (no-ops on web)
   useEffect(() => {
@@ -86,10 +96,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {locked && (
         <div className="fixed inset-0 z-[100] bg-pine-950 text-white flex flex-col items-center justify-center gap-6 px-6">
           <Wordmark dark size="lg" />
-          <p className="text-sm text-white/70">Locked for your security</p>
+          <p className="text-sm text-white/70">{t('shell.locked')}</p>
           <button onClick={() => unlock().then((ok) => ok && setLocked(false))}
             className="rounded-full bg-mint-500 text-pine-950 px-8 py-3 text-sm font-bold hover:bg-mint-400 transition-colors">
-            Unlock
+            {t('shell.unlock')}
           </button>
         </div>
       )}
@@ -98,14 +108,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex w-60 flex-col bg-pine-950 text-white fixed inset-y-0 no-print">
         <div className="px-5 py-6"><Link href="/dashboard"><Wordmark dark size="sm" plus={!!isPaid} /></Link></div>
         <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 py-1">
-          {NAV.map((n) => (
+          {NAV.map((n) => (n as any).accent ? (
+            <button key={n.href} onClick={() => openAssistant('chooser')}
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors bg-mint-500/15 text-mint-300 ring-1 ring-mint-500/40 hover:bg-mint-500/25 text-left">
+              <span className="w-[17px] h-[17px] rounded-full pw-orb-mini shrink-0" aria-hidden />
+              <span className="flex-1">{label(n.href, n.label)}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">AI</span>
+            </button>
+          ) : (
             <Link key={n.href} href={n.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-                ${path?.startsWith(n.href)
-                  ? ((n as any).accent ? 'bg-mint-500 text-pine-950' : 'bg-white/10 text-white')
-                  : ((n as any).accent ? 'bg-mint-500/15 text-mint-200 ring-1 ring-mint-500/40 hover:bg-mint-500/25' : 'text-white/60 hover:text-white hover:bg-white/5')}`}>
+                ${path?.startsWith(n.href) ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
-              <span className="flex-1">{n.label}</span>
+              <span className="flex-1">{label(n.href, n.label)}</span>
               {(n as any).accent && <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">AI</span>}
               {n.href === '/alerts' && unread > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-mint-500 text-pine-950 text-[10px] font-bold">{unread}</span>
@@ -114,18 +129,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="p-4 border-t border-white/10 space-y-3">
+          <button onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} className="w-full rounded-lg bg-white/5 hover:bg-white/10 text-white/80 text-xs font-bold py-2 transition-colors">
+            🌐 {t('lang.switch')}
+          </button>
           {user && !((user.plan === 'cfo' || user.plan === 'family') && user.plan_status === 'active') && (
             <Link href="/plans" className="block rounded-lg bg-mint-500 text-pine-950 text-center text-xs font-bold py-2 hover:bg-mint-400 transition-colors">
-              ✦ Upgrade to PayWatch Plus
+              {t('shell.upgrade')}
             </Link>
           )}
           {user && (
             <div className="flex items-center justify-between">
               <Link href="/plans" className="min-w-0">
                 <p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p>
-                <p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan ›</p>
+                <p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} {t('shell.plan')} ›</p>
               </Link>
-              <button onClick={logout} className="text-white/50 hover:text-white text-xs underline">Sign out</button>
+              <button onClick={logout} className="text-white/50 hover:text-white text-xs underline">{t('shell.signout')}</button>
             </div>
           )}
         </div>
@@ -153,14 +171,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <button onClick={() => setMenuOpen(false)} aria-label="Close" className="text-white/60 p-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z" /></svg></button>
             </div>
             <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-              {NAV.map((n) => (
+              {NAV.map((n) => (n as any).accent ? (
+                <button key={n.href} onClick={() => { setMenuOpen(false); openAssistant('chooser'); }}
+                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium bg-mint-500/15 text-mint-300 ring-1 ring-mint-500/40 text-left">
+                  <span className="w-[18px] h-[18px] rounded-full pw-orb-mini shrink-0" aria-hidden />
+                  <span className="flex-1">{label(n.href, n.label)}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">AI</span>
+                </button>
+              ) : (
                 <Link key={n.href} href={n.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-                    ${path?.startsWith(n.href)
-                      ? ((n as any).accent ? 'bg-mint-500 text-pine-950' : 'bg-white/10 text-white')
-                      : ((n as any).accent ? 'bg-mint-500/15 text-mint-200 ring-1 ring-mint-500/40 hover:bg-mint-500/25' : 'text-white/70 hover:text-white hover:bg-white/5')}`}>
+                    ${path?.startsWith(n.href) ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
-                  <span className="flex-1">{n.label}</span>
+                  <span className="flex-1">{label(n.href, n.label)}</span>
                   {(n as any).accent && <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">AI</span>}
                   {n.href === '/alerts' && unread > 0 && (
                     <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-mint-500 text-pine-950 text-[10px] font-bold">{unread}</span>
@@ -169,13 +192,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
             <div className="p-4 border-t border-white/10 space-y-3">
+              <button onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} className="w-full rounded-lg bg-white/5 text-white/80 text-xs font-bold py-2">🌐 {t('lang.switch')}</button>
               {user && !isPaid && (
-                <Link href="/plans" className="block rounded-lg bg-mint-500 text-pine-950 text-center text-xs font-bold py-2">✦ Upgrade to PayWatch Plus</Link>
+                <Link href="/plans" className="block rounded-lg bg-mint-500 text-pine-950 text-center text-xs font-bold py-2">{t('shell.upgrade')}</Link>
               )}
               {user && (
                 <div className="flex items-center justify-between">
-                  <Link href="/plans" className="min-w-0"><p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p><p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} plan ›</p></Link>
-                  <button onClick={logout} className="text-white/50 text-xs underline">Sign out</button>
+                  <Link href="/plans" className="min-w-0"><p className="text-sm font-semibold truncate">{user.name || user.mobile || user.email}</p><p className="text-[11px] text-mint-300 uppercase tracking-wider font-bold">{user.plan} {t('shell.plan')} ›</p></Link>
+                  <button onClick={logout} className="text-white/50 text-xs underline">{t('shell.signout')}</button>
                 </div>
               )}
             </div>
@@ -187,35 +211,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-paper-200 grid grid-cols-5 no-print">
         {bottomItems.map((n) =>
           (n as any).accent ? (
-            <Link key={n.href} href={n.href} className="flex flex-col items-center justify-end -mt-4">
-              <span className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lift border-4 border-white ${path?.startsWith(n.href) ? 'bg-pine-900 text-white' : 'bg-mint-500 text-pine-950'}`}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
+            <button key={n.href} onClick={() => openAssistant('chooser')} className="flex flex-col items-center justify-end -mt-4">
+              <span className="flex items-center justify-center w-12 h-12 rounded-full shadow-lift border-4 border-white overflow-hidden">
+                <span className="w-full h-full rounded-full pw-orb-mini" aria-hidden />
               </span>
-              <span className={`text-[10px] font-bold mt-0.5 ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-pine-700'}`}>Ask</span>
-            </Link>
+              <span className="text-[10px] font-bold mt-0.5 text-pine-700">{t('nav.ask_short')}</span>
+            </button>
           ) : (
             <Link key={n.href} href={n.href}
               className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${path?.startsWith(n.href) ? 'text-pine-800' : 'text-ink-faint'}`}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={n.icon} /></svg>
-              {n.label.split(' ')[0]}
+              {label(n.href, n.label).split(' ')[0]}
             </Link>
           )
         )}
         <button onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-ink-faint">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" /></svg>
-          More
+          {t('nav.more')}
         </button>
       </nav>
 
       <main className="flex-1 md:ml-60 px-4 sm:px-8 pt-16 md:pt-8 pb-24 md:pb-12 max-w-6xl">{children}</main>
 
-      {/* Floating "Ask PayWatch" button — ask in context from any page */}
-      {!locked && !path?.startsWith('/ask') && (
-        <Link href="/ask" aria-label="Ask PayWatch"
-          className="fixed z-30 right-4 bottom-20 md:right-6 md:bottom-6 no-print flex items-center gap-2 rounded-full bg-mint-500 text-pine-950 shadow-lift px-4 py-3 text-sm font-bold hover:bg-mint-400 transition-colors">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={ASK_ICON} /></svg>
-          <span className="hidden sm:inline">Ask PayWatch</span>
-        </Link>
+      {/* Floating "Ask PayWatch" — opens Talk / Type right here, on this page */}
+      {!locked && (
+        <button onClick={() => openAssistant('chooser')} aria-label={t('nav./ask')}
+          className="fixed z-30 right-4 bottom-20 md:right-6 md:bottom-6 no-print flex items-center gap-2.5 rounded-full bg-pine-950 text-white shadow-lift pl-2 pr-4 py-2 text-sm font-bold hover:bg-pine-900 transition-colors pw-fab">
+          <span className="w-9 h-9 rounded-full pw-orb-mini" aria-hidden />
+          <span className="hidden sm:inline">{t('nav./ask')}</span>
+        </button>
       )}
 
       {/* Global toast notifications (e.g. "Profile updated") */}
@@ -226,6 +250,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* "Hello, {name}" welcome splash — plays once per app-open, then lifts away */}
       {!locked && <WelcomeSplash name={user?.name || user?.mobile || user?.email} />}
+
+      {/* First-run language choice + Hindi for every screen */}
+      {!locked && <LanguageChooser />}
+      <AutoTranslate />
 
       {/* Context-aware curtain on every in-app navigation */}
       {!locked && <NavTransition />}

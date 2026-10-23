@@ -190,6 +190,12 @@ unread-alerts badge, native biometric lock overlay).
   important / nice), per-dream need vs plan allocation, "done by" date (cascade), status chips, **"Make it a yes"**
   levers, virtual safety-net card, plan strip (free to plan, guilt-free money, spare cash, safety net), and the
   **"Can I afford it?"** checker (`POST /brain/afford`). Dashboard opens with **`NextMoves`** (ranked moves from `/brain`).
+- **Ask PayWatch overlay (D-46)** — `components/assistant/{Assistant,ChatPanel,VoiceMode,Markdown}.tsx`; opens from any
+  page (Talk/Type chooser → voice orb or chat side panel); `/ask` page = same ChatPanel full-page. Web language layer:
+  `lib/i18n.tsx` (`LanguageProvider`, `t()`, `LanguageChooser`, `AutoTranslate`), `lib/voice.ts`, `components/Providers.tsx`;
+  Settings → App language. **Overview (D-47)** = dream-first story with a three.js money brain
+  (`components/overview/BrainScene.tsx`, `parts.tsx`: DreamCard/Tilt/MoneyFlow/AwayFeed/Reveal); CSS in `globals.css`
+  (`pw-orb*`, `pw-voice-bg`, `pw-tilt`, `pw-rise`, `pw-stagger`, `pw-flow-path`).
 - **Ask PayWatch** (`ask`, RAG
   Q&A — renamed from "Ask your CFO"; can **create goals from chat**; topical scope guard rejects
   off-topic/abuse), **Reports**, **Plans** (pricing/subscribe), **Settings** (+ Vehicle asset field).
@@ -292,6 +298,15 @@ unread-alerts badge, native biometric lock overlay).
   `brainAfford()`. Route `routes/brain.ts`: `GET /v1/brain`, `POST /v1/brain/afford`, `GET /v1/brain/readiness`.
   `cfo-ai.ts` `parseAffordIntent()` → deterministic verdict injected into Ask PayWatch; `monitor.gatherSignals` takes goal
   health from the plan so alerts never contradict the Dreams page.
+  **Autopilot (D-43):** `autopilot.ts` `brainTick`/`scheduleBrainTick`/`captureDream`/`recentActivity` (tables
+  `brain_snapshots`, `brain_activity`); `dreamCapture.ts` (EN/HI/Hinglish intent + cost catalogue + `parseRupees/parseMonths`);
+  `i18n.ts` (every brain sentence in EN+HI). Plan items carry `earmarked` + `saved`. Routes add `GET /brain/activity`,
+  `POST /brain/capture`, `POST /brain/tick`.
+- **Voice (D-44):** `routes/voice.ts` — `GET /voice/status`, `POST /voice/tts` (ElevenLabs `eleven_multilingual_v2`, LRU
+  cache), `POST /voice/stt` (Scribe). Env `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_HI`
+  (opt `ELEVENLABS_TTS_MODEL`/`ELEVENLABS_STT_MODEL`). No key → browser voice. Ask accepts `{lang, mode:'chat'|'voice'}`.
+- **Language (D-45):** `users.language` ('en'|'hi'); `services/translate.ts` + `routes/i18n.ts` (`POST /i18n/translate`,
+  `translations` cache table, env `TRANSLATE_MODEL`, needs `ANTHROPIC_API_KEY`).
 
 ### Adapters
 `sms.ts` (dev logs / msg91), `aa.ts` (Account Aggregator mock / Finvu), `billing.ts` (sandbox /
@@ -400,7 +415,7 @@ aggregates for the shared catalog), and the **CA portal**: `cas`,
   Disabled until `CRON_SECRET` set.
 - **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
   `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
-  `CRON_SECRET`, `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
+  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice), `TRANSLATE_MODEL`(opt), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
   `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery),
   **`SUPABASE_URL`+`SUPABASE_SERVICE_KEY`+`SUPABASE_BUCKET`** (opt — enables CA document sharing; use the
   new `sb_secret_` key; create a **private** bucket `ca-documents`).
@@ -543,7 +558,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **186 assertions** (incl. `brain.test.ts`, 37 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **193 assertions** (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

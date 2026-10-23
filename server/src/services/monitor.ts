@@ -16,7 +16,7 @@ export async function gatherSignals(userId: string): Promise<AlertSignals> {
   let goals: AlertSignals['goals'];
   const prof = await loadProfileData(userId);
   if (prof) {
-    const plan = planDreams(buildMoneyMap(prof), goalsRows.map(goalToDream));
+    const plan = planDreams(buildMoneyMap(prof), goalsRows.map(goalToDream), { autoEarmark: true });
     const H: Record<string, string> = { needs_tradeoff: 'off_track', stretch: 'at_risk', on_track: 'on_track', achieved: 'achieved' };
     goals = plan.items.filter((i) => !i.virtual).map((i) => ({ name: i.name, health: H[i.status], requiredMonthly: i.need, monthlyContribution: i.allocated }));
   } else {

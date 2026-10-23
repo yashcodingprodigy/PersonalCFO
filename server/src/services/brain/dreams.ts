@@ -14,6 +14,7 @@
 // recommendation and not a promise of returns (SEBI lane: education only).
 
 import { MoneyMap } from './cashflow';
+import { Lang, M } from './i18n';
 
 export type DreamKind = 'experience' | 'purchase' | 'family' | 'safety' | 'growth' | 'milestone';
 export type DreamStatus = 'achieved' | 'on_track' | 'stretch' | 'needs_tradeoff';
@@ -52,6 +53,8 @@ export interface PlanItem {
   currentContribution: number;
   status: DreamStatus;
   projectedDate: string | null;  // when it completes at the allocated pace
+  earmarked: number;             // spare cash the brain set aside for it automatically
+  saved: number;                 // already put aside (user's savings + earmarked cash)
   levers: Lever[];
 }
 
@@ -62,6 +65,7 @@ export interface DreamPlan {
   joyBudget: number;             // monthly guilt-free money (incl. leftover)
   unallocated: number;           // left after everything (already counted in joyBudget)
   overcommitted: number;         // monthly shortfall summed across dreams
+  earmarkedTotal: number;        // spare cash auto-assigned to dreams
   summary: string;
 }
 
@@ -70,6 +74,8 @@ export interface PlanOptions {
   joyPct?: number;               // share of free cash reserved for joy (default 10%)
   spendByCategory?: { category: string; label: string; monthly: number }[];
   _noSwap?: boolean;             // internal: stop recursion when testing a re-prioritisation
+  lang?: Lang;                   // 'en' | 'hi' — language for every generated sentence
+  autoEarmark?: boolean;         // auto-assign spare cash above the safety net to dreams (autopilot)
 }
 
 // ── maths ──────────────────────────────────────────────────────────────
@@ -190,15 +196,35 @@ function cascade(order: { id: string; target: number; current: number; inflation
 // ── the planner ─────────────────────────────────────────────────────────
 export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions = {}): DreamPlan {
   const now = opt.now || new Date();
+  const T = M(opt.lang || 'en');
   const joyPct = opt.joyPct ?? 0.10;
   const free = map.free;
   let remaining = Math.max(0, free);
 
-  const all: DreamInput[] = [...dreams];
+  // Autopilot earmarking: spare cash above the safety net is quietly assigned to
+  // dreams (must-haves first, then soonest) so progress reflects real balances
+  // without the user typing "saved so far" anywhere.
+  const earmark = new Map<string, number>();
+  const realCopy = dreams.map((d) => ({ ...d }));
+  if (opt.autoEarmark && map.excessCash > 0) {
+    let pool = map.excessCash;
+    const order = realCopy.filter((d) => d.kind !== 'safety')
+      .map((d) => ({ d, months: Math.max(0, monthsBetween(now, d.targetDate)) }))
+      .sort((a, b) => a.d.priority - b.d.priority || a.months - b.months);
+    for (const { d, months } of order) {
+      if (pool <= 0) break;
+      const gapNow = Math.max(0, inflate(d.targetAmount, d.inflation, months) - d.currentAmount);
+      const share = Math.min(pool, gapNow);
+      if (share > 0) { d.currentAmount += share; earmark.set(d.id, share); pool -= share; }
+    }
+  }
+  const earmarkedTotal = [...earmark.values()].reduce((a, b) => a + b, 0);
+
+  const all: DreamInput[] = [...realCopy];
   const hasSafetyDream = dreams.some((d) => d.kind === 'safety');
   if (!hasSafetyDream && map.emergencyGap > 0 && map.expenses > 0) {
     all.push({
-      id: 'virtual-safety', name: 'Safety net (emergency fund)', kind: 'safety', priority: 1,
+      id: 'virtual-safety', name: T.safetyName, kind: 'safety', priority: 1,
       targetAmount: map.emergencyTarget, targetDate: ym(now, 12) + '-01', currentAmount: Math.min(map.liquid, map.emergencyTarget),
       monthlyContribution: 0, inflation: 0, virtual: true,
     });
@@ -215,7 +241,8 @@ export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions
       id: d.id, name: d.name, kind: d.kind, priority: d.priority, virtual: !!d.virtual,
       months, targetDate: ym(now, months), adjustedTarget: adjusted,
       need: d.currentAmount >= adjusted ? 0 : monthlyNeeded(d.targetAmount, d.currentAmount, months, rate, d.inflation),
-      allocated: 0, currentContribution: d.monthlyContribution, status: 'needs_tradeoff', projectedDate: null, levers: [],
+      allocated: 0, currentContribution: d.monthlyContribution, status: 'needs_tradeoff', projectedDate: null,
+      earmarked: earmark.get(d.id) || 0, saved: d.currentAmount, levers: [],
     };
   };
 
@@ -230,9 +257,9 @@ export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions
     const amt = Math.min(futureFloor, remaining);
     remaining -= amt;
     items.push({
-      id: 'virtual-future', name: 'Future you (long-term investing)', kind: 'growth', priority: 2, virtual: true,
+      id: 'virtual-future', name: T.futureName, kind: 'growth', priority: 2, virtual: true,
       months: 0, targetDate: ym(now, 0), adjustedTarget: 0, need: futureFloor, allocated: amt, currentContribution: 0,
-      status: amt >= futureFloor ? 'on_track' : 'stretch', projectedDate: null, levers: [],
+      status: amt >= futureFloor ? 'on_track' : 'stretch', projectedDate: null, earmarked: 0, saved: 0, levers: [],
     });
   }
   // 3. joy budget
@@ -247,7 +274,7 @@ export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions
   // statuses, projections, levers
   const spend = (opt.spendByCategory || []).filter((c) => ['food_dining', 'shopping', 'entertainment'].includes(c.category))
     .sort((a, b) => b.monthly - a.monthly);
-  let cashLeft = map.excessCash;
+  let cashLeft = map.excessCash - earmarkedTotal;
   const order = items.filter((x) => x.id !== 'virtual-future').map((x) => {
     const d = all.find((y) => y.id === x.id)!;
     return { id: x.id, target: d.targetAmount, current: d.currentAmount, inflation: d.inflation, months: x.months, alloc: x.allocated };
@@ -265,20 +292,20 @@ export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions
     if (short <= 0) continue;
     const i = rateFor(it.months) / 12;
     const lump = Math.ceil((short * af(it.months, i)) / Math.pow(1 + i, it.months));
-    if (free <= 0) it.levers.push({ kind: 'free_up', label: 'Your spending uses all of your take-home right now — freeing up even a little each month is the first step.' });
+    if (free <= 0) it.levers.push({ kind: 'free_up', label: T.freeUp });
     if (cashLeft >= lump && lump > 0) {
-      it.levers.push({ kind: 'use_cash', amount: lump, label: `Move ${inr(lump)} of the spare cash above your safety net into this — it closes the gap today.` });
+      it.levers.push({ kind: 'use_cash', amount: lump, label: T.useCash(inr(lump)) });
       cashLeft -= lump;
     }
-    if (joyBase >= short) it.levers.push({ kind: 'joy', amount: short, label: `Use ${inr(short)} a month from your joy budget for this.` });
+    if (joyBase >= short) it.levers.push({ kind: 'joy', amount: short, label: T.joy(inr(short)) });
     const cat = spend.find((c) => short <= c.monthly * 0.35);
-    if (cat) it.levers.push({ kind: 'trim', amount: short, label: `Spend ${inr(short)} less a month on ${cat.label.toLowerCase()} (about ${Math.round((short / cat.monthly) * 100)}% less).` });
-    if (it.allocated > 0 && pm != null && pm > it.months) it.levers.push({ kind: 'extend', months: pm - it.months, label: `Push it to ${prettyYm(ym(now, pm))} (${pm - it.months} month${pm - it.months === 1 ? '' : 's'} later) at ${inr(it.allocated)}/month.` });
+    if (cat) it.levers.push({ kind: 'trim', amount: short, label: T.trim(inr(short), cat.category, cat.label, Math.round((short / cat.monthly) * 100)) });
+    if (it.allocated > 0 && pm != null && pm > it.months) it.levers.push({ kind: 'extend', months: pm - it.months, label: T.extend(ym(now, pm), pm - it.months, inr(it.allocated)) });
     if (it.allocated > 0 && it.months > 0) {
       const t = reachableTarget(src.currentAmount, it.allocated, it.months, src.inflation);
-      if (t > 0 && t < src.targetAmount) it.levers.push({ kind: 'reduce', amount: t, label: `Or aim for ${inr(t)} instead and keep the date.` });
+      if (t > 0 && t < src.targetAmount) it.levers.push({ kind: 'reduce', amount: t, label: T.reduce(inr(t)) });
     }
-    if (lump > 0 && !it.levers.some((l) => l.kind === 'use_cash')) it.levers.push({ kind: 'lump_sum', amount: lump, label: `A one-time ${inr(lump)} (a bonus, a gift) would close the gap.` });
+    if (lump > 0 && !it.levers.some((l) => l.kind === 'use_cash')) it.levers.push({ kind: 'lump_sum', amount: lump, label: T.lump(inr(lump)) });
     // Re-prioritise: what if this dream went first? Show exactly what moves.
     if (!opt._noSwap && !it.virtual && it.priority > 1 && dreams.length > 1) {
       const swapped = dreams.map((d) => (d.id === it.id ? { ...d, priority: 1 as const } : d));
@@ -289,10 +316,8 @@ export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions
           const was = items.find((y) => y.id === x.id);
           return { name: x.name, before: was?.projectedDate ?? null, after: x.projectedDate };
         }).filter((x) => x.after !== x.before);
-        const tail = slips.length
-          ? ' — ' + slips.map((x) => (x.after ? `${x.name} moves to ${prettyYm(x.after)}` : `${x.name} pauses for now`)).join(', ')
-          : '';
-        it.levers.push({ kind: 'reprioritise', label: `Make ${it.name} a priority: it fits${tail}.` });
+        const tail = slips.length ? ' — ' + slips.map((x) => T.slip(x.name, x.after)).join(', ') : '';
+        it.levers.push({ kind: 'reprioritise', label: T.reprioritise(it.name, tail) });
       }
     }
   }
@@ -302,15 +327,12 @@ export function planDreams(map: MoneyMap, dreams: DreamInput[], opt: PlanOptions
   const joyBudget = joyBase + unallocated;
   const realDreams = items.filter((i) => !i.virtual);
   const onTrack = realDreams.filter((i) => i.status === 'on_track' || i.status === 'achieved').length;
-  const summary = !map.hasData
-    ? 'Add your take-home pay and monthly spending so I can plan your dreams.'
-    : free <= 0
-      ? `Right now your spending uses all of your ${inr(map.takeHome)} take-home. Let’s free up some room first — then your dreams can start moving.`
-      : realDreams.length === 0
-        ? `You have about ${inr(free)} a month to plan with. Tell me a dream — a trip, a gadget, your parents’ health cover — and I’ll make it a plan.`
-        : `${onTrack} of ${realDreams.length} dream${realDreams.length === 1 ? '' : 's'} on track. ${inr(joyBudget)} a month is yours to enjoy, guilt-free.`;
+  const summary = !map.hasData ? T.sumNoData
+    : free <= 0 ? T.sumOverspend(inr(map.takeHome))
+      : realDreams.length === 0 ? T.sumNoDreams(inr(free))
+        : T.sum(onTrack, realDreams.length, inr(joyBudget));
 
-  return { hasData: map.hasData, free, items, joyBudget, unallocated, overcommitted, summary };
+  return { hasData: map.hasData, free, items, joyBudget, unallocated, overcommitted, earmarkedTotal, summary };
 }
 
 // ── “Can I afford it?” ──────────────────────────────────────────────────
@@ -326,15 +348,22 @@ export interface AffordResult {
 
 export function affordCheck(map: MoneyMap, dreams: DreamInput[], cost: number, opt: PlanOptions & { months?: number | null; label?: string } = {}): AffordResult {
   const now = opt.now || new Date();
-  const label = opt.label || 'this';
-  if (!map.hasData) return { verdict: 'need_data', headline: 'Add your take-home pay and monthly spending first, and I’ll answer in seconds.', monthly: null, date: null, cashToday: 0, affects: [], levers: [] };
-  if (cost <= 0) return { verdict: 'yes_now', headline: 'That’s free — enjoy!', monthly: 0, date: ym(now, 0), cashToday: map.excessCash, affects: [], levers: [] };
-
-  if (map.excessCash >= cost) {
-    return { verdict: 'yes_now', headline: `Yes — you can pay for ${label} today. You have ${inr(map.excessCash)} above your safety net, so your emergency fund stays untouched.`, monthly: 0, date: ym(now, 0), cashToday: map.excessCash, affects: [], levers: [] };
-  }
+  const T = M(opt.lang || 'en');
+  const label = !opt.label || opt.label === 'this' ? T.thisThing : opt.label;
+  if (!map.hasData) return { verdict: 'need_data', headline: T.affNeedData, monthly: null, date: null, cashToday: 0, affects: [], levers: [] };
+  if (cost <= 0) return { verdict: 'yes_now', headline: T.affFree, monthly: 0, date: ym(now, 0), cashToday: map.excessCash, affects: [], levers: [] };
 
   const before = planDreams(map, dreams, opt);
+  const freeCash = map.excessCash - before.earmarkedTotal;
+  if (freeCash >= cost) {
+    return { verdict: 'yes_now', headline: T.affYesNow(label, inr(freeCash)), monthly: 0, date: ym(now, 0), cashToday: freeCash, affects: [], levers: [] };
+  }
+  if (map.excessCash >= cost) {
+    // Affordable today only by dipping into money the autopilot set aside for dreams.
+    const names = before.items.filter((i) => i.earmarked > 0).map((i) => i.name);
+    return { verdict: 'stretch', headline: T.affUsesEarmark(label, names.join(', ')), monthly: 0, date: ym(now, 0), cashToday: map.excessCash, affects: [], levers: [] };
+  }
+
   const statusOf = (p: DreamPlan) => new Map(p.items.filter((i) => !i.virtual).map((i) => [i.id, i.status]));
   const beforeS = statusOf(before);
   const order: Record<DreamStatus, number> = { achieved: 0, on_track: 1, stretch: 2, needs_tradeoff: 3 };
@@ -348,31 +377,30 @@ export function affordCheck(map: MoneyMap, dreams: DreamInput[], cost: number, o
       .map(([id, s]) => { const x = plan.items.find((i) => i.id === id)!; return { name: x.name, from: s, to: after.get(id)!, newDate: x.projectedDate }; });
     return { item, affects };
   };
+  const slipText = (affects: AffordResult['affects']) => affects.map((a) => T.slipShort(a.name, a.newDate)).join(', ');
 
   if (opt.months != null && opt.months > 0) {
     const { item, affects } = tryMonths(opt.months);
     const date = item.targetDate;
     if (item.status === 'on_track' && affects.length === 0)
-      return { verdict: 'yes_by', headline: `Yes — by ${prettyYm(date)}, putting aside ${inr(item.need)} a month, without touching your other dreams.`, monthly: item.need, date, cashToday: map.excessCash, affects, levers: [] };
+      return { verdict: 'yes_by', headline: T.affYesBy(date, inr(item.need)), monthly: item.need, date, cashToday: map.excessCash, affects, levers: [] };
     if (item.status === 'on_track' || item.status === 'stretch')
-      return { verdict: 'stretch', headline: `Possible by ${prettyYm(date)} at ${inr(item.need)} a month — but ${affects.length ? affects.map((a) => (a.newDate ? `${a.name} moves to ${prettyYm(a.newDate)}` : `${a.name} pauses`)).join(', ') : 'it squeezes your plan'}.`, monthly: item.need, date, cashToday: map.excessCash, affects, levers: item.levers };
-    return { verdict: 'not_yet', headline: `Not by ${prettyYm(date)} on your current numbers — here’s how to make it a yes.`, monthly: item.need, date, cashToday: map.excessCash, affects, levers: item.levers };
+      return { verdict: 'stretch', headline: T.affStretch(date, inr(item.need), slipText(affects)), monthly: item.need, date, cashToday: map.excessCash, affects, levers: item.levers };
+    return { verdict: 'not_yet', headline: T.affNotBy(date), monthly: item.need, date, cashToday: map.excessCash, affects, levers: item.levers };
   }
 
   // No date given: find the earliest month that fits without hurting other dreams.
   for (let m = 1; m <= 120; m++) {
     const { item, affects } = tryMonths(m);
     if (item.status === 'on_track' && affects.length === 0)
-      return { verdict: 'yes_by', headline: `Yes — by ${prettyYm(item.targetDate)}, putting aside ${inr(item.need)} a month, without touching your other dreams.`, monthly: item.need, date: item.targetDate, cashToday: map.excessCash, affects: [], levers: [] };
+      return { verdict: 'yes_by', headline: T.affYesBy(item.targetDate, inr(item.need)), monthly: item.need, date: item.targetDate, cashToday: map.excessCash, affects: [], levers: [] };
   }
   // Nothing fits cleanly: earliest date it fits if other dreams give way a little.
   for (let m = 1; m <= 120; m++) {
     const { item, affects } = tryMonths(m);
-    if (item.status === 'on_track') {
-      const slip = affects.map((a) => (a.newDate ? `${a.name} moves to ${prettyYm(a.newDate)}` : `${a.name} pauses`)).join(', ');
-      return { verdict: 'stretch', headline: `Possible by ${prettyYm(item.targetDate)} at ${inr(item.need)} a month — but ${slip || 'it squeezes your plan'}.`, monthly: item.need, date: item.targetDate, cashToday: map.excessCash, affects, levers: [] };
-    }
+    if (item.status === 'on_track')
+      return { verdict: 'stretch', headline: T.affStretch(item.targetDate, inr(item.need), slipText(affects)), monthly: item.need, date: item.targetDate, cashToday: map.excessCash, affects, levers: [] };
   }
   const { item, affects } = tryMonths(24);
-  return { verdict: 'not_yet', headline: `Not yet on your current numbers — here’s how to make ${label} a yes.`, monthly: item.need, date: null, cashToday: map.excessCash, affects, levers: item.levers };
+  return { verdict: 'not_yet', headline: T.affNotYet(label), monthly: item.need, date: null, cashToday: map.excessCash, affects, levers: item.levers };
 }

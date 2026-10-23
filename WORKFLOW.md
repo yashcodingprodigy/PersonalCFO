@@ -154,6 +154,22 @@ Handshake: each side has a `connect_code` (`PW-…`/`CA-…`) → enter other's 
 
 ---
 
+### Autopilot, voice, language & the overlay (Oct 2026)
+- **Autopilot:** any data change → `recalculateAndStoreScore` → `scheduleBrainTick(user, reason)` (1.5 s debounce) →
+  `brainTick` = `runBrain` → `snapshotOf` → `diffBrain(prev, cur)` → rows in `brain_activity` (+ `notifications` for
+  worse/life events) → upsert `brain_snapshots`. Also triggered by goal CRUD, `PATCH /user/me {language}`, daily cron.
+- **Dream capture:** `/qa` messages and `POST /brain/capture` → `detectDream` (EN/HI/Hinglish, catalogue estimate) →
+  goal with `meta.source/estimated` → tick. Spare cash is earmarked in `planDreams(autoEarmark)`.
+- **Voice:** `AssistantProvider` → `VoiceMode` → `lib/voice.listen` (ElevenLabs Scribe via `POST /voice/stt`, or Web
+  Speech) → `/qa … {mode:'voice', lang}` → `lib/voice.speak` (`POST /voice/tts` → MP3, or device voice) → listen again.
+- **Language:** `LanguageProvider` (localStorage `paywatch_lang` + `users.language`) → dictionary `t()`; `AutoTranslate`
+  batches remaining text to `POST /i18n/translate` (Claude + `translations` table cache). Brain text comes back in the
+  user's language from the server.
+- **Overlay:** nav "Ask PayWatch", bottom-nav centre button and floating button → `useAssistant().open('chooser')`.
+  After the assistant changes data it fires `paywatch:data-changed`; the Overview listens, refreshes and pulses the 3D brain.
+- **Overview:** `dashboard/page.tsx` + `components/overview/{BrainScene,parts}.tsx` — reads `/brain`, `/brain/activity`,
+  `/score`, `/networth`, `/user/me`.
+
 ## 6. Adapters (swap dev ↔ prod by env)
 `sms.ts` (logs / msg91) · `aa.ts` (mock / Finvu — **keep mock until FIU**) · `billing.ts` (sandbox / Razorpay) · `email.ts` (logs / Resend) · `push.ts` (log / FCM HTTP v1 when `FIREBASE_SERVICE_ACCOUNT` set) · `storage.ts` (Supabase Storage; on when `SUPABASE_URL`+`SUPABASE_SERVICE_KEY`).
 

@@ -213,6 +213,29 @@ options: RIA partner, own RIA registration, or keep investing educational.
 Email OTP via Resend; only OTP-proven emails can log in; one-tap demo login for mentors/reviewers (fake-data persona,
 re-seeded each login). Supabase tables locked with RLS + revoked anon/authenticated access in the idempotent schema.
 
+**D-43  The brain is an OS, not a feature (autopilot).** Every data change (upload, profile edit, goal edit, language
+change, daily cron) schedules a debounced `brainTick` that re-plans, diffs against the last snapshot and writes what it did
+to `brain_activity` (+ notifications for things that need a decision). Dreams are captured from anything the user says
+(chat, voice, Hindi/Hinglish) with a catalogue cost estimate when no amount is given; spare cash above the safety net is
+earmarked to dreams automatically. Nothing about dreams needs manual upkeep.
+
+**D-44  Voice = ElevenLabs (natural TTS + Scribe STT) behind our server, device voice as fallback.** Keys never reach
+the client; `/v1/voice/*` proxies + caches. Without a key the app uses the browser's best Hindi/English voice and Web
+Speech recognition, so voice always works — it just sounds better with the key. Hands-free loop (listen → think → speak
+→ listen) with voice-activity detection; replies in the language the user spoke.
+
+**D-45  Hindi + English everywhere via 3 layers.** (1) brain sentences are hand-written in both languages
+(`brain/i18n.ts`, works with no AI key); (2) core UI via a dictionary (`web/lib/i18n.tsx`); (3) everything else is
+auto-translated on the fly by Claude with a DB + device cache (`/v1/i18n/translate`, `AutoTranslate`). First-run
+language prompt; language stored on the account so voice, alerts and Ask follow it.
+
+**D-46  Ask PayWatch is an overlay, not a page.** From any screen: Talk / Type chooser → full-screen voice orb or a
+side panel/bottom sheet chat on top of the current page. `/ask` remains only for long history.
+
+**D-47  Overview sells the dream.** Story order: live 3D money brain with dreams in orbit → illustrated dream cards →
+monthly money river → "while you were away" → future you + numbers. three.js loaded lazily, paused off-screen,
+static under reduced-motion, CSS-orb fallback without WebGL.
+
 ---
 
 ## E. Reversals / revisits log

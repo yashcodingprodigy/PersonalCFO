@@ -10,6 +10,7 @@ import { loadProfileData } from '../services/profile';
 import { buildInvestmentGuidance } from '../services/investment';
 import { sendEmail, renderDigestEmail } from '../adapters/email';
 import { sendPush } from '../adapters/push';
+import { brainTick } from '../services/brain/autopilot';
 
 export const cronRouter = Router();
 
@@ -27,6 +28,8 @@ cronRouter.post('/run', async (req, res) => {
 
   for (const u of users) {
     try {
+      // Daily brain pass: re-plan, notice life events, log activity, raise brain alerts.
+      await brainTick(u.user_id, 'daily').catch(() => []);
       alertsCreated += await regenerateAlerts(u.user_id);
 
       // New, not-yet-notified alerts that warrant a nudge.

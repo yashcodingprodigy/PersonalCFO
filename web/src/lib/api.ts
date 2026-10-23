@@ -46,6 +46,21 @@ async function tryRefresh(): Promise<boolean> {
   return true;
 }
 
+/** POST JSON and get binary back (e.g. voice audio), with the same token refresh. Null on failure. */
+export async function apiBlob(path: string, body: any, retried = false): Promise<Blob | null> {
+  const { access } = getTokens();
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'POST', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401 && !retried) { if (await tryRefresh()) return apiBlob(path, body, true); return null; }
+    if (!res.ok) return null;
+    return await res.blob();
+  } catch { return null; }
+}
+
 export async function api<T = any>(path: string, opts: RequestInit = {}, retried = false): Promise<T> {
   const { access } = getTokens();
   const res = await fetch(`${BASE}${path}`, {

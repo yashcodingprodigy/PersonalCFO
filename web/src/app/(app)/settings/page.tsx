@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { get, post, patch, put, del, api, clearTokens } from '@/lib/api';
 import { inr, rupeesToPaise } from '@/lib/format';
 import { STATES, citiesForState } from '@/lib/india';
+import { useLang } from '@/lib/i18n';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -200,6 +201,7 @@ export default function SettingsPage() {
 
       {msg && <div className="rounded-xl bg-mint-100 text-pine-800 text-sm font-semibold px-4 py-3">{msg}</div>}
 
+      {tab === 'personal' && <LanguageRow />}
       {tab === 'personal' && (
         <section className="card p-6 space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">Your details</h2>
@@ -463,5 +465,22 @@ export default function SettingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function LanguageRow() {
+  const { lang, setLang, t } = useLang();
+  return (
+    <section className="card p-6 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint">{t('ov.settings.lang')}</h2>
+        <p className="text-xs text-ink-soft mt-1">{t('ov.settings.langSub')}</p>
+      </div>
+      <div className="inline-flex rounded-full bg-paper-100 p-1 text-sm font-bold" data-no-translate>
+        {(['en', 'hi'] as const).map((l) => (
+          <button key={l} onClick={() => setLang(l)} className={`rounded-full px-4 py-1.5 transition-colors ${lang === l ? 'bg-pine-900 text-white' : 'text-ink-soft'}`}>{l === 'en' ? 'English' : 'हिंदी'}</button>
+        ))}
+      </div>
+    </section>
   );
 }

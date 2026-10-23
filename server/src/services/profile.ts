@@ -53,6 +53,8 @@ export async function recalculateAndStoreScore(userId: string, trigger: string) 
   const p = await loadProfileData(userId);
   if (!p) return null;
   const result = computeScore(p);
+  // Every data change flows through here → wake the money brain (debounced, async, never blocks).
+  import('./brain/autopilot').then((m) => m.scheduleBrainTick(userId, trigger)).catch(() => {});
   await query(
     `INSERT INTO score_history (user_id, score, savings_rate_score, insurance_score, investment_score,
        emergency_fund_score, debt_health_score, tax_efficiency_score, trigger, profile_snapshot)

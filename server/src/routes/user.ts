@@ -17,7 +17,7 @@ userRouter.use(requireAuth);
 // GET /user/me
 userRouter.get('/me', async (req: AuthedRequest, res) => {
   const user = await one(
-    `SELECT user_id, mobile, name, email, email_verified, city, state, age, employment_type, annual_gross_income, monthly_take_home,
+    `SELECT user_id, mobile, name, email, email_verified, language, city, state, age, employment_type, annual_gross_income, monthly_take_home,
             dependents_count, risk_appetite, plan, plan_status, onboarding_status, created_at
        FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
     [req.userId]
@@ -38,6 +38,7 @@ const updateSchema = z.object({
   dependents_count: z.number().int().min(0).max(20).optional(),
   risk_appetite: z.enum(['conservative', 'moderate', 'aggressive']).optional(),
   onboarding_status: z.record(z.string()).optional(),
+  language: z.enum(['en', 'hi']).optional(),
 });
 
 // PATCH /user/me
@@ -62,6 +63,8 @@ userRouter.patch('/me', async (req: AuthedRequest, res) => {
 
   if (keys.some((k) => ['annual_gross_income', 'monthly_take_home', 'dependents_count', 'age'].includes(k))) {
     await recalculateAndStoreScore(req.userId!, 'manual_update');
+  } else if (keys.includes('language')) {
+    import('../services/brain/autopilot').then((m) => m.scheduleBrainTick(req.userId!, 'language', 200)).catch(() => {});
   }
   const user = await one(`SELECT user_id, name, email, city, state, age, employment_type, annual_gross_income, monthly_take_home, dependents_count, risk_appetite, plan, onboarding_status FROM users WHERE user_id = $1`, [req.userId]);
   res.json(user);

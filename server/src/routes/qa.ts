@@ -8,6 +8,8 @@ import { answerQuestion, AI_DISCLAIMER, parseGoalIntent } from '../services/cfo-
 import { remember } from '../services/rag';
 import { GOAL_TYPES } from '../services/goals';
 import { PLANS, PlanKey } from '../config';
+import { captureDream } from '../services/brain/autopilot';
+import { asLang } from '../services/brain/i18n';
 
 const fmtRupees = (paise: number) => {
   const r = Math.round(paise / 100);
@@ -43,10 +45,13 @@ qaRouter.get('/conversations/:id', async (req: AuthedRequest, res) => {
 // POST /qa/conversations — start conversation with first message
 // POST /qa/conversations/:id/messages — continue
 async function handleMessage(req: AuthedRequest, res: any, conversationId: string | null) {
-  const schema = z.object({ content: z.string().min(1).max(2000) });
+  const schema = z.object({ content: z.string().min(1).max(2000), lang: z.enum(['en', 'hi']).optional(), mode: z.enum(['chat', 'voice']).optional() });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
   const question = parsed.data.content;
+  const langRow = await one(`SELECT language FROM users WHERE user_id = $1`, [req.userId]);
+  const lang = parsed.data.lang || asLang(langRow?.language);
+  const mode = parsed.data.mode || 'chat';
 
   // Plan limits: Starter = 5 questions/month (SRS §12.3)
   const user = await one(`SELECT plan FROM users WHERE user_id = $1`, [req.userId]);
@@ -89,16 +94,13 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
 
   await query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convId, question]);
 
-  const answer = await answerQuestion(req.userId!, question, p, history);
+  const answer = await answerQuestion(req.userId!, question, p, history, { lang, voice: mode === 'voice' });
 
   // Goal creation from chat: if the user asked to create a goal and gave an
   // amount, add it directly (respecting their plan's goal limit) and confirm.
   if (answer.engine !== 'guardrail') {
     const gi = parseGoalIntent(question);
-    if (gi.wantsGoal && !gi.goal) {
-      // They want a goal but gave no target amount — ask, don't pretend to create.
-      answer.content = `To add that goal I just need a target amount — tell me how much (for example “₹20 lakh” or “5,00,000”), and by when if you have a date. Then I'll set it up.\n\n` + answer.content;
-    } else if (gi.goal) {
+    if (gi.goal) {
       const g = gi.goal;
       const goalLimit = PLANS[plan].goalLimit;
       const gcount = await one(`SELECT COUNT(*)::int AS c FROM goals WHERE user_id = $1`, [req.userId]);
@@ -109,10 +111,18 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
         await query(
           `INSERT INTO goals (user_id, goal_type, name, target_amount, target_date, current_amount, monthly_contribution, meta)
            VALUES ($1,$2,$3,$4,$5,0,$6,$7)`,
-          [req.userId, g.goal_type, g.name, g.target_amount, g.target_date, g.monthly_contribution, JSON.stringify(defaultMeta)]
+          [req.userId, g.goal_type, g.name, g.target_amount, g.target_date, g.monthly_contribution, JSON.stringify({ ...defaultMeta, source: 'chat' })]
         );
-        answer.content = `✅ Done — I've added a goal: **${g.name}** of ${fmtRupees(g.target_amount)}${g.target_date ? ` by ${g.target_date}` : ''}${g.monthly_contribution > 0 ? `, with ${fmtRupees(g.monthly_contribution)}/month` : ''}. You'll find it on the Goals page.\n\n` + answer.content;
+        import('../services/brain/autopilot').then((m) => m.scheduleBrainTick(req.userId!, 'dream_added', 300)).catch(() => {});
+        answer.content = (lang === 'hi'
+          ? `✅ हो गया — मैंने **${g.name}** (${fmtRupees(g.target_amount)}${g.target_date ? `, ${g.target_date} तक` : ''}) आपके सपनों में जोड़ दिया। प्लान अपने-आप अपडेट हो गया है।\n\n`
+          : `✅ Done — I've added **${g.name}** of ${fmtRupees(g.target_amount)}${g.target_date ? ` by ${g.target_date}` : ''} to your dreams. Your plan has updated itself.\n\n`) + answer.content;
       }
+    } else {
+      // No price given? The brain hears the dream anyway, estimates a sensible
+      // cost, and plans it automatically (marked "estimated — edit anytime").
+      const cap = await captureDream(req.userId!, question, mode === 'voice' ? 'voice' : 'chat').catch(() => null);
+      if (cap) answer.content = `${cap.message}\n\n${answer.content}`;
     }
   }
 

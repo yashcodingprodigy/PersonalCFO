@@ -13,6 +13,8 @@ import { buildMoneyMap, MoneyMap } from './cashflow';
 import { planDreams, goalToDream, affordCheck, DreamInput, DreamPlan, AffordResult, PlanOptions } from './dreams';
 import { detectLifeEvents, LifeEvent, Txn } from './lifeEvents';
 import { buildNextMoves, Move } from './nextMoves';
+import { Lang, asLang } from './i18n';
+import { translateTexts } from '../translate';
 
 const CATEGORY_LABELS: Record<string, string> = {
   food_dining: 'Food & dining', shopping: 'Shopping', entertainment: 'Entertainment',
@@ -31,6 +33,8 @@ async function loadInputs(userId: string) {
   const p = await loadProfileData(userId);
   if (!p) return null;
   const goals = await query(`SELECT * FROM goals WHERE user_id = $1 ORDER BY created_at`, [userId]);
+  const langRow = await query<{ language: string }>(`SELECT language FROM users WHERE user_id = $1`, [userId]).catch(() => []);
+  const userLangPref: Lang = asLang(langRow[0]?.language);
   const txRows = await query(
     `SELECT to_char(txn_date,'YYYY-MM-DD') AS date, amount, direction, category, description
        FROM transactions WHERE user_id = $1 AND txn_date >= (CURRENT_DATE - INTERVAL '6 months')
@@ -47,25 +51,38 @@ async function loadInputs(userId: string) {
   const spendByCategory = [...byCat.entries()].map(([category, total]) => ({ category, label: CATEGORY_LABELS[category], monthly: Math.round(total / monthsSeen) }));
   const map = buildMoneyMap(p);
   const dreams: DreamInput[] = goals.map(goalToDream);
-  return { p, map, dreams, txns, spendByCategory };
+  return { p, map, dreams, txns, spendByCategory, userLangPref };
 }
 
-export async function runBrain(userId: string): Promise<BrainState | null> {
+export async function runBrain(userId: string, langOverride?: Lang): Promise<BrainState | null> {
   const inp = await loadInputs(userId);
   if (!inp) return null;
   const { p, map, dreams, txns, spendByCategory } = inp;
-  const opts: PlanOptions = { spendByCategory };
+  const lang = langOverride || inp.userLangPref;
+  // Autopilot on: spare cash above the safety net is auto-assigned to dreams.
+  const opts: PlanOptions = { spendByCategory, lang, autoEarmark: true };
   const plan = planDreams(map, dreams, opts);
-  const events = detectLifeEvents(txns, map.takeHome);
+  const events = detectLifeEvents(txns, map.takeHome, lang);
   const actions = generateActions(p);
   let alerts: ReturnType<typeof generateAlerts> = [];
   try { alerts = generateAlerts(p, await gatherSignals(userId)); } catch { alerts = []; }
-  const moves = buildNextMoves({ map, plan, actions, alerts, events });
-  return { map, plan, moves, events, phase: phaseInfo(deriveLifePhase(p)), generatedAt: new Date().toISOString() };
+  const moves = buildNextMoves({ map, plan, actions, alerts, events, lang });
+  let phase = phaseInfo(deriveLifePhase(p)) as { phase: string; label: string; focus: string };
+  // Rule-engine text (actions/alerts) is English at source → translate for Hindi users (cached; no key = English).
+  if (lang === 'hi') {
+    const idx: [number, 'title' | 'why' | 'cta'][] = [];
+    const texts: string[] = [];
+    moves.forEach((m, i) => { if (m.source === 'alert' || m.source === 'action') (['title', 'why', 'cta'] as const).forEach((k) => { idx.push([i, k]); texts.push(m[k]); }); });
+    texts.push(phase.label, phase.focus);
+    const tr = await translateTexts(texts, 'hi');
+    idx.forEach(([i, k], j) => { (moves[i] as any)[k] = tr[j]; });
+    phase = { ...phase, label: tr[texts.length - 2], focus: tr[texts.length - 1] };
+  }
+  return { map, plan, moves, events, phase, generatedAt: new Date().toISOString() };
 }
 
-export async function brainAfford(userId: string, cost: number, months: number | null, label: string): Promise<AffordResult | null> {
+export async function brainAfford(userId: string, cost: number, months: number | null, label: string, langOverride?: Lang): Promise<AffordResult | null> {
   const inp = await loadInputs(userId);
   if (!inp) return null;
-  return affordCheck(inp.map, inp.dreams, cost, { months, label, spendByCategory: inp.spendByCategory });
+  return affordCheck(inp.map, inp.dreams, cost, { months, label, spendByCategory: inp.spendByCategory, lang: langOverride || inp.userLangPref, autoEarmark: true });
 }

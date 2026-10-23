@@ -142,3 +142,83 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ═══ Money Brain visual system (Oct 2026) ═══════════════════════════════ */
+/* Voice / assistant orb — living gradient sphere */
+@keyframes pw-orb-spin { to { transform: rotate(360deg); } }
+@keyframes pw-orb-breathe { 0%,100% { filter: saturate(1) brightness(1); } 50% { filter: saturate(1.25) brightness(1.12); } }
+.pw-orb {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,.85) 0 6%, rgba(255,255,255,0) 22%),
+    radial-gradient(circle at 65% 70%, #46C9E0 0%, rgba(70,201,224,0) 45%),
+    radial-gradient(circle at 30% 65%, #2FBC9B 0%, rgba(47,188,155,0) 55%),
+    radial-gradient(circle at 50% 50%, #7FE0C8 0%, #16544B 70%, #0B2F2A 100%);
+  box-shadow: 0 0 60px rgba(47,188,155,.55), inset -18px -24px 60px rgba(7,33,29,.55), inset 14px 18px 40px rgba(255,255,255,.18);
+  animation: pw-orb-breathe 4s ease-in-out infinite;
+}
+.pw-orb::after {
+  content: ''; position: absolute; inset: 8%; border-radius: 9999px;
+  background: conic-gradient(from 0deg, rgba(255,255,255,0), rgba(127,224,200,.55), rgba(255,255,255,0) 40%, rgba(70,201,224,.45), rgba(255,255,255,0) 80%);
+  mix-blend-mode: screen; animation: pw-orb-spin 7s linear infinite; filter: blur(6px);
+}
+.pw-orb-think::after { animation-duration: 1.6s; }
+.pw-orb-speak { animation-duration: 1.2s; }
+.pw-orb-halo { background: radial-gradient(circle, rgba(47,188,155,.35) 0%, rgba(47,188,155,0) 70%); filter: blur(10px); transition: opacity .4s; }
+.pw-orb-mini {
+  display: inline-block;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,.9) 0 8%, rgba(255,255,255,0) 26%),
+    radial-gradient(circle at 65% 70%, #46C9E0 0%, rgba(70,201,224,0) 50%),
+    radial-gradient(circle at 50% 50%, #7FE0C8 0%, #16544B 75%, #0B2F2A 100%);
+  box-shadow: 0 0 14px rgba(47,188,155,.55);
+  animation: pw-orb-breathe 3.5s ease-in-out infinite;
+}
+.pw-voice-bg { background: radial-gradient(120% 90% at 50% 0%, #10403A 0%, #07211D 55%, #031412 100%); }
+
+/* Overlay motion */
+@keyframes pw-fade-in { from { opacity: 0 } to { opacity: 1 } }
+.pw-fade-in { animation: pw-fade-in .2s ease-out; }
+@keyframes pw-pop-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+.pw-pop-in { animation: pw-pop-in .28s cubic-bezier(.16,1,.3,1); }
+@keyframes pw-slide-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.pw-slide-in { animation: pw-slide-in .32s cubic-bezier(.16,1,.3,1); }
+@media (min-width: 768px) { @keyframes pw-slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } } }
+.pw-fab { box-shadow: 0 10px 30px -8px rgba(7,33,29,.6), 0 0 0 1px rgba(127,224,200,.15); }
+.pw-fab:hover { transform: translateY(-1px); }
+
+/* Typing dots */
+@keyframes pw-dot { 0%,80%,100% { transform: translateY(0); opacity: .35 } 40% { transform: translateY(-3px); opacity: 1 } }
+.pw-typing { display: inline-flex; gap: 3px; }
+.pw-typing i { width: 5px; height: 5px; border-radius: 9999px; background: #258274; animation: pw-dot 1.1s infinite; }
+.pw-typing i:nth-child(2) { animation-delay: .15s } .pw-typing i:nth-child(3) { animation-delay: .3s }
+
+/* 3D tilt cards (JS sets --rx/--ry/--mx/--my on pointer move) */
+.pw-tilt { transform-style: preserve-3d; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(0); transition: transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s; will-change: transform; }
+.pw-tilt:hover { box-shadow: 0 30px 60px -20px rgba(7,33,29,.45); }
+.pw-tilt .pw-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.28), transparent 40%); opacity: 0; transition: opacity .3s; }
+.pw-tilt:hover .pw-glare { opacity: 1; }
+.pw-depth { transform: translateZ(40px); }
+
+/* Scroll reveal variants (IntersectionObserver adds .in) */
+.pw-rise { opacity: 0; transform: translateY(36px) scale(.98); transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1); }
+.pw-rise.in { opacity: 1; transform: none; }
+.pw-stagger > * { opacity: 0; transform: translateY(24px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+.pw-stagger.in > * { opacity: 1; transform: none; }
+.pw-stagger.in > *:nth-child(2) { transition-delay: .08s } .pw-stagger.in > *:nth-child(3) { transition-delay: .16s }
+.pw-stagger.in > *:nth-child(4) { transition-delay: .24s } .pw-stagger.in > *:nth-child(5) { transition-delay: .32s } .pw-stagger.in > *:nth-child(6) { transition-delay: .40s }
+
+/* Money-flow river */
+@keyframes pw-flow { to { stroke-dashoffset: -40; } }
+.pw-flow-path { stroke-dasharray: 2 10; animation: pw-flow 1.6s linear infinite; }
+
+/* Hero glow text */
+.pw-hero-glow { text-shadow: 0 0 40px rgba(47,188,155,.35); }
+@keyframes pw-float-y { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+.pw-float-y { animation: pw-float-y 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-rise, .pw-stagger > * { opacity: 1 !important; transform: none !important; }
+  .pw-tilt { transform: none !important; }
+}
+/* Tilt cards inside a stagger group keep their 3D transform once revealed */
+.pw-stagger.in > .pw-tilt { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s; }

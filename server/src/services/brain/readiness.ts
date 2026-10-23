@@ -33,6 +33,10 @@ export function integrationReadiness(): Capability[] {
       powers: 'Starter/CFO plans', goLive: 'Razorpay live KYC (needs company)', seam: 'adapters/billing.ts' },
     { key: 'push', name: 'Push notifications', mode: config.firebaseServiceAccount ? 'live' : 'off',
       powers: 'Next-move nudges on the phone', goLive: 'FIREBASE_SERVICE_ACCOUNT + native Firebase config', seam: 'adapters/push.ts' },
+    { key: 'voice', name: 'Human voice + speech recognition (ElevenLabs)', mode: config.elevenLabsKey ? 'live' : 'mock',
+      powers: 'Voice assistant in English & Hindi (natural voice, accurate Hindi recognition)', goLive: 'ELEVENLABS_API_KEY (+ optional ELEVENLABS_VOICE_ID / ELEVENLABS_VOICE_ID_HI). Falls back to the device voice.', seam: 'routes/voice.ts' },
+    { key: 'translate', name: 'Hindi translation of every screen', mode: config.anthropicApiKey ? 'live' : 'mock',
+      powers: 'Auto-translate any English text to Hindi (cached once for everyone)', goLive: 'ANTHROPIC_API_KEY (brain/core screens are hand-translated and work without it)', seam: 'services/translate.ts, routes/i18n.ts' },
     { key: 'storage', name: 'Encrypted document storage', mode: config.supabaseUrl && config.supabaseServiceKey ? 'live' : 'off',
       powers: 'Vault, records, CA sharing, policies', goLive: 'SUPABASE_URL + SUPABASE_SERVICE_KEY + private bucket', seam: 'adapters/storage.ts' },
   ];

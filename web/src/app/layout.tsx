@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next';
 import '@fontsource-variable/manrope';
 import '@fontsource-variable/fraunces';
 import './globals.css';
+import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
   title: { default: 'PayWatch — Watch your money grow', template: '%s · PayWatch' },
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="font-sans min-h-screen">{children}</body>
+      <body className="font-sans min-h-screen"><Providers>{children}</Providers></body>
     </html>
   );
 }

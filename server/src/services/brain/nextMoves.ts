@@ -9,6 +9,7 @@ import { Alert } from '../alerts';
 import { DreamPlan, inr } from './dreams';
 import { LifeEvent } from './lifeEvents';
 import { MoneyMap } from './cashflow';
+import { Lang, M } from './i18n';
 
 export interface Move {
   id: string;
@@ -36,13 +37,14 @@ function urgencyFrom(deadline: string | null | undefined, now: Date): { u: Move[
 }
 
 export function buildNextMoves(args: {
-  map: MoneyMap; plan: DreamPlan; actions: GeneratedAction[]; alerts: Alert[]; events: LifeEvent[]; now?: Date; limit?: number;
+  map: MoneyMap; plan: DreamPlan; actions: GeneratedAction[]; alerts: Alert[]; events: LifeEvent[]; now?: Date; limit?: number; lang?: Lang;
 }): Move[] {
   const now = args.now || new Date();
+  const T = M(args.lang || 'en');
   const moves: Move[] = [];
   const realDreams = args.plan.items.filter((i) => !i.virtual);
   const topDream = realDreams.slice().sort((a, b) => a.priority - b.priority || a.months - b.months)[0];
-  const dreamPhrase = topDream ? ` — so nothing derails ${topDream.name}` : '';
+  const dreamPhrase = topDream ? T.protects(topDream.name) : '';
 
   // 1. Time-sensitive alerts
   for (const a of args.alerts) {
@@ -51,7 +53,7 @@ export function buildNextMoves(args: {
     moves.push({
       id: `alert:${a.dedupeKey}`, source: 'alert', title: a.title, why: a.body, impact: null,
       category: a.category, urgency: a.severity === 'urgent' ? 'now' : u, deadline: a.dueDate || null,
-      href: a.actionHref || '/alerts', cta: a.actionLabel || 'Take a look',
+      href: a.actionHref || '/alerts', cta: a.actionLabel || T.takeALook,
       score: (a.severity === 'urgent' ? 90 : 60) + boost,
     });
   }
@@ -60,7 +62,7 @@ export function buildNextMoves(args: {
   for (const e of args.events) {
     moves.push({
       id: `event:${e.kind}:${e.month}`, source: 'event', title: e.title, why: e.suggestion, impact: null,
-      category: 'life', urgency: 'soon', deadline: null, href: '/goals', cta: 'Re-plan my dreams', score: 70,
+      category: 'life', urgency: 'soon', deadline: null, href: '/goals', cta: T.replan, score: 70,
     });
   }
 
@@ -71,19 +73,19 @@ export function buildNextMoves(args: {
     const short = Math.max(0, it.need - it.allocated);
     if (it.id === 'virtual-safety') {
       moves.push({
-        id: 'dream:safety', source: 'dream', title: `Build your safety net — ${inr(it.allocated || it.need)}/month`,
-        why: `An emergency fund of ${inr(it.adjustedTarget)} (about ${args.map.emergencyMonths} months of spending) means a surprise bill never touches your dreams.`,
-        impact: `Covers ${args.map.emergencyMonths} months of life`, category: 'savings', urgency: 'soon', deadline: null,
-        href: '/goals', cta: 'See my plan', score: 62,
+        id: 'dream:safety', source: 'dream', title: T.safetyTitle(inr(it.allocated || it.need)),
+        why: T.safetyWhy(inr(it.adjustedTarget), args.map.emergencyMonths),
+        impact: T.safetyImpact(args.map.emergencyMonths), category: 'savings', urgency: 'soon', deadline: null,
+        href: '/goals', cta: T.seePlan, score: 62,
       });
       continue;
     }
     moves.push({
       id: `dream:${it.id}`, source: 'dream',
-      title: it.status === 'stretch' ? `${it.name} is a stretch — here’s the fix` : `Make ${it.name} a yes`,
-      why: best ? best.label : `It needs ${inr(it.need)}/month; the plan can set aside ${inr(it.allocated)}.`,
-      impact: short > 0 ? `${inr(short)}/month gap` : null, category: 'dream', urgency: it.months <= 6 ? 'soon' : 'anytime',
-      deadline: null, href: '/goals', cta: 'Choose a fix',
+      title: it.status === 'stretch' ? T.dreamStretchTitle(it.name) : T.dreamYesTitle(it.name),
+      why: best ? best.label : T.dreamNeedWhy(inr(it.need), inr(it.allocated)),
+      impact: short > 0 ? T.gap(inr(short)) : null, category: 'dream', urgency: it.months <= 6 ? 'soon' : 'anytime',
+      deadline: null, href: '/goals', cta: T.chooseFix,
       score: (it.priority === 1 ? 58 : it.priority === 2 ? 48 : 34) + (it.months <= 6 ? 8 : 0),
     });
   }
@@ -98,17 +100,19 @@ export function buildNextMoves(args: {
       id: `action:${a.rule_id}`, source: 'action', title: a.title,
       why: protects ? `${a.impact_text}${dreamPhrase}.` : a.impact_text,
       impact: null, category: a.category, urgency: u, deadline: a.deadline,
-      href: HREF[a.category] || '/actions', cta: 'Do this',
+      href: HREF[a.category] || '/actions', cta: T.doThis,
       score: Math.min(60, a.impact_score * 3) + (a.priority === 'high' ? 15 : a.priority === 'medium' ? 5 : 0) + boost + (protects ? 10 : 0),
     });
   }
 
   // 5. Idle cash that could be working for a dream
-  if (args.map.excessCash > 0 && args.map.takeHome > 0 && args.map.excessCash >= args.map.takeHome && !moves.some((m) => m.why.includes('spare cash'))) {
+  const idle = args.map.excessCash - args.plan.earmarkedTotal;
+  const leverUsesCash = args.plan.items.some((i) => i.levers.some((l) => l.kind === 'use_cash'));
+  if (idle > 0 && args.map.takeHome > 0 && idle >= args.map.takeHome && !leverUsesCash) {
     moves.push({
-      id: 'cash:idle', source: 'dream', title: `${inr(args.map.excessCash)} is sitting idle above your safety net`,
-      why: topDream ? `Point it at ${topDream.name} and it gets there sooner.` : 'Give it a job — tell me a dream and I’ll put it to work.',
-      impact: null, category: 'savings', urgency: 'anytime', deadline: null, href: '/goals', cta: 'Put it to work', score: 40,
+      id: 'cash:idle', source: 'dream', title: T.idleTitle(inr(args.map.excessCash - args.plan.earmarkedTotal)),
+      why: T.idleWhy(topDream ? topDream.name : null),
+      impact: null, category: 'savings', urgency: 'anytime', deadline: null, href: '/goals', cta: T.putToWork, score: 40,
     });
   }
 
