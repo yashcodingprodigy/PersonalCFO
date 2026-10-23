@@ -9,17 +9,19 @@ import { query } from '../db';
 const mem = new Map<string, string>();               // `${lang}:${hash}` → text
 const hash = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 // Strings not worth translating: numbers, currency, codes, very short tokens.
-const skip = (s: string) => !/[A-Za-z]{2,}/.test(s) || s.length > 2000;
+const HAS_LATIN = /[A-Za-z]{2,}/, HAS_DEVA = /[\u0900-\u097F]/;
+// Only send text that is actually in the *other* language.
+const skip = (s: string, lang: string) => s.length > 2000 || (lang === 'hi' ? (!HAS_LATIN.test(s) || HAS_DEVA.test(s)) : !HAS_DEVA.test(s));
 
 export const translationAvailable = () => !!config.anthropicApiKey;
 
 export async function translateTexts(texts: string[], lang: string): Promise<string[]> {
-  if (lang !== 'hi' || !texts.length) return texts;
+  if ((lang !== 'hi' && lang !== 'en') || !texts.length) return texts;
   const out = texts.slice();
   const todo: { i: number; h: string; s: string }[] = [];
   for (let i = 0; i < texts.length; i++) {
     const s = (texts[i] || '').trim();
-    if (!s || skip(s)) continue;
+    if (!s || skip(s, lang)) continue;
     const h = hash(s);
     const hit = mem.get(`${lang}:${h}`);
     if (hit) out[i] = texts[i].replace(s, hit); else todo.push({ i, h, s });
@@ -41,7 +43,7 @@ export async function translateTexts(texts: string[], lang: string): Promise<str
   const chunks: [string, string][][] = [];
   for (let k = 0; k < uniq.length; k += 20) chunks.push(uniq.slice(k, k + 20));
   const runChunk = async (chunk: [string, string][]) => {
-    const got = await callClaude(chunk.map(([, s]) => s));
+    const got = await callClaude(chunk.map(([, s]) => s), lang);
     chunk.forEach(([h, s], k) => {
       const d = (got[k] || '').trim();
       if (!d || d === s) return;
@@ -57,11 +59,14 @@ export async function translateTexts(texts: string[], lang: string): Promise<str
 const SYS = `You translate English text from an Indian personal-finance app into natural, simple everyday Hindi (Devanagari) that a young Indian would actually say — warm and clear, not formal/sarkari Hindi. Keep ₹ amounts, numbers, dates, %, and these terms exactly as written: PayWatch, SIP, EMI, ITR, PAN, UPI, CA, KYC, GST, TDS, HRA, NPS, EPF, PPF, ELSS, 80C, 80D, AI. Keep markdown (**bold**, bullets), emoji and punctuation. Similar length or shorter.
 Input is a JSON object of id → English. Return ONLY a JSON object with the same ids → Hindi. No commentary.`;
 
+const SYS_EN = `You translate Hindi / Hinglish text from an Indian personal-finance app into natural, simple English. Keep ₹ amounts, numbers, dates, % and proper names (places like Bali, Goa; brand names) as they are. Keep markdown and punctuation. Similar length.
+Input is a JSON object of id → text. Return ONLY a JSON object with the same ids → English. No commentary.`;
+
 let lastError = '';
 export const translationStatus = () => ({ available: translationAvailable(), model: config.translateModel, lastError });
 
 /** One Claude call for up to ~20 strings. Returns translations by index ('' when missing). */
-async function callClaude(src: string[]): Promise<string[]> {
+async function callClaude(src: string[], lang = 'hi'): Promise<string[]> {
   const input: Record<string, string> = {};
   src.forEach((s, i) => { input[String(i)] = s; });
   const models = [config.translateModel, config.anthropicModel].filter((m, i, a) => m && a.indexOf(m) === i);
@@ -70,7 +75,7 @@ async function callClaude(src: string[]): Promise<string[]> {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model, max_tokens: 8000, system: SYS, messages: [{ role: 'user', content: JSON.stringify(input) }] }),
+        body: JSON.stringify({ model, max_tokens: 8000, system: lang === 'en' ? SYS_EN : SYS, messages: [{ role: 'user', content: JSON.stringify(input) }] }),
       });
       if (!res.ok) { lastError = `${model}: HTTP ${res.status} ${(await res.text()).slice(0, 160)}`; console.warn('[translate]', lastError); continue; }
       const data: any = await res.json();

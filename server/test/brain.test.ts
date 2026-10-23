@@ -10,7 +10,7 @@ import { generateActions } from '../src/services/actions';
 import { parseAffordIntent } from '../src/services/cfo-ai';
 import { generateAlerts } from '../src/services/alerts';
 import { computeScore } from '../src/services/score';
-import { detectDream, parseRupees, parseMonths } from '../src/services/brain/dreamCapture';
+import { detectDream, parseRupees, parseMonths, catalogLocalName } from '../src/services/brain/dreamCapture';
 import { diffBrain, Snapshot } from '../src/services/brain/autopilot';
 
 let passed = 0, failed = 0;
@@ -312,6 +312,20 @@ check('parses amount, horizon and item', () => {
 check('ignores non-affordability and amount-less questions', () => {
   assert.strictEqual(parseAffordIntent('what is my score'), null);
   assert.strictEqual(parseAffordIntent('Can I afford it?'), null);
+});
+
+console.log('\nDREAM NAMES — one dream, both languages');
+check('captured dreams carry both names (Hindi capture → English name too)', () => {
+  const d = detectDream('mujhe agle saal bali jana hai', 'hi')!;
+  assert.deepStrictEqual(d.names, { en: 'Bali trip', hi: 'बाली ट्रिप' });
+  assert.strictEqual(d.name, 'बाली ट्रिप');
+});
+check('older mixed names switch language without AI ("Bali विदेश यात्रा" → "Bali trip")', () => {
+  assert.strictEqual(catalogLocalName('Bali विदेश यात्रा', 'en'), 'Bali trip');
+  assert.strictEqual(catalogLocalName('Laptop', 'hi'), 'लैपटॉप');
+});
+check('free-typed names are left for translation (no wrong guess)', () => {
+  assert.strictEqual(catalogLocalName('House in South Bombay', 'hi'), null);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

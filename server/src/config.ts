@@ -19,8 +19,8 @@ export const config = {
   translateModel: process.env.TRANSLATE_MODEL || 'claude-haiku-4-5-20251001', // fast + cheap; falls back to ANTHROPIC_MODEL
   // ElevenLabs — human-sounding multilingual voice (TTS) + speech-to-text (Scribe).
   elevenLabsKey: process.env.ELEVENLABS_API_KEY || '',
-  elevenVoiceEn: process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
-  elevenVoiceHi: process.env.ELEVENLABS_VOICE_ID_HI || process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
+  elevenVoiceEn: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL', // "Sarah" — warm, young, conversational (premade)
+  elevenVoiceHi: process.env.ELEVENLABS_VOICE_ID_HI || process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
   elevenTtsModel: process.env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2',
   elevenSttModel: process.env.ELEVENLABS_STT_MODEL || 'scribe_v2',
   encryptionKey: process.env.ENCRYPTION_KEY || '',

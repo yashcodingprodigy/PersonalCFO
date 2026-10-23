@@ -52,7 +52,8 @@ voiceRouter.post('/tts', rateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'tts'
         text,
         model_id: config.elevenTtsModel,
         ...(lang === 'hi' ? { language_code: 'hi' } : {}),
-        voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.25, use_speaker_boost: true },
+        // Lower stability + some style = more expressive, human delivery (less flat/robotic).
+        voice_settings: { stability: 0.35, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true },
       }),
     });
     if (!r.ok || !r.body) {

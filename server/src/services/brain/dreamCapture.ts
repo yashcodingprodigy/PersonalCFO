@@ -10,6 +10,7 @@ import { DreamKind } from './dreams';
 
 export interface DetectedDream {
   name: string;
+  names?: { en: string; hi: string };
   kind: DreamKind;
   goalType: string;
   amount: number;          // paise
@@ -81,6 +82,30 @@ export function parseMonths(raw: string, now = new Date()): number | null {
 }
 
 const PLACE = /\b(goa|manali|ladakh|kerala|kashmir|bali|thailand|dubai|singapore|maldives|vietnam|seoul|europe|paris|london|japan|tokyo|usa|america|australia|rishikesh|udaipur|jaipur|shimla|andaman)\b/i;
+const PLACE_HI: Record<string, string> = {
+  goa: 'गोवा', manali: 'मनाली', ladakh: 'लद्दाख', kerala: 'केरल', kashmir: 'कश्मीर', bali: 'बाली', thailand: 'थाईलैंड',
+  dubai: 'दुबई', singapore: 'सिंगापुर', maldives: 'मालदीव', vietnam: 'वियतनाम', seoul: 'सियोल', europe: 'यूरोप', paris: 'पेरिस',
+  london: 'लंदन', japan: 'जापान', tokyo: 'टोक्यो', usa: 'अमेरिका', america: 'अमेरिका', australia: 'ऑस्ट्रेलिया',
+  rishikesh: 'ऋषिकेश', udaipur: 'उदयपुर', jaipur: 'जयपुर', shimla: 'शिमला', andaman: 'अंडमान',
+};
+
+/** Best-effort switch of a dream name to the other language using the catalogue (no AI needed). */
+export function catalogLocalName(name: string, lang: Lang): string | null {
+  const lower = name.toLowerCase();
+  for (const c of CATALOG) {
+    const from = lang === 'hi' ? c.en : c.hi, to = lang === 'hi' ? c.hi : c.en;
+    if (name === from) return to;
+    if (lang === 'en' && name.includes(c.hi)) {
+      const rest = name.replace(c.hi, '').trim();
+      const placeEn = Object.entries(PLACE_HI).find(([, h]) => h === rest)?.[0];
+      const place = placeEn ? cap(placeEn) : rest;
+      return c.kind === 'experience' && place ? `${place} trip` : `${place ? place + ' ' : ''}${c.en}`.trim();
+    }
+  }
+  if (lang === 'hi') { const m = lower.match(/^(\w+) trip$/); if (m && PLACE_HI[m[1]]) return `${PLACE_HI[m[1]]} ट्रिप`; }
+  return null;
+}
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function detectDream(text: string, lang: Lang = 'en', now = new Date()): DetectedDream | null {
@@ -91,10 +116,11 @@ export function detectDream(text: string, lang: Lang = 'en', now = new Date()): 
   const stated = parseRupees(text);
   const months = parseMonths(text, now) ?? item.months;
   const place = text.match(PLACE)?.[1];
-  let name = lang === 'hi' ? item.hi : item.en;
-  if (place && item.kind === 'experience') name = lang === 'hi' ? `${cap(place)} ${item.hi}` : `${cap(place)} trip`;
+  const names = place && item.kind === 'experience'
+    ? { en: `${cap(place)} trip`, hi: `${PLACE_HI[place.toLowerCase()] || cap(place)} ट्रिप` }
+    : { en: item.en, hi: item.hi };
   return {
-    name, kind: item.kind, goalType: item.goalType,
+    name: names[lang === 'hi' ? 'hi' : 'en'], names, kind: item.kind, goalType: item.goalType,
     amount: stated > 0 ? stated : item.rupees * 100,
     estimated: stated <= 0,
     months, inflation: item.inflation,

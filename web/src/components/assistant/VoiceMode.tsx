@@ -30,6 +30,14 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
   const handleRef = useRef<ListenHandle | null>(null);
   const alive = useRef(true);
   const phaseRef = useRef<Phase>('idle');
+  const replyRef = useRef<HTMLDivElement>(null);
+  // Each new answer starts at the top, then the box follows the voice as it reads.
+  useEffect(() => { const el = replyRef.current; if (el) el.scrollTo({ top: 0 }); }, [reply]);
+  const follow = (r: number) => {
+    const el = replyRef.current; if (!el) return;
+    const max = el.scrollHeight - el.clientHeight; if (max <= 0) return;
+    el.scrollTo({ top: Math.max(0, max * r - el.clientHeight * 0.25), behavior: 'smooth' });
+  };
   const setP = (p: Phase) => { phaseRef.current = p; setPhase(p); };
 
   useEffect(() => {
@@ -63,7 +71,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
       if (/✨|✅/.test(answer)) onDataChanged?.();
       if (!alive.current) return;
       setReply(cleanForSpeech(answer)); setP('speaking');
-      await speak(answer, replyLang);
+      await speak(answer, replyLang, follow);
       if (!alive.current) return;
       if (phaseRef.current === 'speaking') turn(); // keep the conversation going
     } catch (e: any) {
@@ -80,8 +88,8 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
   const label = phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? t('vo.thinking') : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
   const scale = 1 + (phase === 'listening' ? level * 0.35 : phase === 'speaking' ? 0.06 : 0);
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-between text-white pw-voice-bg" role="dialog" aria-label="PayWatch voice">
-      <div className="w-full flex items-center justify-between px-5 pt-5">
+    <div className="fixed inset-0 z-[80] flex flex-col items-center text-white pw-voice-bg" role="dialog" aria-label="PayWatch voice">
+      <div className="w-full shrink-0 flex items-center justify-between px-5 pt-5">
         <div className="inline-flex rounded-full bg-white/10 p-1 text-xs font-bold">
           {(['en', 'hi'] as const).map((l) => (
             <button key={l} onClick={() => setLang(l)} className={`rounded-full px-3 py-1 ${lang === l ? 'bg-white text-pine-950' : 'text-white/70'}`}>{l === 'en' ? 'English' : 'हिंदी'}</button>
@@ -93,20 +101,23 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
         </button>
       </div>
 
-      <div className="flex flex-col items-center gap-8 px-6 w-full max-w-xl">
-        <button onClick={tapOrb} aria-label={phase === 'idle' ? t('vo.tapToTalk') : t('vo.tapToStop')} className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full focus:outline-none">
+      <div className="flex-1 min-h-0 w-full max-w-2xl flex flex-col items-center px-5 pt-4">
+        <button onClick={tapOrb} aria-label={phase === 'idle' ? t('vo.tapToTalk') : t('vo.tapToStop')}
+          className={`relative shrink-0 rounded-full focus:outline-none transition-all duration-500 ${reply ? 'w-28 h-28 sm:w-32 sm:h-32' : 'w-52 h-52 sm:w-64 sm:h-64 mt-[6vh]'}`}>
           <span className={`absolute inset-0 rounded-full pw-orb ${phase === 'thinking' ? 'pw-orb-think' : ''} ${phase === 'speaking' ? 'pw-orb-speak' : ''}`} style={{ transform: `scale(${scale})`, transition: 'transform 90ms linear' }} />
           <span className="absolute -inset-6 rounded-full pw-orb-halo" style={{ opacity: phase === 'idle' ? 0.35 : 0.8 }} />
         </button>
-        <p className="text-sm font-semibold tracking-wide text-mint-300">{label}</p>
-        <div className="min-h-[96px] w-full text-center space-y-3">
-          {heard && <p className="text-white/60 text-sm">“{heard}”</p>}
-          {reply && <p className="text-lg leading-relaxed text-white/95 font-display">{reply}</p>}
-          {note && <p className="text-sm text-gold-500">{note}</p>}
-        </div>
+        <p className="mt-5 shrink-0 text-sm font-semibold tracking-wide text-mint-300">{label}</p>
+        {heard && <p className="mt-3 shrink-0 text-white/55 text-sm text-center max-w-lg line-clamp-2">“{heard}”</p>}
+        {note && <p className="mt-4 shrink-0 text-sm text-gold-500 text-center max-w-md leading-relaxed">{note}</p>}
+        {reply && (
+          <div ref={replyRef} className="mt-5 w-full flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-3xl bg-white/[0.06] border border-white/10 px-5 py-4 sm:px-7 sm:py-5 pw-fade-in">
+            <p className="text-[15px] sm:text-base leading-7 text-white/90 whitespace-pre-line">{reply}</p>
+          </div>
+        )}
       </div>
 
-      <div className="pb-8">
+      <div className="shrink-0 py-6">
         <button onClick={() => { close(); onSwitchToChat(); }} className="rounded-full bg-white/10 hover:bg-white/15 px-5 py-2.5 text-sm font-bold">{t('vo.switchChat')}</button>
       </div>
     </div>

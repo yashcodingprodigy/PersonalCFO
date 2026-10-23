@@ -145,7 +145,7 @@ export async function captureDream(userId: string, text: string, source: string)
   const row = await one<{ goal_id: string }>(
     `INSERT INTO goals (user_id, goal_type, name, target_amount, target_date, current_amount, monthly_contribution, meta)
      VALUES ($1,$2,$3,$4,$5,0,0,$6) RETURNING goal_id`,
-    [userId, d.goalType, d.name.slice(0, 100), amount, target, JSON.stringify({ kind: d.kind, priority: d.kind === 'safety' ? 1 : 2, inflation: d.inflation, source, estimated: d.estimated, captured_text: text.slice(0, 200) })]
+    [userId, d.goalType, d.name.slice(0, 100), amount, target, JSON.stringify({ kind: d.kind, priority: d.kind === 'safety' ? 1 : 2, inflation: d.inflation, source, estimated: d.estimated, captured_text: text.slice(0, 200), names: d.names })]
   );
   const title = T.actCaptured(d.name, inr(amount));
   await query(`INSERT INTO brain_activity (user_id, kind, title, meta) VALUES ($1,'dream_captured',$2,$3)`, [userId, title, JSON.stringify({ source, estimated: d.estimated })]);

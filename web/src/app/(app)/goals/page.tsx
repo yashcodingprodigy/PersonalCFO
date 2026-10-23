@@ -5,6 +5,7 @@
 // will be done, and — if it doesn't fit — the exact levers that make it a yes.
 // Dreams are stored as goals (meta.kind / meta.priority), so nothing else breaks.
 
+import { useLang } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { get, post, put, del, swr } from '@/lib/api';
@@ -42,6 +43,7 @@ const ym = (s: string | null) => {
 };
 
 export default function DreamsPage() {
+  const { lang } = useLang();
   const [brain, setBrain] = useState<any>(null);
   const [goals, setGoals] = useState<any[]>([]);
   const [err, setErr] = useState('');
@@ -65,9 +67,10 @@ export default function DreamsPage() {
   const [aBusy, setABusy] = useState(false);
 
   async function load() {
-    await Promise.all([swr('/brain', setBrain), get('/goals').then(setGoals)]);
+    await Promise.all([swr(`/brain?lang=${lang}`, setBrain), get('/goals').then(setGoals)]);
   }
-  useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load().catch((e) => setErr(e.message)); }, [lang]);
 
   async function addDream(e: React.FormEvent) {
     e.preventDefault(); setErr(''); setBusy(true);

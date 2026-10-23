@@ -10,6 +10,7 @@ import { generateAlerts } from '../alerts';
 import { gatherSignals } from '../monitor';
 import { deriveLifePhase, phaseInfo } from '../lifestage';
 import { buildMoneyMap, MoneyMap } from './cashflow';
+import { catalogLocalName } from './dreamCapture';
 import { planDreams, goalToDream, affordCheck, DreamInput, DreamPlan, AffordResult, PlanOptions } from './dreams';
 import { detectLifeEvents, LifeEvent, Txn } from './lifeEvents';
 import { buildNextMoves, Move } from './nextMoves';
@@ -51,7 +52,27 @@ async function loadInputs(userId: string) {
   const spendByCategory = [...byCat.entries()].map(([category, total]) => ({ category, label: CATEGORY_LABELS[category], monthly: Math.round(total / monthsSeen) }));
   const map = buildMoneyMap(p);
   const dreams: DreamInput[] = goals.map(goalToDream);
-  return { p, map, dreams, txns, spendByCategory, userLangPref };
+  return { p, map, dreams, goals, txns, spendByCategory, userLangPref };
+}
+
+/**
+ * Show every dream in the user's current language: stored bilingual names first (dreams captured
+ * from chat/voice), then the catalogue, then AI translation (cached) for names the user typed.
+ */
+export async function localizeDreams(dreams: DreamInput[], goals: any[], lang: Lang): Promise<void> {
+  const metaById = new Map(goals.map((g: any) => [String(g.goal_id), g.meta || {}]));
+  const wrongScript = (n: string) => (lang === 'hi' ? /[A-Za-z]{2,}/.test(n) && !/[\u0900-\u097F]/.test(n) : /[\u0900-\u097F]/.test(n));
+  const pending: DreamInput[] = [];
+  for (const d of dreams) {
+    const names = metaById.get(String(d.id))?.names;
+    if (names?.[lang]) { d.name = names[lang]; continue; }
+    if (!wrongScript(d.name)) continue;
+    const c = catalogLocalName(d.name, lang);
+    if (c) d.name = c; else pending.push(d);
+  }
+  if (!pending.length) return;
+  const tr = await translateTexts(pending.map((d) => d.name), lang).catch(() => pending.map((d) => d.name));
+  pending.forEach((d, i) => { if (tr[i]) d.name = tr[i]; });
 }
 
 export async function runBrain(userId: string, langOverride?: Lang): Promise<BrainState | null> {
@@ -59,6 +80,7 @@ export async function runBrain(userId: string, langOverride?: Lang): Promise<Bra
   if (!inp) return null;
   const { p, map, dreams, txns, spendByCategory } = inp;
   const lang = langOverride || inp.userLangPref;
+  await localizeDreams(dreams, inp.goals, lang);
   // Autopilot on: spare cash above the safety net is auto-assigned to dreams.
   const opts: PlanOptions = { spendByCategory, lang, autoEarmark: true };
   const plan = planDreams(map, dreams, opts);
@@ -84,5 +106,6 @@ export async function runBrain(userId: string, langOverride?: Lang): Promise<Bra
 export async function brainAfford(userId: string, cost: number, months: number | null, label: string, langOverride?: Lang): Promise<AffordResult | null> {
   const inp = await loadInputs(userId);
   if (!inp) return null;
+  await localizeDreams(inp.dreams, inp.goals, langOverride || inp.userLangPref);
   return affordCheck(inp.map, inp.dreams, cost, { months, label, spendByCategory: inp.spendByCategory, lang: langOverride || inp.userLangPref, autoEarmark: true });
 }

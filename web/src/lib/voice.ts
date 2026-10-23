@@ -38,18 +38,33 @@ export function cleanForSpeech(md: string): string {
     .slice(0, 1100);
 }
 
-function pickBrowserVoice(lang: VoiceLang): SpeechSynthesisVoice | null {
-  const all = window.speechSynthesis?.getVoices?.() || [];
-  const want = lang === 'hi' ? ['hi-IN', 'hi'] : ['en-IN', 'en-GB', 'en-US', 'en'];
-  const quality = (v: SpeechSynthesisVoice) => (/natural|neural|premium|enhanced/i.test(v.name) ? 3 : /google/i.test(v.name) ? 2 : /microsoft|samantha|rishi|veena|lekha|kalpana|hemant/i.test(v.name) ? 1 : 0);
-  for (const code of want) {
-    const pool = all.filter((v) => v.lang?.toLowerCase().startsWith(code.toLowerCase()));
-    if (pool.length) return pool.sort((a, b) => quality(b) - quality(a))[0];
-  }
-  return null;
+// Old/novelty system voices that sound robotic — never pick these.
+const ROBOTIC = /\b(rishi|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|princess|bruce|agnes|vicki|victoria|eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley)\b/i;
+
+// Voices load asynchronously in most browsers — warm the list up early.
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  try { window.speechSynthesis.getVoices(); window.speechSynthesis.addEventListener?.('voiceschanged', () => window.speechSynthesis.getVoices()); } catch {}
 }
 
-function speakWithBrowser(text: string, lang: VoiceLang): Promise<void> {
+/** Most human-sounding voice on this device for the language (quality first, then accent). */
+function pickBrowserVoice(lang: VoiceLang): SpeechSynthesisVoice | null {
+  const all = (window.speechSynthesis?.getVoices?.() || []).filter((v) => !ROBOTIC.test(v.name));
+  const prefix = lang === 'hi' ? 'hi' : 'en';
+  const pool = all.filter((v) => v.lang?.toLowerCase().startsWith(prefix));
+  if (!pool.length) return null;
+  const quality = (v: SpeechSynthesisVoice) =>
+    /natural|neural|premium|enhanced|siri/i.test(v.name) ? 40
+    : /google/i.test(v.name) ? 30
+    : /samantha|karen|moira|tessa|daniel|serena|aria|jenny|guy|swara|madhur|lekha|kalpana/i.test(v.name) ? 20
+    : !v.localService ? 15 : 0;
+  const accent = (v: SpeechSynthesisVoice) => {
+    const l = v.lang.toLowerCase();
+    return l === 'en-in' || l === 'hi-in' ? 6 : l === 'en-gb' ? 4 : l === 'en-us' ? 3 : 0;
+  };
+  return pool.sort((a, b) => quality(b) + accent(b) - (quality(a) + accent(a)))[0];
+}
+
+function speakWithBrowser(text: string, lang: VoiceLang, onProgress?: (r: number) => void): Promise<void> {
   return new Promise((resolve) => {
     try {
       const synth = window.speechSynthesis;
@@ -59,8 +74,9 @@ function speakWithBrowser(text: string, lang: VoiceLang): Promise<void> {
       const v = pickBrowserVoice(lang);
       if (v) u.voice = v;
       u.lang = v?.lang || (lang === 'hi' ? 'hi-IN' : 'en-IN');
-      u.rate = lang === 'hi' ? 0.98 : 1.02; u.pitch = 1;
-      u.onend = () => resolve(); u.onerror = () => resolve();
+      u.rate = lang === 'hi' ? 0.96 : 1.0; u.pitch = 1.02;
+      u.onboundary = (e: any) => { if (typeof e.charIndex === 'number') onProgress?.(e.charIndex / Math.max(1, text.length)); };
+      u.onend = () => { onProgress?.(1); resolve(); }; u.onerror = () => resolve();
       speakingCancel = () => { synth.cancel(); resolve(); };
       synth.speak(u);
     } catch { resolve(); }
@@ -68,7 +84,7 @@ function speakWithBrowser(text: string, lang: VoiceLang): Promise<void> {
 }
 
 /** Speak text in a natural voice. Resolves when finished (or when stopped). */
-export async function speak(text: string, lang: VoiceLang): Promise<void> {
+export async function speak(text: string, lang: VoiceLang, onProgress?: (r: number) => void): Promise<void> {
   stopSpeaking();
   const clean = cleanForSpeech(text);
   if (!clean) return;
@@ -80,7 +96,8 @@ export async function speak(text: string, lang: VoiceLang): Promise<void> {
         const url = URL.createObjectURL(blob);
         await new Promise<void>((resolve) => {
           audioEl = new Audio(url);
-          audioEl.onended = () => { URL.revokeObjectURL(url); resolve(); };
+          audioEl.ontimeupdate = () => { const a = audioEl!; if (a.duration) onProgress?.(a.currentTime / a.duration); };
+          audioEl.onended = () => { onProgress?.(1); URL.revokeObjectURL(url); resolve(); };
           audioEl.onerror = () => { URL.revokeObjectURL(url); resolve(); };
           speakingCancel = () => { try { audioEl?.pause(); } catch {} URL.revokeObjectURL(url); resolve(); };
           audioEl.play().catch(() => resolve());
@@ -89,7 +106,7 @@ export async function speak(text: string, lang: VoiceLang): Promise<void> {
       }
     } catch { /* fall through to device voice */ }
   }
-  await speakWithBrowser(clean, lang);
+  await speakWithBrowser(clean, lang, onProgress);
 }
 
 export function stopSpeaking() {

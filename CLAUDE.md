@@ -300,11 +300,15 @@ unread-alerts badge, native biometric lock overlay).
   health from the plan so alerts never contradict the Dreams page.
   **Autopilot (D-43):** `autopilot.ts` `brainTick`/`scheduleBrainTick`/`captureDream`/`recentActivity` (tables
   `brain_snapshots`, `brain_activity`); `dreamCapture.ts` (EN/HI/Hinglish intent + cost catalogue + `parseRupees/parseMonths`);
-  `i18n.ts` (every brain sentence in EN+HI). Plan items carry `earmarked` + `saved`. Routes add `GET /brain/activity`,
+  `i18n.ts` (every brain sentence in EN+HI). Plan items carry `earmarked` + `saved`. **Dream names are bilingual:** captured dreams store `meta.names {en,hi}`;
+  `index.localizeDreams()` shows each dream in the current language (stored names → `catalogLocalName()` → AI translate,
+  `translateTexts` now works both ways hi↔en). Routes add `GET /brain/activity`,
   `POST /brain/capture`, `POST /brain/tick`.
 - **Voice (D-44):** `routes/voice.ts` — `GET /voice/status`, `POST /voice/tts` (ElevenLabs `eleven_multilingual_v2`, LRU
   cache), `POST /voice/stt` (Scribe). Env `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_HI`
-  (opt `ELEVENLABS_TTS_MODEL`/`ELEVENLABS_STT_MODEL`). No key → browser voice. Ask accepts `{lang, mode:'chat'|'voice'}`.
+  (opt `ELEVENLABS_TTS_MODEL`/`ELEVENLABS_STT_MODEL`). Default ElevenLabs voice = premade "Sarah" (`EXAVITQu4vr4xnSDxMaL`), expressive settings (stability 0.35, style 0.45).
+  Voice-mode replies use a separate `VOICE_STYLE` prompt (2–4 warm spoken sentences, max_tokens 300). No key → best
+  device voice (`pickBrowserVoice` ranks Natural/Neural/Google voices, skips robotic ones like Rishi). Ask accepts `{lang, mode:'chat'|'voice'}`.
   **Mic gotcha:** `web/next.config.mjs` Permissions-Policy must keep `microphone=(self)` (it was `microphone=()`, which
   silently blocked the mic site-wide). `lib/voice.listen()` asks for the mic first and returns a typed `error`
   (denied / no-mic / unsupported / network (Brave/Arc) / dictation-off (Safari) / no-speech / stt-failed) that
@@ -571,7 +575,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **198 assertions** (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **201 assertions** (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

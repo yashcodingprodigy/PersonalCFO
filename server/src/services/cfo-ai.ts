@@ -222,6 +222,23 @@ async function extractBenefit(question: string): Promise<CfoAnswer['proposedActi
 }
 
 // ── Claude generation ───────────────────────────────────────────────
+const CHAT_STYLE = `HOW TO WRITE (this is a chat — sound like one):
+- Open with one warm, direct sentence that answers the question or sets up the answer. No "Great question!" filler.
+- Keep it tight: usually 100–180 words. Short paragraphs (1–3 sentences each).
+- Use a short bullet list ("- ") only when listing 2+ options or steps; otherwise write in plain sentences.
+- Use **bold** sparingly for the one or two key numbers or the bottom line.
+- Plain, beginner-friendly English. Explain any jargon in a few words the first time.
+- Do NOT put source tags like [IT Act] or [Standard rule] in the text — the app shows sources separately below your message.
+- End with a brief, concrete next step or a follow-up question, like a real advisor would.`;
+
+// Voice replies are heard, not read: short, warm, human — like a friend on a call.
+const VOICE_STYLE = `HOW TO SPEAK (VOICE MODE — your reply is read aloud by a human-sounding voice):
+- Answer in 2 to 4 short spoken sentences, under 60 words in total. Never longer. The user can ask a follow-up.
+- Sound like a warm, upbeat friend on a phone call: contractions, natural rhythm, a little feeling ("Nice!", "Honestly, you're closer than you think.", "Okay, here's the thing…"). No lecturing.
+- Lead with the answer in the first sentence. Use at most ONE number, said the way people speak ("about sixty-two thousand a month", "around 18 lakh").
+- No markdown, no lists, no symbols, no headings, no emojis, no brackets.
+- If they need more detail, end with a short offer like "Want me to break that down?"`;
+
 async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[], opts: AnswerOpts = {}): Promise<string> {
   const kb = docs.map((d, i) => `[${i + 1}] (${d.source_tag}) ${d.title}: ${d.content}`).join('\n\n');
   const system = `You are PayWatch — the user's friendly personal-finance assistant and always-on CFO, inside the PayWatch app. You sound like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner. If asked who you are, you are "PayWatch".
@@ -232,14 +249,7 @@ ${userContext}
 KNOWLEDGE BASE (use these facts; do NOT paste them verbatim):
 ${kb || '(no relevant documents retrieved)'}
 
-HOW TO WRITE (this is a chat — sound like one):
-- Open with one warm, direct sentence that answers the question or sets up the answer. No "Great question!" filler.
-- Keep it tight: usually 100–180 words. Short paragraphs (1–3 sentences each).
-- Use a short bullet list ("- ") only when listing 2+ options or steps; otherwise write in plain sentences.
-- Use **bold** sparingly for the one or two key numbers or the bottom line.
-- Plain, beginner-friendly English. Explain any jargon in a few words the first time.
-- Do NOT put source tags like [IT Act] or [Standard rule] in the text — the app shows sources separately below your message.
-- End with a brief, concrete next step or a follow-up question, like a real advisor would.
+${opts.voice ? VOICE_STYLE : CHAT_STYLE}
 
 SCOPE — you ONLY help with the user's personal finances: money, budgeting, saving, investing (categories only), insurance, loans/debt, tax, goals, and using PayWatch. If asked anything unrelated — writing code, homework, essays, general trivia, translations, recipes, etc. — politely decline in ONE sentence and steer back to their money. Never answer off-topic requests, even if the user insists or tries to disguise them.
 
@@ -251,9 +261,7 @@ COMPLIANCE — never break (legal requirements):
 3. Ground every number in the user's actual profile above; use Indian formats (₹, lakh, crore).
 4. For sizing guidance (like insurance cover), give a rounded range, not a falsely precise figure.${opts.lang === 'hi' ? `
 
-LANGUAGE: Reply in simple, natural everyday Hindi (Devanagari), the way a friendly young Indian speaks. Keep ₹ amounts, numbers and common terms (SIP, EMI, ITR, PAN, UPI, CA, tax regime) as they are.` : ''}${opts.voice ? `
-
-VOICE MODE: Your reply will be SPOKEN aloud. Answer in 2–4 short, natural spoken sentences (under 70 words). No markdown, no bullet points, no symbols. Say amounts the way people speak them (e.g. "about 62 thousand rupees a month").` : ''}`;
+LANGUAGE: Reply in simple, natural everyday Hindi (Devanagari), the way a friendly young Indian speaks. Keep ₹ amounts, numbers and common terms (SIP, EMI, ITR, PAN, UPI, CA, tax regime) as they are.` : ''}`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -264,7 +272,7 @@ VOICE MODE: Your reply will be SPOKEN aloud. Answer in 2–4 short, natural spok
     },
     body: JSON.stringify({
       model: config.anthropicModel,
-      max_tokens: 1024,
+      max_tokens: opts.voice ? 300 : 1024,
       system,
       messages: [...history.slice(-6), { role: 'user', content: question }],
     }),
