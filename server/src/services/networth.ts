@@ -1,6 +1,7 @@
 // Net Worth service — SRS §8.
 
 import { ProfileData } from './score';
+import { inrIN } from '../lib/money';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 const n = (x: any) => Number(x) || 0;
@@ -141,11 +142,7 @@ export function growthProjection(p: ProfileData, nw: NetWorthBreakdown): GrowthP
     return { years, baseline, improved, uplift: Math.max(0, improved - baseline) };
   });
 
-  const inrShort = (paise: number) => {
-    const r = Math.round(paise / 100);
-    if (r >= 1e5) return `₹${(r / 1e5).toFixed(r >= 1e6 ? 0 : 1)}L`;
-    return `₹${Math.round(r / 1000)}k`;
-  };
+  const inrShort = inrIN;
   const levers: string[] = [];
   if (improvedContribution > baselineContribution) {
     const savePct = expenses != null && takeHome > 0 ? Math.round(((takeHome - expenses) / takeHome) * 100) : null;

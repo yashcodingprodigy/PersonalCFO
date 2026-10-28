@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { post } from '@/lib/api';
-import { listen, speak, stopSpeaking, voiceStatus, cleanForSpeech, ListenHandle, VoiceLang, ListenError } from '@/lib/voice';
+import { listen, speak, stopSpeaking, voiceStatus, cleanForSpeech, ListenHandle, VoiceLang, ListenError, releaseMic, readyChime } from '@/lib/voice';
 import type { TKey } from '@/lib/i18n';
 
 const ERR_KEY: Record<ListenError, TKey> = {
@@ -16,17 +16,22 @@ const ERR_KEY: Record<ListenError, TKey> = {
 };
 import { useLang } from '@/lib/i18n';
 
-type Phase = 'idle' | 'listening' | 'thinking' | 'speaking';
+type Phase = 'idle' | 'starting' | 'listening' | 'thinking' | 'speaking';
 
-export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose: () => void; onSwitchToChat: () => void; onDataChanged?: () => void }) {
+export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversationId, onConversation, onActions }: {
+  onClose: () => void; onSwitchToChat: () => void; onDataChanged?: () => void;
+  conversationId?: string | null; onConversation?: (id: string) => void;
+  /** Apply assistant actions; returns true when it navigated to another page. */
+  onActions?: (a: any[]) => boolean;
+}) {
   const { lang, setLang, t } = useLang();
   const [phase, setPhase] = useState<Phase>('idle');
   const [level, setLevel] = useState(0);
   const [heard, setHeard] = useState('');
   const [reply, setReply] = useState('');
   const [note, setNote] = useState('');
-  const [engine, setEngine] = useState<'elevenlabs' | 'browser'>('browser');
-  const convRef = useRef<string | null>(null);
+  const [engine, setEngine] = useState<'human' | 'browser'>('browser');
+  const convRef = useRef<string | null>(conversationId || null);
   const handleRef = useRef<ListenHandle | null>(null);
   const alive = useRef(true);
   const phaseRef = useRef<Phase>('idle');
@@ -42,20 +47,22 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
 
   useEffect(() => {
     alive.current = true;
-    voiceStatus().then((s) => setEngine(s.tts));
+    voiceStatus().then((s) => setEngine((lang === 'hi' ? (s.ttsHi || s.tts) : s.tts) !== 'browser' ? 'human' : 'browser'));
     const t0 = setTimeout(() => turn(), 350); // start listening right away
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     window.addEventListener('keydown', esc);
-    return () => { alive.current = false; clearTimeout(t0); window.removeEventListener('keydown', esc); handleRef.current?.stop(); stopSpeaking(); };
+    return () => { alive.current = false; clearTimeout(t0); window.removeEventListener('keydown', esc); handleRef.current?.stop(); stopSpeaking(); releaseMic(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function close() { alive.current = false; handleRef.current?.stop(); stopSpeaking(); onClose(); }
+  function close() { alive.current = false; handleRef.current?.stop(); stopSpeaking(); releaseMic(); onClose(); }
 
   async function turn() {
     if (!alive.current) return;
-    setNote(''); setHeard(''); setP('listening');
-    const h = listen(lang as VoiceLang, (v) => setLevel(v), (partial) => setHeard(partial));
+    // "Getting ready" until the recogniser is really live — then a chime says "talk now",
+    // so the first words are never lost.
+    setNote(''); setHeard(''); setP('starting');
+    const h = listen(lang as VoiceLang, (v) => setLevel(v), (partial) => setHeard(partial), () => { if (alive.current) { setP('listening'); readyChime(); } });
     handleRef.current = h;
     const { text, language, error } = await h.result;
     handleRef.current = null;
@@ -66,13 +73,16 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
     try {
       const body = { content: text, lang: replyLang, mode: 'voice' };
       const res = convRef.current ? await post(`/qa/conversations/${convRef.current}/messages`, body) : await post('/qa/conversations', body);
-      convRef.current = res.conversation_id || convRef.current;
+      if (res.conversation_id && res.conversation_id !== convRef.current) { convRef.current = res.conversation_id; onConversation?.(res.conversation_id); }
       const answer: string = res.message?.content || '';
       if (/✨|✅/.test(answer)) onDataChanged?.();
+      // Actions (open a page, pin a guide, update a dream…) happen right away, behind this screen.
+      const navigated = res.actions?.length ? !!onActions?.(res.actions) : false;
       if (!alive.current) return;
       setReply(cleanForSpeech(answer)); setP('speaking');
       await speak(answer, replyLang, follow);
       if (!alive.current) return;
+      if (navigated) { close(); return; } // step aside so the page (and its guide) is visible
       if (phaseRef.current === 'speaking') turn(); // keep the conversation going
     } catch (e: any) {
       setP('idle'); setNote(e.message || 'Something went wrong.');
@@ -80,12 +90,12 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
   }
 
   function tapOrb() {
-    if (phase === 'listening') { handleRef.current?.stop(); return; }
+    if (phase === 'listening' || phase === 'starting') { handleRef.current?.stop(); return; }
     if (phase === 'speaking') { stopSpeaking(); setP('idle'); setTimeout(turn, 150); return; }
     if (phase === 'idle') turn();
   }
 
-  const label = phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? t('vo.thinking') : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
+  const label = phase === 'starting' ? t('vo.starting') : phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? t('vo.thinking') : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
   const scale = 1 + (phase === 'listening' ? level * 0.35 : phase === 'speaking' ? 0.06 : 0);
   return (
     <div className="fixed inset-0 z-[80] flex flex-col items-center text-white pw-voice-bg" role="dialog" aria-label="PayWatch voice">
@@ -95,7 +105,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged }: { onClose:
             <button key={l} onClick={() => setLang(l)} className={`rounded-full px-3 py-1 ${lang === l ? 'bg-white text-pine-950' : 'text-white/70'}`}>{l === 'en' ? 'English' : 'हिंदी'}</button>
           ))}
         </div>
-        <span className="text-[11px] text-white/50">{engine === 'elevenlabs' ? t('vo.human') : t('vo.device')}</span>
+        <span className="text-[11px] text-white/50">{engine === 'human' ? t('vo.human') : t('vo.device')}</span>
         <button onClick={close} aria-label={t('as.close')} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 grid place-items-center">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z" /></svg>
         </button>

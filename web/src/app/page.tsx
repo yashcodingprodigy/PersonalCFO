@@ -151,9 +151,7 @@ const demoActivity = (hi: boolean) => {
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
 function inrCompact(n: number): string {
-  if (n >= 1e7) return `₹${(n / 1e7).toFixed(2)} Cr`;
-  if (n >= 1e5) return `₹${(n / 1e5).toFixed(1)} L`;
-  return `₹${Math.round(n).toLocaleString('en-IN')}`;
+  return `₹${Math.round(n).toLocaleString('en-IN')}`; // Indian commas: ₹1,20,000
 }
 function fv(monthly: number, annualRate: number, years: number, stepUp: number): number {
   let total = 0, p = monthly; const i = annualRate / 12;

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { get, post, patch, put, del, api, clearTokens } from '@/lib/api';
-import { inr, rupeesToPaise } from '@/lib/format';
+import { inr, rupeesToPaise, groupDigits } from '@/lib/format';
 import { STATES, citiesForState } from '@/lib/india';
 import { useLang } from '@/lib/i18n';
 
@@ -65,7 +65,7 @@ export default function SettingsPage() {
   useEffect(() => { load().catch(() => {}); }, []);
 
   function flash(m: string) { setMsg(m); setTimeout(() => setMsg(''), 3500); }
-  const F = (k: string) => ({ value: fields[k] ?? '', onChange: (e: any) => setFields((f) => ({ ...f, [k]: e.target.value.replace(/[^\d]/g, '') })) });
+  const F = (k: string) => ({ value: groupDigits(fields[k] ?? ''), onChange: (e: any) => setFields((f) => ({ ...f, [k]: e.target.value.replace(/[^\d]/g, '') })) });
 
   async function savePersonal() {
     await patch('/user/me', {
@@ -368,8 +368,8 @@ export default function SettingsPage() {
                 </select>
               </div>
               <div><label className="label">Name</label><input className="input" placeholder="e.g. MAHE faculty insurance booster" value={ben.label} onChange={(e) => setBen({ ...ben, label: e.target.value })} /></div>
-              <div><label className="label">Base value (₹)</label><input className="input" inputMode="numeric" placeholder="e.g. 500000" value={ben.value_base} onChange={(e) => setBen({ ...ben, value_base: e.target.value })} /></div>
-              <div><label className="label">Boosts up to (₹) <span className="text-ink-faint font-normal">— optional</span></label><input className="input" inputMode="numeric" placeholder="e.g. 4000000" value={ben.value_boosted_to} onChange={(e) => setBen({ ...ben, value_boosted_to: e.target.value })} /></div>
+              <div><label className="label">Base value (₹)</label><input className="input" inputMode="numeric" placeholder="e.g. 500000" value={groupDigits(ben.value_base)} onChange={(e) => setBen({ ...ben, value_base: e.target.value.replace(/[^\d]/g, '') })} /></div>
+              <div><label className="label">Boosts up to (₹) <span className="text-ink-faint font-normal">— optional</span></label><input className="input" inputMode="numeric" placeholder="e.g. 4000000" value={groupDigits(ben.value_boosted_to)} onChange={(e) => setBen({ ...ben, value_boosted_to: e.target.value.replace(/[^\d]/g, '') })} /></div>
             </div>
             <div><label className="label">Notes <span className="text-ink-faint font-normal">— optional</span></label><input className="input" placeholder="e.g. split 2.5L/2.5L, preserved for emergency" value={ben.rule} onChange={(e) => setBen({ ...ben, rule: e.target.value })} /></div>
             <button onClick={addBenefitFact} className="btn-primary">Add benefit</button>

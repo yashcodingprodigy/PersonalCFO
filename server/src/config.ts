@@ -20,7 +20,12 @@ export const config = {
   // ElevenLabs — human-sounding multilingual voice (TTS) + speech-to-text (Scribe).
   elevenLabsKey: process.env.ELEVENLABS_API_KEY || '',
   elevenVoiceEn: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL', // "Sarah" — warm, young, conversational (premade)
-  elevenVoiceHi: process.env.ELEVENLABS_VOICE_ID_HI || process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
+  // Hindi voice: set explicitly, or leave blank and the server auto-picks a native-Hindi voice from the ElevenLabs library.
+  elevenVoiceHi: process.env.ELEVENLABS_VOICE_ID_HI || '',
+  // Sarvam AI (Indian TTS, native Hindi accent) — preferred for Hindi when set.
+  sarvamKey: process.env.SARVAM_API_KEY || '',
+  sarvamTtsModel: process.env.SARVAM_TTS_MODEL || 'bulbul:v3',
+  sarvamSpeakerHi: process.env.SARVAM_SPEAKER_HI || 'ritu',
   elevenTtsModel: process.env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2',
   elevenSttModel: process.env.ELEVENLABS_STT_MODEL || 'scribe_v2',
   encryptionKey: process.env.ENCRYPTION_KEY || '',

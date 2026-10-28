@@ -10,15 +10,11 @@
 
 import { ProfileData, liquidReserve } from './score';
 import { deriveLifePhase, phaseEquityAdj, LifePhase } from './lifestage';
+import { inrIN } from '../lib/money';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 const n = (x: any) => Number(x) || 0;
-const inr = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inr = inrIN;
 
 export type Risk = 'conservative' | 'moderate' | 'aggressive';
 

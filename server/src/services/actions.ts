@@ -4,6 +4,7 @@
 
 import { ProfileData, totalMonthlyEmi, deductionUsage, liquidReserve } from './score';
 import { compareRegimes } from './tax';
+import { inrIN, inrRangeIN } from '../lib/money';
 
 export interface GeneratedAction {
   rule_id: string;
@@ -20,23 +21,11 @@ export interface GeneratedAction {
   priority?: 'high' | 'medium' | 'low';
 }
 
-const inr = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inr = inrIN;
 
 // Rounded range for sizing GUIDANCE (insurance cover etc.), to avoid implying
 // false precision. ₹10.85 Cr → "around ₹10–11 Cr".
-const inrRange = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r <= 0) return '₹0';
-  if (r >= 1e7) { const lo = Math.floor(r / 1e7), hi = Math.ceil(r / 1e7); return lo === hi ? `around ₹${lo} Cr` : `around ₹${lo}–${hi} Cr`; }
-  if (r >= 1e5) { const lo = Math.floor(r / 1e5), hi = Math.ceil(r / 1e5); return lo === hi ? `around ₹${lo} L` : `around ₹${lo}–${hi} L`; }
-  const k = r / 1000; const lo = Math.floor(k / 5) * 5, hi = Math.ceil(k / 5) * 5;
-  return lo === hi ? `around ₹${(lo * 1000).toLocaleString('en-IN')}` : `around ₹${lo}k–${hi}k`;
-};
+const inrRange = (paise: number) => (paise <= 0 ? '₹0' : `around ${inrRangeIN(paise)}`);
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
 

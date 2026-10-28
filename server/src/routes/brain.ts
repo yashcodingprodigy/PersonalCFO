@@ -10,6 +10,7 @@ import { runBrain, brainAfford } from '../services/brain';
 import { integrationReadiness } from '../services/brain/readiness';
 import { captureDream, recentActivity, brainTick } from '../services/brain/autopilot';
 import { asLang } from '../services/brain/i18n';
+import { priceGuide } from '../services/brain/priceGuide';
 
 export const brainRouter = Router();
 brainRouter.use(requireAuth);
@@ -36,6 +37,12 @@ brainRouter.post('/afford', rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'a
 brainRouter.get('/readiness', (_req, res) => res.json(integrationReadiness()));
 
 // "While you were away" — what the brain did automatically.
+// Live price guide while a dream is being typed ("house in South Bombay" → typical prices).
+brainRouter.post('/price-guide', rateLimit({ windowMs: 60_000, max: 90, keyPrefix: 'price' }), async (req: AuthedRequest, res) => {
+  const text = String(req.body?.text || '').slice(0, 200);
+  res.json(await priceGuide(text));
+});
+
 brainRouter.get('/activity', async (req: AuthedRequest, res) => {
   res.json(await recentActivity(req.userId!, Math.min(30, Number(req.query.limit) || 12)));
 });

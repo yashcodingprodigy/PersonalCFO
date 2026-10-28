@@ -1,27 +1,32 @@
 // Indian currency formatting. All API values are in paise.
 
+// Indian digit grouping everywhere: ₹1,200 · ₹1,20,000 · ₹18,60,000 · ₹1,25,00,000.
+const grp = (n: number) => Math.abs(Math.round(n)).toLocaleString('en-IN');
+
 export function inr(paise: number | string | null | undefined, opts: { compact?: boolean } = {}): string {
-  if (paise == null) return '—';
+  if (paise == null || paise === '') return '—';
   const r = Math.round(Number(paise) / 100);
-  const abs = Math.abs(r);
+  if (!Number.isFinite(r)) return '—';
   const sign = r < 0 ? '−' : '';
-  if (opts.compact !== false) {
+  // compact only where space is tight AND the caller asks for it explicitly
+  if (opts.compact === true) {
+    const abs = Math.abs(r);
     if (abs >= 1e7) return `${sign}₹${(abs / 1e7).toFixed(abs >= 1e8 ? 1 : 2)} Cr`;
     if (abs >= 1e5) return `${sign}₹${(abs / 1e5).toFixed(abs >= 1e6 ? 1 : 2)} L`;
   }
-  return `${sign}₹${abs.toLocaleString('en-IN')}`;
+  return `${sign}₹${grp(r)}`;
 }
 
 // Friendly rounded RANGE for guidance figures (e.g. insurance sizing), so we
-// don't imply false precision: ₹10.85 Cr → "₹10–11 Cr", ₹18.5 L → "₹18–19 L".
+// don't imply false precision — still with Indian commas.
+// ₹10.85 Cr → "₹10,00,00,000–₹11,00,00,000", ₹18.5 L → "₹18,00,000–₹19,00,000".
 export function inrRange(paise: number | string | null | undefined): string {
   if (paise == null) return '—';
   const r = Math.round(Number(paise) / 100);
   if (r <= 0) return '₹0';
-  if (r >= 1e7) { const lo = Math.floor(r / 1e7), hi = Math.ceil(r / 1e7); return lo === hi ? `₹${lo} Cr` : `₹${lo}–${hi} Cr`; }
-  if (r >= 1e5) { const lo = Math.floor(r / 1e5), hi = Math.ceil(r / 1e5); return lo === hi ? `₹${lo} L` : `₹${lo}–${hi} L`; }
-  const k = r / 1000; const lo = Math.floor(k / 5) * 5, hi = Math.ceil(k / 5) * 5;
-  return lo === hi ? `₹${(lo * 1000).toLocaleString('en-IN')}` : `₹${lo}k–${hi}k`;
+  const unit = r >= 1e7 ? 1e7 : r >= 1e5 ? 1e5 : 5000;
+  const lo = Math.floor(r / unit) * unit, hi = Math.ceil(r / unit) * unit;
+  return lo === hi ? `₹${grp(lo)}` : `₹${grp(lo)}–₹${grp(hi)}`;
 }
 
 // Approximate amount for guidance figures (e.g. suggested monthly investment),
@@ -30,18 +35,21 @@ export function inrApprox(paise: number | string | null | undefined): string {
   if (paise == null) return '—';
   const r = Math.round(Number(paise) / 100);
   if (r <= 0) return '₹0';
-  if (r >= 1e7) { const cr = r / 1e7; return `~₹${cr.toFixed(cr >= 10 ? 0 : 1)} Cr`; }
-  if (r >= 1e5) { const l = r / 1e5; return `~₹${l.toFixed(l >= 10 ? 0 : 1)} L`; }
-  // round to a friendly step: nearest ₹500 below ₹50k, nearest ₹1,000 above
-  const step = r >= 50000 ? 1000 : 500;
+  const step = r >= 1e7 ? 1e6 : r >= 1e5 ? 10000 : r >= 50000 ? 1000 : 500;
   const rounded = Math.max(step, Math.round(r / step) * step);
-  return `~₹${rounded.toLocaleString('en-IN')}`;
+  return `~₹${grp(rounded)}`;
 }
 
 export function inrFull(paise: number | string | null | undefined): string {
   if (paise == null) return '—';
   const r = Math.round(Number(paise) / 100);
-  return `${r < 0 ? '−' : ''}₹${Math.abs(r).toLocaleString('en-IN')}`;
+  return `${r < 0 ? '−' : ''}₹${grp(r)}`;
+}
+
+/** Format a rupee amount typed by the user with Indian commas ("120000" → "1,20,000"). */
+export function groupDigits(raw: string): string {
+  const digits = String(raw).replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+  return digits ? Number(digits).toLocaleString('en-IN') : '';
 }
 
 export function rupeesToPaise(rupees: string | number): number {

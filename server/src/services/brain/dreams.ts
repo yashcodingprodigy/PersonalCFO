@@ -15,6 +15,7 @@
 
 import { MoneyMap } from './cashflow';
 import { Lang, M } from './i18n';
+import { inrIN } from '../../lib/money';
 
 export type DreamKind = 'experience' | 'purchase' | 'family' | 'safety' | 'growth' | 'milestone';
 export type DreamStatus = 'achieved' | 'on_track' | 'stretch' | 'needs_tradeoff';
@@ -134,10 +135,7 @@ export function ym(now: Date, addMonths: number): string {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export function prettyYm(s: string): string { const [y, m] = s.split('-'); return `${MONTHS[Number(m) - 1]} ${y}`; }
 export function inr(paise: number): string {
-  const r = Math.round(paise / 100);
-  if (Math.abs(r) >= 1e7) return `₹${(r / 1e7).toFixed(2).replace(/\.00$/, '')} Cr`;
-  if (Math.abs(r) >= 1e5) return `₹${(r / 1e5).toFixed(1).replace(/\.0$/, '')}L`;
-  return `₹${r.toLocaleString('en-IN')}`;
+  return inrIN(paise);
 }
 
 // ── goal → dream mapping (dreams live in the existing goals table) ────────

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { inr } from '@/lib/format';
+import { inr, groupDigits } from '@/lib/format';
 
 // Indian-system number to words (for rent receipts).
 function inWords(n: number): string {
@@ -56,7 +56,7 @@ export default function RentReceiptsPage() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div><label className="label">Your name (tenant)</label><input className="input" value={f.tenant} onChange={set('tenant')} placeholder="Your full name" /></div>
             <div><label className="label">Landlord name</label><input className="input" value={f.landlord} onChange={set('landlord')} placeholder="Landlord's name" /></div>
-            <div><label className="label">Monthly rent (₹)</label><input className="input" inputMode="numeric" value={f.rent} onChange={(e) => setF((p) => ({ ...p, rent: e.target.value.replace(/[^\d]/g, '') }))} placeholder="25000" /></div>
+            <div><label className="label">Monthly rent (₹)</label><input className="input" inputMode="numeric" value={groupDigits(f.rent)} onChange={(e) => setF((p) => ({ ...p, rent: e.target.value.replace(/[^\d]/g, '') }))} placeholder="25000" /></div>
             <div><label className="label">Landlord PAN {annual > 100000 ? '(required)' : '(optional)'}</label><input className="input uppercase" value={f.pan} onChange={set('pan')} placeholder="ABCDE1234F" /></div>
             <div><label className="label">From month</label><input type="month" className="input" value={f.from} onChange={set('from')} /></div>
             <div><label className="label">To month</label><input type="month" className="input" value={f.to} onChange={set('to')} /></div>

@@ -241,6 +241,18 @@ brain, "say it like you'd tell a friend", dream cards, money river, autopilot fe
 pitch. Landing copy is hand-written EN + हिंदी (no AI dependency for the first impression). A dream typed on the home
 page becomes a real plan right after sign-in.
 
+**D-49  Indian digit grouping everywhere.** Users read lakhs and crores; "₹18.6 L" is ambiguous for many. All amounts
+show full Indian commas (₹18,60,000), inputs format as you type; one shared formatter on each side.
+
+**D-50  Show typical prices while a dream is typed.** People don't know what "a 2BHK in South Mumbai" or "Bali with
+friends" costs, so the planner shows ranges they can tap. Built-in table first (offline, instant), AI refines; always
+labelled "planning range, not a quote".
+
+**D-51  The assistant acts, not just answers.** Chat and voice can open pages, deep-link the insurance marketplace to the
+user's biggest gap and pin a do/avoid guide, edit dreams and change settings. Deterministic intent routing (works without
+AI), voice + chat share one conversation, and past conversations feed a memory snippet. Hindi speech goes to Sarvam AI
+(native Indian voices) because an English voice speaking Hindi sounds foreign.
+
 ---
 
 ## E. Reversals / revisits log

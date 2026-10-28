@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Wordmark } from '@/components/Logo';
 import { patch, post } from '@/lib/api';
-import { rupeesToPaise, inr } from '@/lib/format';
+import { rupeesToPaise, inr, groupDigits } from '@/lib/format';
 import { STATES, citiesForState } from '@/lib/india';
 
 // Progressive 3-session onboarding (SRS §5.2). Every field except income
@@ -20,7 +20,7 @@ function Money({ label, value, onChange, hint, placeholder = '0' }: {
       <label className="label">{label}</label>
       <div className="flex">
         <span className="inline-flex items-center rounded-l-lg border border-r-0 border-paper-200 bg-paper-100 px-3.5 text-sm font-semibold text-ink-soft">₹</span>
-        <input className="input rounded-l-none" inputMode="numeric" placeholder={placeholder} value={value}
+        <input className="input rounded-l-none" inputMode="numeric" placeholder={placeholder} value={groupDigits(value)}
           onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ''))} />
       </div>
       {hint && <p className="text-[11px] text-ink-faint mt-1">{hint}</p>}

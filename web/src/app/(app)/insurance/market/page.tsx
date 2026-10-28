@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { get, post } from '@/lib/api';
-import { inr } from '@/lib/format';
+import { inr, groupDigits } from '@/lib/format';
 import { insCatColor, PALETTE_HEX } from '@/lib/colors';
 import { toast } from '@/lib/toast';
 import { Skeleton, SkeletonCard, WittyLoader } from '@/components/Skeleton';
@@ -127,7 +127,7 @@ export default function InsuranceMarket() {
       <div className="card p-4 flex flex-wrap items-end gap-3">
         {showCover && (
           <div><label className="label">{cat === 'motor' ? 'Vehicle value (IDV)' : cat === 'home' ? 'Cover (₹)' : 'Cover you want (₹)'}</label>
-            <input className="input w-44" inputMode="numeric" value={coverR} onChange={(e) => setCoverR(e.target.value)} /></div>
+            <input className="input w-44" inputMode="numeric" value={groupDigits(coverR)} onChange={(e) => setCoverR(e.target.value.replace(/[^\d]/g, ''))} /></div>
         )}
         <div><label className="label">Age</label><input className="input w-20" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} /></div>
         {showFamily && <div><label className="label">Family size</label><input className="input w-20" inputMode="numeric" value={family} onChange={(e) => setFamily(e.target.value)} /></div>}

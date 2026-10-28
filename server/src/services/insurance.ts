@@ -4,26 +4,15 @@
 import { ProfileData } from './score';
 import { deriveLifePhase } from './lifestage';
 import { effectiveCoverFromBenefits } from './context';
+import { inrIN, inrRangeIN } from '../lib/money';
 
 const sum = (arr: any[], f: string) => (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.[f]) || 0), 0);
-const inr = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inr = inrIN;
 
 // Insurance cover is a guideline, not an exact number — present sizing as a
 // friendly rounded range so we don't imply false precision.
 // ₹10.85 Cr → "around ₹10–11 Cr", ₹18.5 L → "around ₹18–19 L".
-const inrRange = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r <= 0) return '₹0';
-  if (r >= 1e7) { const lo = Math.floor(r / 1e7), hi = Math.ceil(r / 1e7); return lo === hi ? `around ₹${lo} Cr` : `around ₹${lo}–${hi} Cr`; }
-  if (r >= 1e5) { const lo = Math.floor(r / 1e5), hi = Math.ceil(r / 1e5); return lo === hi ? `around ₹${lo} L` : `around ₹${lo}–${hi} L`; }
-  const k = r / 1000; const lo = Math.floor(k / 5) * 5, hi = Math.ceil(k / 5) * 5;
-  return lo === hi ? `around ₹${(lo * 1000).toLocaleString('en-IN')}` : `around ₹${lo}k–${hi}k`;
-};
+const inrRange = (paise: number) => (paise <= 0 ? '₹0' : `around ${inrRangeIN(paise)}`);
 
 export interface InsuranceAnalysis {
   term: {

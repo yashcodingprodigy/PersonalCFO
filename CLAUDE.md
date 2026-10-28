@@ -314,6 +314,21 @@ unread-alerts badge, native biometric lock overlay).
   (denied / no-mic / unsupported / network (Brave/Arc) / dictation-off (Safari) / no-speech / stt-failed) that
   VoiceMode shows in EN/HI; live partial transcript while speaking. Native: Android `RECORD_AUDIO`, iOS
   `NSMicrophoneUsageDescription` + `NSSpeechRecognitionUsageDescription`.
+- **Money format (D-49):** every ₹ figure uses Indian grouping (₹1,20,000 · ₹18,60,000 · ₹1,25,00,000). Server: `lib/money.ts`
+  `inrIN()` / `inrRangeIN()` used by all services; web: `lib/format` `inr()` full by default (`{compact:true}` only on
+  request), `groupDigits()` formats money inputs as you type (state keeps plain digits).
+- **Price guide (D-50):** `brain/priceGuide.ts` — `POST /v1/brain/price-guide {text}` → typical prices for a dream as it is
+  typed (property ₹/sq ft by city & locality incl. South Mumbai, trips per person × people, cars, bikes, phones, laptops,
+  weddings, courses, businesses, health cover); built-in table + Claude refinement (Haiku, 24 h cache); planning ranges,
+  never a quote. Web `components/PriceGuide.tsx` on the Dreams form + "Can I afford it?" (tap an option to fill cost).
+- **Assistant actions (D-51):** `services/assistantActions.ts` `planActions()` runs before every Ask answer (chat + voice):
+  navigate to any page (EN/HI/Hinglish), insurance marketplace deep-link `?category=` (picks the user's biggest gap),
+  personal corner **guide** (do / avoid, compliance footnote) for marketplace/tax/invest, update a dream's amount/date,
+  set risk or language. `/qa` returns `actions[]`; web `Assistant.runActions()` + `GuidePanel.tsx`. Voice and chat share
+  ONE conversation (`sessionStorage paywatch_conv`; switch keeps history); `cfo-ai.recallMemory()` adds snippets from the
+  user's other conversations (60 days) to the prompt. Voice: mic kept open across turns, "Getting ready…" → chime →
+  listening (no lost first words), VAD threshold 0.025. **Hindi voice:** Sarvam AI Bulbul (`SARVAM_API_KEY`, speaker
+  `ritu`, model `bulbul:v3`) → else auto-picked native-Hindi ElevenLabs library voice ("PayWatch Hindi") → device voice.
 - **Language (D-45):** `users.language` ('en'|'hi'); `services/translate.ts` + `routes/i18n.ts` (`POST /i18n/translate`,
   `GET /i18n/status` = key set? + last error; `translations` cache table; env `TRANSLATE_MODEL` default Haiku 4.5, falls
   back to `ANTHROPIC_MODEL`; **needs `ANTHROPIC_API_KEY`**). Translates in parallel chunks of 20 with keyed JSON so a
@@ -432,7 +447,7 @@ aggregates for the shared catalog), and the **CA portal**: `cas`,
   Disabled until `CRON_SECRET` set.
 - **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
   `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
-  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice), `TRANSLATE_MODEL`(opt), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
+  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice; HI auto-picked if blank), **`SARVAM_API_KEY`** (+opt `SARVAM_SPEAKER_HI`, `SARVAM_TTS_MODEL`) for native Hindi voice, `TRANSLATE_MODEL`(opt), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
   `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery),
   **`SUPABASE_URL`+`SUPABASE_SERVICE_KEY`+`SUPABASE_BUCKET`** (opt — enables CA document sharing; use the
   new `sb_secret_` key; create a **private** bucket `ca-documents`).
@@ -575,7 +590,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **201 assertions** (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **210 assertions** (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

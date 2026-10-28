@@ -10,7 +10,7 @@
 import { api, apiBlob, get } from './api';
 
 export type VoiceLang = 'en' | 'hi';
-type Status = { tts: 'elevenlabs' | 'browser'; stt: 'elevenlabs' | 'browser' };
+type Status = { tts: 'elevenlabs' | 'browser'; ttsHi?: 'sarvam' | 'elevenlabs' | 'browser'; stt: 'elevenlabs' | 'browser' };
 
 let statusP: Promise<Status> | null = null;
 export function voiceStatus(): Promise<Status> {
@@ -89,7 +89,8 @@ export async function speak(text: string, lang: VoiceLang, onProgress?: (r: numb
   const clean = cleanForSpeech(text);
   if (!clean) return;
   const st = await voiceStatus();
-  if (st.tts === 'elevenlabs') {
+  const serverVoice = lang === 'hi' ? (st.ttsHi || st.tts) !== 'browser' : st.tts === 'elevenlabs';
+  if (serverVoice) {
     try {
       const blob = await apiBlob('/voice/tts', { text: clean, lang });
       if (blob && blob.size > 0) {
@@ -146,7 +147,7 @@ function meter(stream: MediaStream, onLevel?: (v: number) => void) {
       let sum = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
       const rms = Math.sqrt(sum / buf.length);
       onLevel?.(Math.min(1, rms * 6));
-      if (rms > 0.035) { spoke = true; lastLoud = Date.now(); }
+      if (rms > 0.025) { spoke = true; lastLoud = Date.now(); } // low enough to catch a quiet "yes" / "haan"
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -160,7 +161,34 @@ function meter(stream: MediaStream, onLevel?: (v: number) => void) {
 }
 
 /** Start listening. `onLevel` gets 0..1 mic loudness; `onPartial` gets live words as you speak. */
-export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial?: (t: string) => void): ListenHandle {
+// The mic stays open for the whole voice session, so the next turn starts instantly
+// (re-opening it each turn is what swallowed the first ~2 seconds of speech).
+let keptStream: MediaStream | null = null;
+async function getMic(md: any): Promise<MediaStream> {
+  if (keptStream && keptStream.getAudioTracks().some((t) => t.readyState === 'live')) return keptStream;
+  keptStream = await md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  return keptStream!;
+}
+/** Close the microphone (call when the voice screen closes). */
+export function releaseMic() {
+  try { keptStream?.getTracks().forEach((t) => t.stop()); } catch {}
+  keptStream = null;
+}
+/** A soft two-note chime so people know exactly when to start talking. */
+export function readyChime() {
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext); const ctx = new Ctx();
+    [660, 880].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; o.type = 'sine';
+      const t0 = ctx.currentTime + i * 0.09; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.08, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+      o.connect(g).connect(ctx.destination); o.start(t0); o.stop(t0 + 0.18);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 600);
+    (navigator as any).vibrate?.(15);
+  } catch { /* cosmetic */ }
+}
+
+export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial?: (t: string) => void, onReady?: () => void): ListenHandle {
   let stopFn = () => {};
   const result = (async (): Promise<ListenResult> => {
     const st = await voiceStatus();
@@ -169,10 +197,10 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
 
     // 1) Ask for the mic first — gives a clear "blocked / no mic" answer instead of silence.
     let stream: MediaStream;
-    try { stream = await md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    try { stream = await getMic(md); }
     catch (e) { return { text: '', language: null, error: micError(e) }; }
     const m = meter(stream, onLevel);
-    const release = () => { m.stop(); stream.getTracks().forEach((t) => t.stop()); };
+    const release = () => { m.stop(); }; // keep the mic warm for the next turn
 
     // 2a) ElevenLabs Scribe: record → transcribe on our server (works in every modern browser).
     if (st.stt === 'elevenlabs' && (window as any).MediaRecorder) {
@@ -191,6 +219,7 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
         stopFn = () => { clearInterval(iv); try { rec.stop(); } catch {} };
       });
       rec.start(250);
+      onReady?.(); // recording is live — speak now
       await done;
       const spoke = m.spoke || !m.working;
       release();
@@ -209,7 +238,7 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
     const shareMic = !/Android|iPhone|iPad/i.test(navigator.userAgent);
     let released = false;
     const releaseOnce = () => { if (!released) { released = true; release(); } };
-    if (!shareMic) releaseOnce();
+    if (!shareMic) { releaseOnce(); releaseMic(); } // phones: hand the mic to the recogniser
     return await new Promise<ListenResult>((resolve) => {
       const r = new SR();
       r.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
@@ -238,6 +267,9 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
           : 'no-speech';
       };
       r.onend = finish;
+      let readyFired = false;
+      const ready = () => { if (!readyFired) { readyFired = true; onReady?.(); } };
+      r.onaudiostart = ready; r.onstart = () => setTimeout(ready, 250);
       r.onsoundstart = () => { if (!shareMic) onLevel?.(0.5); };
       r.onspeechend = () => { if (!shareMic) onLevel?.(0); };
       stopFn = () => { try { r.stop(); } catch { finish(); } };

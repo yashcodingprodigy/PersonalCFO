@@ -16,6 +16,7 @@ import { query } from '../db';
 import { runBrain, brainAfford } from './brain';
 import { translateTexts } from './translate';
 import { parseRupees, parseMonths, catalogName } from './brain/dreamCapture';
+import { inrIN } from '../lib/money';
 
 export const AI_DISCLAIMER =
   'This is educational information based on your financial data and standard planning principles — not SEBI-registered investment advice. For personalised investment recommendations, consult a SEBI Registered Investment Adviser.';
@@ -152,12 +153,7 @@ export function parseAffordIntent(qRaw: string): AffordIntent | null {
 }
 
 // ── Context builder ─────────────────────────────────────────────────
-const inr = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (Math.abs(r) >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (Math.abs(r) >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inr = inrIN;
 
 export function buildUserContext(p: ProfileData): string {
   const score = computeScore(p);
@@ -346,7 +342,27 @@ function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[], ins
 }
 
 // ── Main entry ──────────────────────────────────────────────────────
-export interface AnswerOpts { lang?: 'en' | 'hi'; voice?: boolean }
+export interface AnswerOpts { lang?: 'en' | 'hi'; voice?: boolean; conversationId?: string | null; actionNote?: string | null }
+/** Relevant snippets from the user's OTHER conversations (keyword match + most recent), newest first. */
+export async function recallMemory(userId: string, question: string, currentConv: string | null): Promise<string | null> {
+  const rows = await query<any>(
+    `WITH mine AS (
+       SELECT m.content, m.created_at, m.role, m.conversation_id
+         FROM messages m JOIN conversations c ON c.conversation_id = m.conversation_id
+        WHERE c.user_id = $1 AND ($2::uuid IS NULL OR m.conversation_id <> $2::uuid)
+          AND m.created_at > now() - interval '60 days')
+     (SELECT content, created_at, role FROM mine
+       WHERE role = 'user' AND to_tsvector('simple', content) @@ plainto_tsquery('simple', $3)
+       ORDER BY created_at DESC LIMIT 4)
+     UNION
+     (SELECT content, created_at, role FROM mine WHERE role = 'user' ORDER BY created_at DESC LIMIT 4)
+     ORDER BY created_at DESC LIMIT 6`,
+    [userId, currentConv, question.slice(0, 200)]
+  );
+  if (!rows.length) return null;
+  return rows.map((r) => `- (${new Date(r.created_at).toISOString().slice(0, 10)}) user said: "${String(r.content).slice(0, 180)}"`).join('\n');
+}
+
 export async function answerQuestion(
   userId: string,
   question: string,
@@ -425,6 +441,14 @@ export async function answerQuestion(
       }
     }
   } catch { /* brain context is best-effort; answers still work without it */ }
+
+  // Memory across conversations (chat AND voice): what the user said before, so
+  // PayWatch keeps context between sessions — e.g. a dream mentioned last week.
+  try {
+    const mem = await recallMemory(userId, question, opts.conversationId || null);
+    if (mem) userContext += `\nEarlier conversations with this user (for continuity — use only if relevant, don't repeat back):\n${mem}`;
+  } catch { /* memory is best-effort */ }
+  if (opts.actionNote) userContext += `\nAPP ACTIONS ALREADY DONE for this message (acknowledge in ONE short natural sentence, don't list them): ${opts.actionNote}`;
 
   let content: string;
   let engine: 'claude' | 'rules';

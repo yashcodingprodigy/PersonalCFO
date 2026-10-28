@@ -2,30 +2,82 @@
 
 // Ask PayWatch, everywhere. One tap from any screen opens a small chooser —
 // Talk (voice) or Type (chat) — and the assistant appears ON TOP of the page you
-// are on: a side panel / bottom sheet for chat, a full-screen orb for voice.
-// No navigation away from what you were looking at.
+// are on. Voice and chat share ONE conversation (switch any time, history stays),
+// and the assistant can act: open pages, update dreams, change settings, and pin
+// a short "what to do / what to avoid" guide in the corner of the page it opens.
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChatPanel } from './ChatPanel';
 import { VoiceMode } from './VoiceMode';
+import { GuidePanel, Guide } from './GuidePanel';
 import { useLang } from '@/lib/i18n';
 import { clearCache } from '@/lib/api';
 
 type Mode = null | 'chooser' | 'chat' | 'voice';
-interface Ctx { open: (m?: 'chooser' | 'chat' | 'voice', question?: string) => void; close: () => void; mode: Mode }
-const AssistantCtx = createContext<Ctx>({ open: () => {}, close: () => {}, mode: null });
+export type AssistantAction =
+  | { type: 'navigate'; path: string; label: string }
+  | ({ type: 'guide' } & Guide)
+  | { type: 'refresh' }
+  | { type: 'set_language'; value: 'en' | 'hi' };
+
+interface Ctx {
+  open: (m?: 'chooser' | 'chat' | 'voice', question?: string) => void;
+  close: () => void;
+  mode: Mode;
+  /** Apply what the assistant decided to do. Returns true if it navigated. */
+  runActions: (a?: AssistantAction[]) => boolean;
+}
+const AssistantCtx = createContext<Ctx>({ open: () => {}, close: () => {}, mode: null, runActions: () => false });
 export const useAssistant = () => useContext(AssistantCtx);
 
 /** Fired after the assistant changes data (e.g. captured a dream) so pages refresh. */
 export const DATA_CHANGED = 'paywatch:data-changed';
+const CONV_KEY = 'paywatch_conv';
+const GUIDE_KEY = 'paywatch_guide';
 
 export function AssistantProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>(null);
   const [question, setQuestion] = useState<string | undefined>();
-  const { t } = useLang();
+  const [convId, setConvIdState] = useState<string | null>(null);
+  const [guide, setGuide] = useState<Guide | null>(null);
+  const [chatKey, setChatKey] = useState(0);
+  const { t, setLang } = useLang();
+
+  // The current conversation (shared by voice + chat) and any pinned guide survive reloads within the session.
+  useEffect(() => {
+    try {
+      setConvIdState(sessionStorage.getItem(CONV_KEY));
+      const g = sessionStorage.getItem(GUIDE_KEY); if (g) setGuide(JSON.parse(g));
+    } catch {}
+  }, []);
+  const setConvId = useCallback((id: string | null) => {
+    setConvIdState(id);
+    try { id ? sessionStorage.setItem(CONV_KEY, id) : sessionStorage.removeItem(CONV_KEY); } catch {}
+  }, []);
+  const showGuide = useCallback((g: Guide | null) => {
+    setGuide(g);
+    try { g ? sessionStorage.setItem(GUIDE_KEY, JSON.stringify(g)) : sessionStorage.removeItem(GUIDE_KEY); } catch {}
+  }, []);
+
+  const newChat = useCallback(() => { setConvId(null); setQuestion(undefined); setChatKey((k) => k + 1); }, [setConvId]);
   const open = useCallback((m: 'chooser' | 'chat' | 'voice' = 'chooser', q?: string) => { setQuestion(q); setMode(m); }, []);
   const close = useCallback(() => { setMode(null); setQuestion(undefined); }, []);
   const changed = useCallback(() => { clearCache(); window.dispatchEvent(new Event(DATA_CHANGED)); }, []);
+
+  const runActions = useCallback((actions?: AssistantAction[]) => {
+    if (!actions?.length) return false;
+    let navigated = false;
+    for (const a of actions) {
+      if (a.type === 'navigate') { router.push(a.path); navigated = true; }
+      else if (a.type === 'guide') { const { type, ...g } = a; showGuide(g as Guide); }
+      else if (a.type === 'refresh') changed();
+      else if (a.type === 'set_language') setLang(a.value);
+    }
+    if (navigated && !actions.some((a) => a.type === 'guide')) showGuide(null);
+    return navigated;
+  }, [router, showGuide, changed, setLang]);
 
   useEffect(() => {
     if (mode !== 'chooser' && mode !== 'chat') return;
@@ -35,8 +87,10 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
   }, [mode, close]);
 
   return (
-    <AssistantCtx.Provider value={{ open, close, mode }}>
+    <AssistantCtx.Provider value={{ open, close, mode, runActions }}>
       {children}
+
+      {guide && mode !== 'voice' && <GuidePanel guide={guide} onClose={() => showGuide(null)} onAsk={() => open('chat')} />}
 
       {mode === 'chooser' && (
         <div className="fixed inset-0 z-[70] no-print" onClick={close}>
@@ -58,6 +112,9 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
                 <span className="block text-[11px] text-ink-faint mt-0.5">{t('as.chatSub')}</span>
               </button>
             </div>
+            {convId && (
+              <button onClick={newChat} className="mt-3 text-[11px] text-ink-faint hover:text-pine-700 underline">{t('as.newChat')}</button>
+            )}
           </div>
         </div>
       )}
@@ -73,6 +130,9 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
                 <p className="font-bold">{t('nav./ask')}</p>
               </div>
               <div className="flex items-center gap-1">
+                <button onClick={newChat} title={t('as.newChat')} className="w-9 h-9 rounded-full hover:bg-paper-100 grid place-items-center text-ink-soft">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
+                </button>
                 <button onClick={() => setMode('voice')} title={t('as.voice')} className="w-9 h-9 rounded-full hover:bg-paper-100 grid place-items-center text-pine-800">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M19 10v1a7 7 0 0 1-14 0v-1" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
                 </button>
@@ -82,13 +142,18 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              <ChatPanel variant="overlay" initialQuestion={question} onDataChanged={changed} />
+              <ChatPanel key={chatKey} variant="overlay" initialQuestion={question} conversationId={convId}
+                onConversation={setConvId} onDataChanged={changed}
+                onActions={(a) => { if (runActions(a)) setTimeout(close, 900); }} />
             </div>
           </aside>
         </div>
       )}
 
-      {mode === 'voice' && <VoiceMode onClose={close} onSwitchToChat={() => setMode('chat')} onDataChanged={changed} />}
+      {mode === 'voice' && (
+        <VoiceMode conversationId={convId} onConversation={setConvId} onClose={close}
+          onSwitchToChat={() => setMode('chat')} onDataChanged={changed} onActions={runActions} />
+      )}
     </AssistantCtx.Provider>
   );
 }

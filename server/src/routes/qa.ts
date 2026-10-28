@@ -10,13 +10,10 @@ import { GOAL_TYPES } from '../services/goals';
 import { PLANS, PlanKey } from '../config';
 import { captureDream } from '../services/brain/autopilot';
 import { asLang } from '../services/brain/i18n';
+import { inrIN } from '../lib/money';
+import { planActions, ActionPlan } from '../services/assistantActions';
 
-const fmtRupees = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const fmtRupees = inrIN;
 
 export const qaRouter = Router();
 qaRouter.use(requireAuth);
@@ -94,7 +91,18 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
 
   await query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convId, question]);
 
-  const answer = await answerQuestion(req.userId!, question, p, history, { lang, voice: mode === 'voice' });
+  // What should the app DO for this message? (navigate, guide, update a dream, settings)
+  const act = await planActions(req.userId!, question, p, lang).catch(() => ({ actions: [], note: null, confirm: null } as ActionPlan));
+  const answer = await answerQuestion(req.userId!, question, p, history, { lang, voice: mode === 'voice', conversationId: convId, actionNote: act.note });
+  if (answer.engine === 'rules' && act.actions.some((a) => a.type === 'navigate')) {
+    // Without the AI, keep it short and about the action instead of a generic answer.
+    const nav = act.actions.find((a) => a.type === 'navigate') as any;
+    const hasGuide = act.actions.some((a) => a.type === 'guide');
+    answer.content = lang === 'hi'
+      ? `ठीक है — ${nav.label} खोल रहा हूँ।${hasGuide ? ' कोने में एक छोटी गाइड भी लगा दी है: क्या करें और क्या न करें।' : ''}`
+      : `Sure — opening ${nav.label}.${hasGuide ? ' I’ve pinned a quick guide in the corner: what to do and what to avoid.' : ''}`;
+  }
+  if (act.confirm) answer.content = `${act.confirm}\n\n${answer.content}`;
 
   // Goal creation from chat: if the user asked to create a goal and gave an
   // amount, add it directly (respecting their plan's goal limit) and confirm.
@@ -142,7 +150,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   // private RAG memory — future answers know what they care about.
   await remember(req.userId!, 'question_asked', `Asked: ${question.slice(0, 100)}`, `On ${new Date().toISOString().slice(0, 10)} the user asked: "${question}". Topic relevance for future personalisation.`);
 
-  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction });
+  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction, actions: act.actions });
 }
 
 const qaLimit = rateLimit({ windowMs: 60_000, max: 15, keyPrefix: 'qa' });

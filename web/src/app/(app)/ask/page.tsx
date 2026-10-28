@@ -5,8 +5,10 @@
 import { useEffect, useState } from 'react';
 import { ChatPanel } from '@/components/assistant/ChatPanel';
 import { clearCache } from '@/lib/api';
+import { useAssistant } from '@/components/assistant/Assistant';
 
 export default function AskPage() {
+  const { runActions } = useAssistant();
   const [q, setQ] = useState<string | undefined>(undefined);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -17,5 +19,5 @@ export default function AskPage() {
     setReady(true);
   }, []);
   if (!ready) return null;
-  return <ChatPanel variant="page" initialQuestion={q} onDataChanged={() => clearCache()} />;
+  return <ChatPanel variant="page" initialQuestion={q} onDataChanged={() => clearCache()} onActions={(a) => runActions(a)} />;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { get, post, del, downloadFile } from '@/lib/api';
-import { inr } from '@/lib/format';
+import { inr, groupDigits } from '@/lib/format';
 import { fileToBase64 } from '@/components/CaThread';
 import { toast, PROFILE_UPDATED } from '@/lib/toast';
 import { recCatColor } from '@/lib/colors';
@@ -423,7 +423,7 @@ export default function MonthlyRecords() {
               <div className="flex items-end gap-2 flex-wrap">
                 <div>
                   <label className="label">Annual gross salary (₹)</label>
-                  <input className="input w-48" defaultValue={staged.annualGross ? Math.round(staged.annualGross / 100).toString() : ''} onChange={(e) => setGross(e.target.value)} onBlur={recalcTax} inputMode="numeric" />
+                  <input className="input w-48" defaultValue={staged.annualGross ? groupDigits(String(Math.round(staged.annualGross / 100))) : ''} onChange={(e) => { const d = e.target.value.replace(/[^\d]/g, ''); e.target.value = groupDigits(d); setGross(d); }} onBlur={recalcTax} inputMode="numeric" />
                 </div>
                 <button onClick={recalcTax} className="rounded-full border border-pine-600 text-pine-700 px-4 py-2 text-xs font-bold hover:bg-pine-50">Recalculate tax</button>
               </div>

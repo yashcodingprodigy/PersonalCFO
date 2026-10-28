@@ -12,6 +12,7 @@
 
 import { ProfileData, deductionUsage } from './score';
 import { computeHraExemption, currentFY } from './tax';
+import { inrIN } from '../lib/money';
 
 const CESS = 0.04;
 
@@ -216,12 +217,7 @@ function computeReturn(inp: FilingInputs, regime: 'old' | 'new'): RegimeReturn {
 }
 
 // Compact ₹ for set-off notes.
-function inrW(paise: number): string {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-}
+function inrW(paise: number): string { return inrIN(paise); }
 
 function pickForm(inp: FilingInputs, totalIncome: number): ItrFiling['form'] {
   const hasCG = (inp.stcgEquity || 0) > 0 || (inp.ltcgEquity || 0) > 0 || (inp.otherCapitalGains || 0) > 0

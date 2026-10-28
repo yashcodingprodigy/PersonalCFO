@@ -4,6 +4,7 @@
 // All amounts in paise.
 
 import { ProfileData, deductionUsage } from './score';
+import { inrIN } from '../lib/money';
 
 interface Slab { upTo: number; rate: number }
 
@@ -199,12 +200,7 @@ export function compareRegimes(p: ProfileData): RegimeComparison {
 }
 
 // ── Beginner-friendly tax reduction plan ─────────────────────────────
-const inrR = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inrR = inrIN;
 
 // Marginal rate (incl. 4% cess) at the user's old-regime taxable income —
 // i.e. the rate at which each extra rupee of deduction saves tax.

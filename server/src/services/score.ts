@@ -1,3 +1,4 @@
+import { inrIN } from '../lib/money';
 // Money Health Score engine — implements SRS §6 exactly.
 // All monetary inputs in paise.
 
@@ -260,11 +261,10 @@ function taxEfficiencyScore(p: ProfileData): DimensionScore {
   const relevant = items.filter((i) => i.section !== '24(b) home loan interest' || i.used > 0);
   const available = relevant.reduce((s, i) => s + i.limit, 0);
   const score = available > 0 ? clamp((used / available) * 100) : 0;
-  const usedL = (used / 100 / 100000).toFixed(1);
   return {
     score: Math.round(score),
     weight: 0.1,
-    explanation: `Using ₹${usedL}L of available deductions. Unused headroom is money left on the table.`,
+    explanation: `Using ${inrIN(used)} of available deductions. Unused headroom is money left on the table.`,
     available: true,
   };
 }

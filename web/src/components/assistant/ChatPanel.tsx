@@ -10,10 +10,16 @@ import { get, post } from '@/lib/api';
 import { useLang, TKey } from '@/lib/i18n';
 import { Markdown } from './Markdown';
 
-export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged }: { variant?: 'page' | 'overlay'; initialQuestion?: string; onDataChanged?: () => void }) {
+export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, conversationId, onConversation, onActions }: {
+  variant?: 'page' | 'overlay'; initialQuestion?: string; onDataChanged?: () => void;
+  /** Continue this conversation (shared with voice mode). */
+  conversationId?: string | null; onConversation?: (id: string) => void;
+  /** Things the assistant decided to do (navigate, guide, refresh…). */
+  onActions?: (a: any[]) => void;
+}) {
   const { lang, t } = useLang();
   const [conversations, setConversations] = useState<any[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(conversationId || null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,13 +31,17 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged }: 
   useEffect(() => {
     if (variant === 'page') get('/qa/conversations').then(setConversations).catch(() => {});
     get('/qa/disclaimer').then((d) => setDisclaimer(d.disclaimer)).catch(() => {});
-    if (initialQuestion && !asked.current) { asked.current = true; send(initialQuestion); }
+    // Picking up where voice (or an earlier chat) left off: show that history first.
+    const resume = conversationId
+      ? get(`/qa/conversations/${conversationId}`).then((c) => setMessages(c.messages || [])).catch(() => {})
+      : Promise.resolve();
+    resume.then(() => { if (initialQuestion && !asked.current) { asked.current = true; send(initialQuestion); } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, busy]);
 
   async function openConversation(id: string) {
-    setActiveId(id);
+    setActiveId(id); onConversation?.(id);
     const conv = await get(`/qa/conversations/${id}`);
     setMessages(conv.messages);
   }
@@ -46,10 +56,12 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged }: 
       const res = activeId ? await post(`/qa/conversations/${activeId}/messages`, body) : await post('/qa/conversations', body);
       if (!activeId) {
         setActiveId(res.conversation_id);
+        onConversation?.(res.conversation_id);
         if (variant === 'page') get('/qa/conversations').then(setConversations).catch(() => {});
       }
       setMessages((m) => [...m, { ...res.message, proposedAction: res.proposedAction }]);
       if (/✨|✅/.test(res.message?.content || '')) onDataChanged?.();
+      if (res.actions?.length) onActions?.(res.actions);
     } catch (e: any) {
       setErr(e.message); setMessages((m) => m.slice(0, -1)); setInput(content);
     } finally { setBusy(false); }

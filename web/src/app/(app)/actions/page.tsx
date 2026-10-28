@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { get, patch, post } from '@/lib/api';
-import { rupeesToPaise } from '@/lib/format';
+import { rupeesToPaise, groupDigits } from '@/lib/format';
 import { LoadingScreen } from '@/components/Skeleton';
 
 // Sarcastic captions that rotate while the action plan loads.
@@ -222,7 +222,7 @@ export default function ActionsPage() {
                           <label className="label">{isInsurance ? 'Cover amount you got' : 'How much did you put in?'}</label>
                           <div className="flex">
                             <span className="inline-flex items-center rounded-l-lg border border-r-0 border-paper-200 bg-paper-100 px-3 text-sm font-semibold text-ink-soft">₹</span>
-                            <input className="input rounded-l-none" inputMode="numeric" placeholder="0" value={amount}
+                            <input className="input rounded-l-none" inputMode="numeric" placeholder="0" value={groupDigits(amount)}
                               onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} />
                           </div>
                         </div>

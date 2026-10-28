@@ -5,6 +5,7 @@
 
 import { categorise } from '../adapters/aa';
 import { ProfileData } from './score';
+import { inrIN } from '../lib/money';
 
 export interface RawTxn {
   date: string;          // YYYY-MM-DD (best-effort)
@@ -13,12 +14,7 @@ export interface RawTxn {
   direction: 'debit' | 'credit';
 }
 
-const inr = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inr = inrIN;
 
 const CATEGORY_LABELS: Record<string, string> = {
   food_dining: 'Food & dining', transport: 'Transport', entertainment: 'Entertainment',

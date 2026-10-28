@@ -5,11 +5,12 @@
 // will be done, and — if it doesn't fit — the exact levers that make it a yes.
 // Dreams are stored as goals (meta.kind / meta.priority), so nothing else breaks.
 
+import { PriceGuide } from '@/components/PriceGuide';
 import { useLang } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { get, post, put, del, swr } from '@/lib/api';
-import { inr, rupeesToPaise } from '@/lib/format';
+import { inr, rupeesToPaise, groupDigits } from '@/lib/format';
 import { Ring, C } from '@/components/kit';
 
 const STATUS: Record<string, { label: string; cls: string; color: string }> = {
@@ -161,10 +162,11 @@ export default function DreamsPage() {
             </div>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            <div><label className="label">Name it</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Goa with the gang" /></div>
-            <div><label className="label">How much will it cost? (₹)</label><input className="input" inputMode="numeric" required value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="60,000" /></div>
+            <div><label className="label">Name it</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 2BHK in Pune, Bali with friends" /></div>
+            <div><label className="label">How much will it cost? (₹)</label><input className="input" inputMode="numeric" required value={groupDigits(amount)} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="60,000" /></div>
+            <div className="sm:col-span-2"><PriceGuide text={name} selected={amount} onPick={setAmount} /></div>
             <div><label className="label">By when? (optional)</label><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-            <div><label className="label">Already saved for it (₹)</label><input className="input" inputMode="numeric" value={saved} onChange={(e) => setSaved(e.target.value.replace(/[^\d]/g, ''))} placeholder="0" /></div>
+            <div><label className="label">Already saved for it (₹)</label><input className="input" inputMode="numeric" value={groupDigits(saved)} onChange={(e) => setSaved(e.target.value.replace(/[^\d]/g, ''))} placeholder="0" /></div>
           </div>
           {pick.kind !== 'safety' && (
             <div>
@@ -186,7 +188,7 @@ export default function DreamsPage() {
         <p className="text-[11px] font-bold uppercase tracking-widest text-ink-faint">Can I afford it?</p>
         <form onSubmit={afford} className="mt-3 grid sm:grid-cols-[1.4fr_1fr_1fr_auto] gap-3 items-end">
           <div><label className="label">What?</label><input className="input" value={aLabel} onChange={(e) => setALabel(e.target.value)} placeholder="a laptop, Seoul trip…" /></div>
-          <div><label className="label">Cost (₹)</label><input className="input" inputMode="numeric" required value={aAmount} onChange={(e) => setAAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="80,000" /></div>
+          <div><label className="label">Cost (₹)</label><input className="input" inputMode="numeric" required value={groupDigits(aAmount)} onChange={(e) => setAAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="80,000" /></div>
           <div>
             <label className="label">When?</label>
             <select className="input" value={aMonths} onChange={(e) => setAMonths(e.target.value)}>
@@ -196,6 +198,7 @@ export default function DreamsPage() {
           </div>
           <button className="btn-primary !py-3" disabled={aBusy || !aAmount}>{aBusy ? 'Thinking…' : 'Check'}</button>
         </form>
+        {aLabel.trim().length >= 3 && <div className="mt-3"><PriceGuide text={aLabel} selected={aAmount} onPick={setAAmount} /></div>}
         {aRes && (
           <div className={`mt-4 rounded-2xl p-4 border ${aRes.verdict === 'yes_now' || aRes.verdict === 'yes_by' ? 'bg-mint-100/60 border-mint-500/40' : aRes.verdict === 'stretch' ? 'bg-signal-amber/5 border-signal-amber/30' : 'bg-paper-50 border-paper-200'}`}>
             <p className="font-semibold">{aRes.headline}</p>

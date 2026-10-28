@@ -12,6 +12,8 @@ import { generateAlerts } from '../src/services/alerts';
 import { computeScore } from '../src/services/score';
 import { detectDream, parseRupees, parseMonths, catalogLocalName } from '../src/services/brain/dreamCapture';
 import { diffBrain, Snapshot } from '../src/services/brain/autopilot';
+import { tableGuide } from '../src/services/brain/priceGuide';
+import { inrIN, inrRangeIN } from '../src/lib/money';
 
 let passed = 0, failed = 0;
 function check(name: string, fn: () => void) {
@@ -326,6 +328,25 @@ check('older mixed names switch language without AI ("Bali विदेश य�
 });
 check('free-typed names are left for translation (no wrong guess)', () => {
   assert.strictEqual(catalogLocalName('House in South Bombay', 'hi'), null);
+});
+
+console.log('\nPRICE GUIDE + INDIAN COMMAS');
+check('South Bombay home is priced far above a tier-2 city', () => {
+  const sobo = tableGuide('house in south bombay')!, t2 = tableGuide('2bhk flat in jaipur')!;
+  assert.strictEqual(sobo.location, 'South Mumbai');
+  assert(sobo.typical > 5 * t2.typical, `${sobo.typical} vs ${t2.typical}`);
+  assert(sobo.options.some((o) => /Down payment/.test(o.label)));
+});
+check('trip guide scales with people and distance', () => {
+  const solo = tableGuide('bali trip')!, fam = tableGuide('bali trip with family')!, goa = tableGuide('goa trip')!;
+  assert.strictEqual(fam.typical, solo.typical * 4);
+  assert(goa.typical < solo.typical);
+});
+check('unknown text → no guess', () => { assert.strictEqual(tableGuide('be happier'), null); });
+check('Indian digit grouping', () => {
+  assert.strictEqual(inrIN(12000000), '₹1,20,000');
+  assert.strictEqual(inrIN(1250000000), '₹1,25,00,000');
+  assert.strictEqual(inrRangeIN(185000000), '₹18,00,000–₹19,00,000');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

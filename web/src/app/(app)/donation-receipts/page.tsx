@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { inr } from '@/lib/format';
+import { inr, groupDigits } from '@/lib/format';
 
 // 80G donation receipt generator — the receipt a donor needs to claim the
 // Section 80G deduction. (The donee org issues the official one; this helps
@@ -27,7 +27,7 @@ export default function DonationReceiptsPage() {
             <div><label className="label">Organisation (donee)</label><input className="input" value={f.donee} onChange={set('donee')} /></div>
             <div><label className="label">Organisation PAN</label><input className="input uppercase" value={f.doneePan} onChange={set('doneePan')} /></div>
             <div><label className="label">80G registration no.</label><input className="input" value={f.reg80g} onChange={set('reg80g')} placeholder="AAAAA0000A / 12345" /></div>
-            <div><label className="label">Amount (₹)</label><input className="input" inputMode="numeric" value={f.amount} onChange={(e) => setF((p) => ({ ...p, amount: e.target.value.replace(/[^\d]/g, '') }))} /></div>
+            <div><label className="label">Amount (₹)</label><input className="input" inputMode="numeric" value={groupDigits(f.amount)} onChange={(e) => setF((p) => ({ ...p, amount: e.target.value.replace(/[^\d]/g, '') }))} /></div>
             <div><label className="label">Date of donation</label><input type="date" className="input" value={f.date} onChange={set('date')} /></div>
             <div><label className="label">Mode</label><select className="input" value={f.mode} onChange={set('mode')}><option>Bank transfer</option><option>UPI</option><option>Cheque</option><option>Cash</option></select></div>
             <div className="sm:col-span-2"><label className="label">Purpose (optional)</label><input className="input" value={f.purpose} onChange={set('purpose')} placeholder="General donation / corpus / relief fund" /></div>

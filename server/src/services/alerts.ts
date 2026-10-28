@@ -7,13 +7,9 @@ import { ProfileData, deductionUsage, liquidReserve } from './score';
 import { compareRegimes, taxCopilot, currentFY } from './tax';
 import { analyseInsurance } from './insurance';
 import { buildInvestmentGuidance } from './investment';
+import { inrIN } from '../lib/money';
 
-const inr = (paise: number) => {
-  const r = Math.round(paise / 100);
-  if (r >= 1e7) return `₹${(r / 1e7).toFixed(2)} Cr`;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)} L`;
-  return `₹${r.toLocaleString('en-IN')}`;
-};
+const inr = inrIN;
 
 export interface Alert {
   kind: string;
