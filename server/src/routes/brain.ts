@@ -44,7 +44,8 @@ brainRouter.post('/price-guide', rateLimit({ windowMs: 60_000, max: 90, keyPrefi
 });
 
 brainRouter.get('/activity', async (req: AuthedRequest, res) => {
-  res.json(await recentActivity(req.userId!, Math.min(30, Number(req.query.limit) || 12)));
+  const lang = req.query.lang === 'hi' ? 'hi' : req.query.lang === 'en' ? 'en' : undefined;
+  res.json(await recentActivity(req.userId!, Math.min(30, Number(req.query.limit) || 12), lang));
 });
 
 // A dream heard anywhere (onboarding, voice, a text box) → planned automatically.

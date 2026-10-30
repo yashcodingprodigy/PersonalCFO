@@ -2,7 +2,7 @@
   "name": "paywatch-api",
   "version": "1.0.0",
   "private": true,
-  "description": "PayWatch API — India's Personal Finance Operating System",
+  "description": "PayWatch API \u2014 India's Personal Finance Operating System",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -14,9 +14,11 @@
     "seed:personas": "tsx src/db/seedPersonas.ts",
     "seed:cas": "tsx src/db/seedCas.ts",
     "check:personas": "tsx src/db/checkPersonas.ts",
-    "test": "for f in test/*.test.ts; do echo \"▶ $f\"; tsx \"$f\" || exit 1; done"
+    "test": "for f in test/*.test.ts; do echo \"\u25b6 $f\"; tsx \"$f\" || exit 1; done"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -24,8 +26,10 @@
     "express": "^4.19.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "pdfjs-dist": "^4.10.38",
     "pg": "^8.12.0",
     "uuid": "^9.0.1",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

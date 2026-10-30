@@ -253,6 +253,14 @@ user's biggest gap and pin a do/avoid guide, edit dreams and change settings. De
 AI), voice + chat share one conversation, and past conversations feed a memory snippet. Hindi speech goes to Sarvam AI
 (native Indian voices) because an English voice speaking Hindi sounds foreign.
 
+
+**D-52  Native mobile apps instead of a web wrapper.** The Capacitor wrapper rendered the desktop-first web UI inside a
+WebView (bad sizing/scaling, no native feel) and risks Apple 4.2 "minimum functionality" / Play webview rejections.
+We built `mobile/` in React Native (Expo + expo-router): native screens for every feature, same API and accounts.
+File parsing moved server-side (`/files/parse`) because PDF/Excel libraries don't run on the phone. Store rules are
+designed in: in-app account deletion, no in-app purchase of digital subscriptions (plans are informational; paid
+features unlock if the account has a plan), minimal permissions, privacy manifest. Trade-off: a second UI to maintain —
+mitigated by keeping logic on the server.
 ---
 
 ## E. Reversals / revisits log
@@ -261,3 +269,4 @@ AI), voice + chat share one conversation, and past conversations feed a memory s
 - **Oct 2026:** D-36 supersedes the "CFO in your pocket / finance OS" lead message (D-01 remains true underneath —
   the OS is now the invisible brain behind dreams). Research recommends testing a ₹999/yr plan + free trial alongside
   D-31 monthly prices (56-interview willingness-to-pay data).
+- **Oct 2026:** D-52 supersedes the Capacitor "one codebase, mobile = build step" approach (CLAUDE.md §6).

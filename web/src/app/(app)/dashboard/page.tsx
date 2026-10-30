@@ -44,7 +44,7 @@ export default function Dashboard() {
       swr('/user/me', setMe).catch(() => {}),
     ]);
     swr('/networth', setNetworth).catch(() => {});
-    swr('/brain/activity?limit=8', (a: any) => setActivity(Array.isArray(a) ? a : [])).catch(() => {});
+    swr(`/brain/activity?limit=8&lang=${lang}`, (a: any) => setActivity(Array.isArray(a) ? a : [])).catch(() => {});
     swr('/aa/status', setAa).catch(() => {});
   }, [lang]);
 

@@ -75,6 +75,14 @@ export async function localizeDreams(dreams: DreamInput[], goals: any[], lang: L
   pending.forEach((d, i) => { if (tr[i]) d.name = tr[i]; });
 }
 
+/** Dream names + life events in a given language (used to write the activity feed in both languages). */
+export async function localizedBits(userId: string, lang: Lang): Promise<{ names: Map<string, string>; events: LifeEvent[] } | null> {
+  const inp = await loadInputs(userId);
+  if (!inp) return null;
+  await localizeDreams(inp.dreams, inp.goals, lang);
+  return { names: new Map(inp.dreams.map((d) => [String(d.id), d.name])), events: detectLifeEvents(inp.txns, inp.map.takeHome, lang) };
+}
+
 export async function runBrain(userId: string, langOverride?: Lang): Promise<BrainState | null> {
   const inp = await loadInputs(userId);
   if (!inp) return null;

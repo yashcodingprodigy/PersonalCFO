@@ -293,6 +293,16 @@ check('diff: first plan, status change, date move, new life event → activity (
   assert(ev.some((x) => x.kind === 'event_bonus' && x.notify));
   assert.strictEqual(diffBrain(base, base, 'en', 0).length, 0, 'no change → no noise');
 });
+check('activity feed is written in both languages, item-for-item (EN dream name in EN, HI in HI)', () => {
+  const base: Snapshot = { v: 1, free: R(30_000), excessCash: 0, events: [], dreams: [{ id: 'h', name: 'House in South Bombay', status: 'on_track', projectedDate: '2060-01', earmarked: 0 }] };
+  const moved = { ...base, dreams: [{ ...base.dreams[0], projectedDate: '2066-07', earmarked: R(1_20_000) }] };
+  const en = diffBrain(base, moved, 'en', 0);
+  const hiSnap = { ...moved, dreams: moved.dreams.map((d) => ({ ...d, name: 'दक्षिण मुंबई में घर' })) };
+  const hi = diffBrain(base, hiSnap, 'hi', 0);
+  assert.strictEqual(en.length, hi.length); en.forEach((a, i) => assert.strictEqual(a.kind, hi[i].kind));
+  assert(en.every((a) => !/[ऀ-ॿ]/.test(a.title)), 'English feed has no Hindi');
+  assert(hi.every((a) => /[ऀ-ॿ]/.test(a.title)), 'Hindi feed is Hindi');
+});
 check('Hindi: plan, levers, afford and moves speak Hindi with the same numbers', () => {
   const map = buildMoneyMap(profile());
   const en = planDreams(map, [dream({ name: 'Car', targetAmount: R(15_00_000), targetDate: '2027-10-01' })], { now: NOW, lang: 'en' });

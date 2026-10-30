@@ -84,7 +84,8 @@ it *prepares and computes* returns and guides self-filing; it is not a CA. See �
 ```
 PayWatch/
 ├── server/   Express + TypeScript API · PostgreSQL · port 4000
-└── web/      Next.js 14 (App Router) PWA + Capacitor (Android/iOS) · Tailwind · port 3000
+├── web/      Next.js 14 (App Router) PWA · Tailwind · port 3000
+└── mobile/   Native iOS + Android app — Expo SDK 58 / React Native / expo-router (see §6)
 ```
 
 - **Money stored in paise everywhere** (₹1 = 100 paise). Web `inr()` formats paise → ₹.
@@ -408,21 +409,36 @@ aggregates for the shared catalog), and the **CA portal**: `cas`,
 
 ---
 
-## 6. Mobile apps (Capacitor) — see `web/MOBILE.md`
-- Bundled **static export** (`BUILD_TARGET=mobile next build` → `web/out/`), `capacitor.config.ts`
-  (appId `in.paywatch.app`). Scripts: `build:mobile` / `cap:sync` / `cap:ios` / `cap:android` / `cap:assets`.
-- **SYNC MODEL — one codebase, mobile = a build step:** there is no separate mobile source. The native app is
-  `web/` statically exported + wrapped by Capacitor, so it can't drift at the source level — but the native
-  **build artifact goes stale until you re-run `npm run cap:sync`** (= `build:mobile` + `cap sync`) then rebuild
-  in Xcode/Android Studio on the Mac. **Status Aug 2026: mobile is STALE** — native bundles (`web/android`,
-  `web/ios`) date to ~Jun 29, missing ~2 months of web changes (premium landing, loading system, dashboard
-  restructure, tax tabs, insurance rework, pricing restructure). Fix = `cap:sync` + native rebuild; no porting.
-- `lib/native.ts`: biometric app-lock (launch/resume), splash, status bar, haptics, push registration →
-  `POST /user/push-token`. All no-op on web (same codebase on Vercel + native).
-- **Push is gated off by `NEXT_PUBLIC_PUSH_ENABLED=1`** (build-time) — without Firebase set up it crashes
-  Android, so it stays off until `firebase-admin` + google-services.json/APNs are done.
-- Icons/splash source in `web/assets/` → `npm run cap:assets`. Run `npx cap add ios/android` locally
-  (Mac + CocoaPods for iOS). Both stores need an **org account + D-U-N-S** (finance category).
+## 6. Mobile apps — NATIVE (Expo / React Native) in `mobile/` — see `mobile/README.md` (D-52, Oct 2026)
+- **Replaces the Capacitor wrapper** (which caused sizing/scaling issues and risked Apple 4.2 / Play webview rejection).
+  `mobile/` is a separate native codebase: Expo SDK 58, React Native 0.88, expo-router (file routes in `mobile/app/`),
+  TypeScript; same API (`EXPO_PUBLIC_API_URL`, default `https://api.paywatch.in/v1`), same accounts and data.
+  Old `web/android`, `web/ios`, `capacitor.config.ts`, `lib/native.ts` are legacy — retire once the native app ships.
+- **Structure:** `app/_layout.tsx` (providers, auth gate via `Stack.Protected`: welcome/login → onboarding → app;
+  splash; optional biometric lock; floating assistant `GuideCard`), `app/(tabs)/` = Home · Dreams · Ask · Alerts · More,
+  `app/voice.tsx` (full-screen voice modal), sub-screens `networth invest insurance/{index,market} tax/{index,file}
+  actions markets records statement vault ca/{index,[id]} reports plans settings legal/[doc]`.
+  `src/lib/`: `api.ts` (SecureStore tokens, single-flight refresh, GET cache, `onDataChanged` bus), `auth.tsx`,
+  `i18n.tsx` (hand-translated core + **auto-translate any `<Txt>` via `/i18n/translate`**, cached on device),
+  `assistant.tsx` (shared conversation, `runActions`, guide), `routes.ts` (server web paths → native routes),
+  `voice.ts` (expo-audio record + metering VAD → `/voice/stt`; fallback expo-speech-recognition; TTS `/voice/tts` mp3 →
+  expo-audio, fallback expo-speech), `files.ts` (document picker → base64, `/files/parse`, share sheet),
+  `format.ts` (Indian grouping by hand, not Intl), `theme.ts`, `recordTypes.ts`, `india.ts`.
+  `src/components/`: `ui.tsx` (kit: Txt/Screen/Card/Button/Input/MoneyInput/Select sheet/Segmented/Disclosure/Orb…),
+  `brain.tsx` (DreamCard, NextMoves, MoneyFlow, AwayFeed, FutureYou, PriceGuide, ScoreCard), `charts.tsx`, `Markdown.tsx`, `GuideCard.tsx`.
+- **Server support:** `POST /v1/files/parse {name, base64, kind:'statement'|'holdings'|'capital_gains'|'text', docType?}`
+  (`services/fileParse.ts` — same heuristics as `web/src/lib/statementParse.ts`; pdfjs-dist + xlsx loaded lazily via a
+  real ESM import; body limit 12 MB for this route and `/voice/stt`). Nothing is stored by this route.
+- **Store compliance baked in:** native UI everywhere; in-app account deletion (Settings → App); **no in-app sale of
+  digital subscriptions** (Plans screen is informational, no buy buttons/links — Apple 3.1.1 / Play Billing);
+  iOS privacy manifest + usage strings (mic, speech, Face ID); Android permissions minimal (RECORD_AUDIO, biometric,
+  notifications; storage/location/camera/phone/foreground-service blocked); no background audio; `allowBackup=false`;
+  `ITSAppUsesNonExemptEncryption=false`. Push gated by `EXPO_PUBLIC_PUSH_ENABLED=1` (needs Firebase/APNs).
+- **Build/run (Mac):** `cd mobile && npm install && npx expo install --fix && npx expo start`; dev/prod builds via EAS
+  (`eas build -p android|ios --profile development|production`, `eas submit`). Bundle id / package `in.paywatch.app`.
+- **Keeping mobile in sync:** it's a second UI, so new web features need a native screen too. Shared logic lives on
+  the server (brain, tax, insurance, assistant actions), so most changes are server-side and both apps get them.
+- Verify: `cd mobile && npx tsc --noEmit` (and `npx expo export -p ios --no-bytecode` bundles all 1,500 modules).
 
 ---
 
@@ -590,7 +606,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **210 assertions** (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **216 assertions** (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

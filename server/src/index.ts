@@ -19,6 +19,7 @@ import { reportsRouter } from './routes/reports';
 import { alertsRouter } from './routes/alerts';
 import { documentsRouter } from './routes/documents';
 import { recordsRouter } from './routes/records';
+import { filesRouter } from './routes/files';
 import { cronRouter } from './routes/cron';
 import { brainRouter } from './routes/brain';
 import { voiceRouter } from './routes/voice';
@@ -47,7 +48,7 @@ app.use(cors({
 const jsonSmall = express.json({ limit: '1mb' });
 const jsonLarge = express.json({ limit: '12mb' });
 app.use((req, res, next) =>
-  (req.method === 'POST' && (req.path.endsWith('/documents') || req.path.endsWith('/file'))) ? jsonLarge(req, res, next) : jsonSmall(req, res, next)
+  (req.method === 'POST' && (req.path.endsWith('/documents') || req.path.endsWith('/file') || req.path === '/v1/files/parse' || req.path === '/v1/voice/stt')) ? jsonLarge(req, res, next) : jsonSmall(req, res, next)
 );
 
 // Global API rate limit (per SRS §23.3)
@@ -91,6 +92,7 @@ app.use('/v1/reports', reportsRouter);
 app.use('/v1/alerts', alertsRouter);
 app.use('/v1/documents', documentsRouter);
 app.use('/v1/records', recordsRouter);   // monthly financial records (payslip/statement/holdings…)
+app.use('/v1/files', filesRouter);       // server-side file parsing for the native apps
 app.use('/v1/cron', cronRouter);   // secret-protected (x-cron-key), not requireAuth
 
 // 404

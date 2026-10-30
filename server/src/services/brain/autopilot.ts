@@ -10,7 +10,8 @@
 // Debounced per user so a burst of uploads produces one tick.
 
 import { query, one } from '../../db';
-import { runBrain, BrainState } from './index';
+import { runBrain, BrainState, localizedBits } from './index';
+import { translateTexts } from '../translate';
 import { Lang, M, asLang } from './i18n';
 import { detectDream, DetectedDream } from './dreamCapture';
 import { inr, ym } from './dreams';
@@ -92,8 +93,23 @@ export async function brainTick(userId: string, reason: string): Promise<Activit
   const cur = snapshotOf(state);
   const prevRow = await one<{ state: Snapshot }>(`SELECT state FROM brain_snapshots WHERE user_id = $1`, [userId]);
   const acts = diffBrain(prevRow?.state ?? null, cur, lang, state.plan.joyBudget, state.events);
-  for (const a of acts) {
-    await query(`INSERT INTO brain_activity (user_id, kind, title, body, meta) VALUES ($1,$2,$3,$4,$5)`, [userId, a.kind, a.title, a.body || null, JSON.stringify({ reason })]);
+  // Write every activity in BOTH languages, so the feed follows the user's current language.
+  // diffBrain's output order depends only on ids/statuses, so the two lists line up 1:1.
+  const other: Lang = lang === 'hi' ? 'en' : 'hi';
+  let otherActs: Activity[] = [];
+  try {
+    const bits = acts.length ? await localizedBits(userId, other) : null;
+    if (bits) {
+      const curOther: Snapshot = { ...cur, dreams: cur.dreams.map((d) => ({ ...d, name: bits.names.get(String(d.id)) || d.name })) };
+      const evOther = state.events.map((e) => bits.events.find((x) => x.kind === e.kind && x.month === e.month) || e);
+      otherActs = diffBrain(prevRow?.state ?? null, curOther, other, state.plan.joyBudget, evOther);
+    }
+  } catch { otherActs = []; }
+  for (const [k, a] of acts.entries()) {
+    const o = otherActs.length === acts.length && otherActs[k]?.kind === a.kind ? otherActs[k] : null;
+    const i18n: any = { [lang]: { title: a.title, body: a.body || null } };
+    if (o) i18n[other] = { title: o.title, body: o.body || null };
+    await query(`INSERT INTO brain_activity (user_id, kind, title, body, meta) VALUES ($1,$2,$3,$4,$5)`, [userId, a.kind, a.title, a.body || null, JSON.stringify({ reason, i18n })]);
     if (a.notify) {
       await query(
         `INSERT INTO notifications (user_id, kind, category, severity, title, body, action_label, action_href, dedupe_key)
@@ -148,7 +164,11 @@ export async function captureDream(userId: string, text: string, source: string)
     [userId, d.goalType, d.name.slice(0, 100), amount, target, JSON.stringify({ kind: d.kind, priority: d.kind === 'safety' ? 1 : 2, inflation: d.inflation, source, estimated: d.estimated, captured_text: text.slice(0, 200), names: d.names })]
   );
   const title = T.actCaptured(d.name, inr(amount));
-  await query(`INSERT INTO brain_activity (user_id, kind, title, meta) VALUES ($1,'dream_captured',$2,$3)`, [userId, title, JSON.stringify({ source, estimated: d.estimated })]);
+  const i18n = {
+    en: { title: M('en').actCaptured(d.names?.en || d.name, inr(amount)), body: null },
+    hi: { title: M('hi').actCaptured(d.names?.hi || d.name, inr(amount)), body: null },
+  };
+  await query(`INSERT INTO brain_activity (user_id, kind, title, meta) VALUES ($1,'dream_captured',$2,$3)`, [userId, title, JSON.stringify({ source, estimated: d.estimated, i18n })]);
   scheduleBrainTick(userId, 'dream_captured', 300);
   const est = d.estimated ? (lang === 'hi' ? ' (अनुमानित — कभी भी बदलें)' : ' (estimated — edit anytime)') : '';
   const message = lang === 'hi'
@@ -157,6 +177,20 @@ export async function captureDream(userId: string, text: string, source: string)
   return { goalId: row!.goal_id, dream: { ...d, amount }, message };
 }
 
-export async function recentActivity(userId: string, limit = 12) {
-  return query(`SELECT id, kind, title, body, created_at FROM brain_activity WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`, [userId, limit]);
+/** The activity feed in the requested language (stored bilingual text; older rows are translated + cached). */
+export async function recentActivity(userId: string, limit = 12, langIn?: Lang) {
+  const lang = langIn || (await userLang(userId));
+  const rows = await query<any>(`SELECT id, kind, title, body, meta, created_at FROM brain_activity WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`, [userId, limit]);
+  const out = rows.map((r) => {
+    const t = r.meta?.i18n?.[lang];
+    return { id: r.id, kind: r.kind, title: t?.title || r.title, body: t ? t.body : r.body, created_at: r.created_at };
+  });
+  // Rows from before bilingual storage: translate anything written in the other script.
+  const idx: [number, 'title' | 'body'][] = []; const texts: string[] = [];
+  out.forEach((r, i) => (['title', 'body'] as const).forEach((k) => { if (r[k] && !rows[i].meta?.i18n?.[lang]) { idx.push([i, k]); texts.push(r[k]); } }));
+  if (texts.length) {
+    const tr = await translateTexts(texts, lang).catch(() => texts);
+    idx.forEach(([i, k], j) => { (out[i] as any)[k] = tr[j]; });
+  }
+  return out;
 }

@@ -182,19 +182,22 @@ Handshake: each side has a `connect_code` (`PW-…`/`CA-…`) → enter other's 
 
 ---
 
-## 8. Web ↔ Mobile sync — HOW it stays in sync (important)
-There is **ONE codebase**. The mobile app is `web/` statically exported (`BUILD_TARGET=mobile next build` → `web/out/`) and wrapped by Capacitor into `web/android` / `web/ios`. So the app can never "drift" at the source level — but the **native build artifact goes stale** until you re-run the sync.
+## 8. Web ↔ Mobile — two UIs, one brain (Oct 2026, D-52)
+The phone apps are **native** (`mobile/`, Expo/React Native), not the web in a wrapper. Both UIs call the same API, so
+data, plans, conversations and documents are shared instantly.
 
-**To bring mobile up to the web version (run on the Mac):**
-```
-cd web
-npm run cap:sync         # = build:mobile + cap sync  (rebuilds out/ and copies into native)
-npx cap open ios         # then rebuild/run in Xcode   (Mac + CocoaPods)
-npx cap open android     # then rebuild/run in Android Studio
-```
-Push stays OFF until `NEXT_PUBLIC_PUSH_ENABLED=1` + Firebase config (google-services.json / APNs).
+**Runtime flow on the phone:** launch → splash → `AuthProvider` reads tokens from the keychain/keystore →
+`GET /user/me` → gate: welcome/login → onboarding (3 steps) → tabs. Every screen uses `useApi(path)` (cached GET,
+pull-to-refresh) and re-fetches when any write calls `notifyDataChanged()`. Uploads: system file picker → base64 →
+`POST /files/parse` (statement / holdings / capital_gains / text) → the same confirm-then-save endpoints as the web
+(`/records`, `/statements/analyze`, `/insurance/policies`, `/documents`). Voice: record (expo-audio, metering VAD) →
+`/voice/stt` → `/qa/conversations` (mode voice) → actions run (navigate/guide/refresh) → `/voice/tts` mp3 plays →
+listen again. Hindi: `<Txt>` strings go through `/i18n/translate` in batches and are cached on the device.
 
-> **Current status (Aug 2026): mobile is STALE.** Native bundles date to ~Jun 29; web source has ~2 months of changes since (premium landing, loading system, dashboard restructure, tax tabs, insurance rework, pricing restructure) that are **not** in the native apps. Fix = run `npm run cap:sync` + native rebuild on the Mac. No code porting needed.
+**When you add a web feature:** put the logic in `server/` (both apps benefit), then add the native screen in
+`mobile/app/` using the kit in `mobile/src/components/ui.tsx`. Run `cd mobile && npx tsc --noEmit`.
+
+**Releasing:** `eas build -p android|ios --profile production` → `eas submit`. Bump nothing by hand (EAS auto-increments).
 
 ---
 
