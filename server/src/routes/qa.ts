@@ -31,6 +31,19 @@ qaRouter.get('/conversations', async (req: AuthedRequest, res) => {
   res.json(rows);
 });
 
+// DELETE /qa/conversations/:id — clear one chat (messages go with it: ON DELETE CASCADE).
+qaRouter.delete('/conversations/:id', async (req: AuthedRequest, res) => {
+  const r = await query(`DELETE FROM conversations WHERE conversation_id = $1 AND user_id = $2 RETURNING conversation_id`, [req.params.id, req.userId]);
+  if (!r.length) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true });
+});
+
+// DELETE /qa/conversations — clear ALL chat history for this user.
+qaRouter.delete('/conversations', async (req: AuthedRequest, res) => {
+  const r = await query(`DELETE FROM conversations WHERE user_id = $1 RETURNING conversation_id`, [req.userId]);
+  res.json({ ok: true, deleted: r.length });
+});
+
 // GET /qa/conversations/:id
 qaRouter.get('/conversations/:id', async (req: AuthedRequest, res) => {
   const conv = await one(`SELECT * FROM conversations WHERE conversation_id = $1 AND user_id = $2`, [req.params.id, req.userId]);

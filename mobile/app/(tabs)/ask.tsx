@@ -1,7 +1,7 @@
 // Ask PayWatch — chat with your money brain. Shares one conversation with voice mode,
 // and acts on what you ask (opens screens, pins a guide, updates dreams, switches language).
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, get, notifyDataChanged, ask as askPost } from '@/lib/api';
@@ -61,6 +61,24 @@ export default function Ask() {
     catch (e: any) { setErr(e.message); }
   }
 
+  function clearChat() {
+    if (!messages.length && !convId) return;
+    const hi = lang === 'hi';
+    const clearOne = async () => {
+      try { if (convId) await api(`/qa/conversations/${convId}`, { method: 'DELETE' }); } catch {}
+      setMessages([]); newChat(); loadConvs();
+    };
+    const clearAll = async () => {
+      try { await api('/qa/conversations', { method: 'DELETE' }); } catch {}
+      setMessages([]); setConversations([]); newChat();
+    };
+    Alert.alert(hi ? 'चैट साफ़ करें?' : 'Clear chat?', hi ? 'यह बातचीत हमेशा के लिए हट जाएगी।' : 'This conversation will be permanently deleted.', [
+      { text: hi ? 'रद्द करें' : 'Cancel', style: 'cancel' },
+      ...(conversations.length > 1 ? [{ text: hi ? 'सारी चैट हटाएँ' : 'Clear all chats', style: 'destructive' as const, onPress: clearAll }] : []),
+      { text: hi ? 'साफ़ करें' : 'Clear', style: 'destructive' as const, onPress: clearOne },
+    ]);
+  }
+
   useEffect(() => { setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80); }, [messages.length, busy]);
 
   return (
@@ -68,6 +86,7 @@ export default function Ask() {
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SP.lg, paddingVertical: 8, gap: 10 }}>
         <Orb size={28} />
         <Txt style={{ fontFamily: FONT.display, fontSize: 22, flex: 1 }} noTr>{t('as.title')}</Txt>
+        {messages.length > 0 && <Pressable onPress={clearChat} hitSlop={8} accessibilityLabel={lang === 'hi' ? 'चैट साफ़ करें' : 'Clear chat'} style={iconBtn}><Icon name="trash-outline" size={20} color={C.inkSoft} /></Pressable>}
         <Pressable onPress={newChat} hitSlop={8} accessibilityLabel={t('as.newChat')} style={iconBtn}><Icon name="add" size={22} color={C.inkSoft} /></Pressable>
         <Pressable onPress={openVoice} hitSlop={8} accessibilityLabel={t('as.voice')} style={[iconBtn, { backgroundColor: C.pine900 }]}><Icon name="mic" size={20} color={C.white} /></Pressable>
       </View>

@@ -6,16 +6,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { get, post } from '@/lib/api';
+import { get, post, del } from '@/lib/api';
 import { useLang, TKey } from '@/lib/i18n';
 import { Markdown } from './Markdown';
 
-export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, conversationId, onConversation, onActions }: {
+export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, conversationId, onConversation, onActions, onCleared }: {
   variant?: 'page' | 'overlay'; initialQuestion?: string; onDataChanged?: () => void;
   /** Continue this conversation (shared with voice mode). */
   conversationId?: string | null; onConversation?: (id: string) => void;
   /** Things the assistant decided to do (navigate, guide, refresh…). */
   onActions?: (a: any[]) => void;
+  /** Called after the current chat is cleared (so voice + chat start fresh together). */
+  onCleared?: () => void;
 }) {
   const { lang, t } = useLang();
   const [conversations, setConversations] = useState<any[]>([]);
@@ -71,6 +73,17 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
     try { await post('/context/benefits', benefit); setMessages((ms) => ms.map((x) => (x.message_id === mid ? { ...x, _actionState: 'added' } : x))); onDataChanged?.(); }
     catch (e: any) { setErr(e.message || 'Could not save that. Please try again.'); }
   }
+  const [confirmClear, setConfirmClear] = useState(false);
+  async function clearChat(all = false) {
+    setErr('');
+    try {
+      if (all) await del('/qa/conversations');
+      else if (activeId) await del(`/qa/conversations/${activeId}`);
+      setActiveId(null); setMessages([]); setConfirmClear(false); onCleared?.();
+      if (variant === 'page') get('/qa/conversations').then(setConversations).catch(() => {});
+    } catch (e: any) { setErr(e.message || 'Could not clear the chat.'); }
+  }
+
   const dismissProposed = (mid: string) => setMessages((ms) => ms.map((x) => (x.message_id === mid ? { ...x, _actionState: 'dismissed' } : x)));
 
   const suggestions: TKey[] = ['as.s1', 'as.s2', 'as.s3', 'as.s4'];
@@ -131,6 +144,23 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
           )}
           <div ref={bottomRef} />
         </div>
+        {messages.length > 0 && (
+          <div className="px-4 py-2 border-t border-paper-100 bg-paper-50 flex items-center justify-end gap-3 text-xs">
+            {!confirmClear ? (
+              <button onClick={() => setConfirmClear(true)} disabled={busy} className="inline-flex items-center gap-1.5 text-ink-faint hover:text-signal-red disabled:opacity-50">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm4 2v8h2v-8h-2Zm4 0v8h2v-8h-2Z" /></svg>
+                {t('as.clear')}
+              </button>
+            ) : (
+              <>
+                <span className="text-ink-soft mr-auto">{t('as.clearAsk')}</span>
+                <button onClick={() => clearChat(false)} className="rounded-full bg-signal-red text-white px-3 py-1 font-bold">{t('as.clearYes')}</button>
+                {variant === 'page' && conversations.length > 1 && <button onClick={() => clearChat(true)} className="text-signal-red underline">{t('as.clearAll')}</button>}
+                <button onClick={() => setConfirmClear(false)} className="text-ink-faint underline">{t('as.cancel')}</button>
+              </>
+            )}
+          </div>
+        )}
         {err && <p className="px-5 py-2 text-xs text-signal-red bg-signal-red/5">{err}</p>}
         <form onSubmit={(e) => { e.preventDefault(); send(); }} className="border-t border-paper-100 p-3 flex gap-2 items-center bg-white">
           <input className="input flex-1" placeholder={t('as.placeholder')} value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} data-no-translate />

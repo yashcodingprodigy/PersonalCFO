@@ -143,7 +143,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex-1 min-h-0">
               <ChatPanel key={chatKey} variant="overlay" initialQuestion={question} conversationId={convId}
-                onConversation={setConvId} onDataChanged={changed}
+                onConversation={setConvId} onDataChanged={changed} onCleared={() => setConvId(null)}
                 onActions={(a) => { if (runActions(a)) setTimeout(close, 900); }} />
             </div>
           </aside>

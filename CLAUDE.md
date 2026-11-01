@@ -327,7 +327,7 @@ unread-alerts badge, native biometric lock overlay).
   personal corner **guide** (do / avoid, compliance footnote) for marketplace/tax/invest, update a dream's amount/date,
   set risk or language. `/qa` returns `actions[]`; web `Assistant.runActions()` + `GuidePanel.tsx`. Voice and chat share
   ONE conversation (`sessionStorage paywatch_conv`; switch keeps history); `cfo-ai.recallMemory()` adds snippets from the
-  user's other conversations (60 days) to the prompt. Voice: mic kept open across turns, "Getting ready…" → chime →
+  user's other conversations (60 days) to the prompt. **Clear chat:** `DELETE /qa/conversations/:id` (one) and `DELETE /qa/conversations` (all) — messages cascade, so cleared chats also leave the memory recall; web ChatPanel has a "Clear chat" bar (confirm, + "Clear all chats" on /ask), mobile Ask tab has a trash button. Voice: mic kept open across turns, "Getting ready…" → chime →
   listening (no lost first words), VAD threshold 0.025. **Hindi voice:** Sarvam AI Bulbul (`SARVAM_API_KEY`, speaker
   `ritu`, model `bulbul:v3`) → else auto-picked native-Hindi ElevenLabs library voice ("PayWatch Hindi") → device voice.
 - **Language (D-45):** `users.language` ('en'|'hi'); `services/translate.ts` + `routes/i18n.ts` (`POST /i18n/translate`,
