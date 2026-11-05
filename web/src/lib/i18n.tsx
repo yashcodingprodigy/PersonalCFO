@@ -189,6 +189,9 @@ export function useSyncLangFromUser(userLang?: string | null) {
     try {
       const local = localStorage.getItem(KEY);
       if (!local && (userLang === 'hi' || userLang === 'en')) setLang(userLang);
+      // The screen the user is looking at is the truth (D-57): if this device is set to a different
+      // language than the account, update the account so server-made text (alerts, briefings, replies) matches.
+      else if ((local === 'hi' || local === 'en') && local !== userLang) patch('/user/me', { language: local }).catch(() => {});
     } catch {}
   }, [userLang, setLang, chosen]);
 }

@@ -62,7 +62,9 @@ export default function Voice() {
     if (!alive.current) return;
     if (!text) { setP('idle'); if (error === 'denied') setDenied(true); setNote(t(ERR[error || 'no-speech'])); return; }
     setHeard(text); setReply(''); setVisuals(null); setOpening(null); setP('thinking');
-    const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
+    // D-57: the app language decides; only Hindi in Devanagari (what speech-to-text gives for spoken Hindi) switches it.
+    // (The speech engine's own language guess is ignored — it often tags accented English as Hindi.)
+    const replyLang: VoiceLang = /[ऀ-ॿ]/.test(text) ? 'hi' : (lang as VoiceLang);
     // Instant preview of where we're going, so "Thinking…" never looks stuck.
     ask('/qa/intent', { content: text, lang: replyLang }).then((r: any) => {
       const nav = (r?.actions || []).find((a: any) => a.type === 'navigate');

@@ -17,6 +17,7 @@ import { runBrain, brainAfford } from './brain';
 import { translateTexts } from './translate';
 import { parseRupees, parseMonths, catalogName } from './brain/dreamCapture';
 import { inrIN } from '../lib/money';
+import { replyMatches } from './langDetect';
 
 export const AI_DISCLAIMER =
   'This is educational information based on your financial data and standard planning principles — not SEBI-registered investment advice. For personalised investment recommendations, consult a SEBI Registered Investment Adviser.';
@@ -240,7 +241,10 @@ const VOICE_STYLE = `HOW TO SPEAK (VOICE MODE — your reply is read aloud by a 
 
 async function askClaude(question: string, userContext: string, docs: RetrievedDoc[], history: { role: string; content: string }[], opts: AnswerOpts = {}): Promise<string> {
   const kb = docs.map((d, i) => `[${i + 1}] (${d.source_tag}) ${d.title}: ${d.content}`).join('\n\n');
-  const system = `You are PayWatch — the user's friendly personal-finance assistant and always-on CFO, inside the PayWatch app. You sound like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner. If asked who you are, you are "PayWatch".
+  const langName = opts.lang === 'hi' ? 'Hindi (Devanagari script)' : 'English';
+  const system = `REPLY LANGUAGE: ${langName}. Write your whole reply in ${langName}, whatever language earlier messages, memories or names are in.
+
+You are PayWatch — the user's friendly personal-finance assistant and always-on CFO, inside the PayWatch app. You sound like a sharp, warm finance-savvy friend, not a textbook. You are talking to an everyday Indian, often a beginner. If asked who you are, you are "PayWatch".
 
 THE USER'S FINANCIAL PROFILE (weave these exact numbers naturally into your answer):
 ${userContext}
@@ -275,7 +279,8 @@ LANGUAGE: The user wrote in English — reply in clear, simple English only, eve
       model: opts.voice ? config.voiceModel : config.anthropicModel,
       max_tokens: opts.voice ? 300 : 1024,
       system,
-      messages: [...history.slice(-6), { role: 'user', content: question }],
+      // The language tag rides on the user turn (not saved) — models follow it far more reliably than a system line alone.
+      messages: [...history.slice(-6), { role: 'user', content: `${question}\n\n[Reply in ${langName} only.]` }],
     }),
   });
   if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
@@ -377,10 +382,11 @@ export async function answerQuestion(
 ): Promise<CfoAnswer> {
   const blocked = checkGuardrails(question);
   if (blocked) {
-    return { content: GUARDRAIL_RESPONSE(blocked), citations: [{ tag: 'SEBI IA Regulations 2013', title: 'Investment advice licensing' }], engine: 'guardrail' };
+    const g = GUARDRAIL_RESPONSE(blocked);
+    return { content: opts.lang === 'hi' ? (await translateTexts([g], 'hi').catch(() => [g]))[0] : g, citations: [{ tag: 'SEBI IA Regulations 2013', title: 'Investment advice licensing' }], engine: 'guardrail' };
   }
   if (!checkScope(question)) {
-    return { content: OFFTOPIC_RESPONSE, citations: [], engine: 'guardrail' };
+    return { content: opts.lang === 'hi' ? (await translateTexts([OFFTOPIC_RESPONSE], 'hi').catch(() => [OFFTOPIC_RESPONSE]))[0] : OFFTOPIC_RESPONSE, citations: [], engine: 'guardrail' };
   }
 
   const docs = await retrieve(userId, question, 6);
@@ -465,6 +471,13 @@ export async function answerQuestion(
     try {
       content = await askClaude(question, userContext, docs, history, opts);
       engine = 'claude';
+      // Safety net (D-57): if the model still answered in the wrong language, translate the reply.
+      const want = opts.lang === 'hi' ? 'hi' : 'en';
+      if (!replyMatches(content, want)) {
+        const fixed = (await translateTexts([content], want).catch(() => [content]))[0];
+        if (fixed && replyMatches(fixed, want)) content = fixed;
+        else console.warn('[cfo-ai] reply language mismatch could not be fixed', want);
+      }
     } catch (e) {
       console.error('[cfo-ai] Claude API failed, using rules engine:', e);
       content = rulesAnswer(question, p, docs, insPolicies);

@@ -287,6 +287,13 @@ consistent with the Dreams page (D-53). No stock photos (licensing) — charts a
 better than Sonnet 4); voice replies, translation, price estimates and small extractions on Haiku 5.5 (~20× cheaper).
 Our own tables answer first (price guide calls AI only when the table knows nothing); translations cached forever;
 visuals/afford/plan maths never use AI. Model ids are env-overridable (`ANTHROPIC_MODEL`, `VOICE_MODEL`, `TRANSLATE_MODEL`).
+
+**D-57  Reply language: the app language wins; only Devanagari switches it (Nov 2026).** Replies were flipping to Hindi
+in English mode (Hinglish detection, the speech engine's language guess, Hindi chat history). New rule: English app →
+English replies for anything typed/spoken in Latin letters (even Hinglish); Hindi in Devanagari → Hindi. Hindi app →
+Hindi, unless the message is clearly plain English. Enforced three ways: the language tag on the user turn + top of
+the system prompt, a post-check (`replyMatches`) that translates a wrong-language reply, and device↔account language
+sync (the screen the user sees updates `users.language`). Guardrail/limit messages are bilingual too. Refines D-53.
 ---
 
 ## E. Reversals / revisits log
@@ -295,4 +302,5 @@ visuals/afford/plan maths never use AI. Model ids are env-overridable (`ANTHROPI
 - **Oct 2026:** D-36 supersedes the "CFO in your pocket / finance OS" lead message (D-01 remains true underneath —
   the OS is now the invisible brain behind dreams). Research recommends testing a ₹999/yr plan + free trial alongside
   D-31 monthly prices (56-interview willingness-to-pay data).
+- **Nov 2026:** D-57 refines D-53's "reply in the language the user used" — app language is now the default.
 - **Oct 2026:** D-52 supersedes the Capacitor "one codebase, mobile = build step" approach (CLAUDE.md §6).

@@ -1,12 +1,21 @@
 // Reply in the language the user used.
 import assert from 'assert';
-import { detectReplyLang } from '../src/services/langDetect';
+import { detectReplyLang, replyMatches } from '../src/services/langDetect';
 let passed = 0, failed = 0;
 const check = (n: string, f: () => void) => { try { f(); passed++; console.log(`  ✓ ${n}`); } catch (e: any) { failed++; console.log(`  ✗ ${n}\n      ${e.message}`); } };
 console.log('\nREPLY LANGUAGE');
 check('English question → English even if the app is in Hindi', () => assert.strictEqual(detectReplyLang('How much should I invest every month for a trip to Bali?', 'hi'), 'en'));
 check('Devanagari → Hindi', () => assert.strictEqual(detectReplyLang('मुझे बाली जाना है', 'en'), 'hi'));
-check('Hinglish → Hindi', () => assert.strictEqual(detectReplyLang('mujhe nayi bike chahiye, kitna bachana padega?', 'en'), 'hi'));
+check('Hinglish in a Hindi app → Hindi', () => assert.strictEqual(detectReplyLang('mujhe nayi bike chahiye, kitna bachana padega?', 'hi'), 'hi'));
+check('English app: Latin-script messages (even Hinglish) → English (D-57)', () => {
+  assert.strictEqual(detectReplyLang('Can I afford it dubai trip?', 'en'), 'en');
+  assert.strictEqual(detectReplyLang('Kya main sahi financial track per hun', 'en'), 'en');
+});
+check('reply-language check catches a Hindi answer to an English question', () => {
+  assert.strictEqual(replyMatches('Dubai trip के बारे में बात करें तो — आपके पास हर महीने ₹7,000 है।', 'en'), false);
+  assert.strictEqual(replyMatches('You have ₹7,000 a month free for the Dubai trip.', 'en'), true);
+  assert.strictEqual(replyMatches('आपके पास हर महीने ₹7,000 SIP के लिए है।', 'hi'), true);
+});
 check('English with a stray "main" stays English', () => assert.strictEqual(detectReplyLang('What is the main reason my score dropped?', 'hi'), 'en'));
 check('very short / ambiguous → app language', () => { assert.strictEqual(detectReplyLang('SIP?', 'hi'), 'hi'); assert.strictEqual(detectReplyLang('₹5000', 'en'), 'en'); });
 console.log(`\n${passed} passed, ${failed} failed`);

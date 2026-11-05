@@ -56,7 +56,13 @@ export const useLang = () => useContext(LangCtx);
 const K_LANG = 'paywatch_lang';
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => (getLocales()[0]?.languageCode === 'hi' ? 'hi' : 'en'));
-  useEffect(() => { SecureStore.getItemAsync(K_LANG).then((v) => { if (v === 'en' || v === 'hi') setLangState(v); }).catch(() => {}); loadDisk(); }, []);
+  useEffect(() => { SecureStore.getItemAsync(K_LANG).then((v) => {
+    if (v === 'en' || v === 'hi') {
+      setLangState(v);
+      // D-57: the language on this screen is the truth — keep the account in step so server-made text matches.
+      if (hasSession()) patch('/user/me', { language: v }).catch(() => {});
+    }
+  }).catch(() => {}); loadDisk(); }, []);
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     SecureStore.setItemAsync(K_LANG, l).catch(() => {});

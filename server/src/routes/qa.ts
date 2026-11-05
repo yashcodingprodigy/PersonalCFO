@@ -81,7 +81,9 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
     if (used!.c >= limit) {
       return res.status(403).json({
         error: 'plan_limit',
-        message: `You've used all ${limit} questions this month on the Starter plan. Upgrade to CFO for unlimited questions.`,
+        message: lang === 'hi'
+          ? `आप इस महीने Starter प्लान के सभी ${limit} सवाल पूछ चुके हैं। असीमित सवालों के लिए CFO प्लान लें।`
+          : `You've used all ${limit} questions this month on the Starter plan. Upgrade to CFO for unlimited questions.`,
       });
     }
   }
@@ -132,7 +134,9 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
       const goalLimit = PLANS[plan].goalLimit;
       const gcount = await one(`SELECT COUNT(*)::int AS c FROM goals WHERE user_id = $1`, [req.userId]);
       if (gcount!.c >= goalLimit) {
-        answer.content = `Heads up — your ${plan} plan allows ${goalLimit} goals, so I couldn't add this one. You can upgrade for unlimited goals.\n\n` + answer.content;
+        answer.content = (lang === 'hi'
+          ? `ध्यान दें — आपके ${plan} प्लान में ${goalLimit} सपने ही जुड़ सकते हैं, इसलिए यह नहीं जुड़ा। असीमित सपनों के लिए प्लान अपग्रेड करें।\n\n`
+          : `Heads up — your ${plan} plan allows ${goalLimit} goals, so I couldn't add this one. You can upgrade for unlimited goals.\n\n`) + answer.content;
       } else {
         const defaultMeta = GOAL_TYPES.find((t) => t.type === g.goal_type)?.defaultMeta || {};
         await query(

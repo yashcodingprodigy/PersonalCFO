@@ -72,7 +72,9 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
     if (!alive.current) return;
     if (!text) { setP('idle'); setHeard(''); setNote(t(ERR_KEY[error || 'no-speech'])); return; }
     setHeard(text); setReply(''); setVisuals(null); setOpening(null); setP('thinking');
-    const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
+    // D-57: the app language decides; only Hindi in Devanagari (what speech-to-text gives for spoken Hindi) switches it.
+    // (The speech engine's own language guess is ignored — it often tags accented English as Hindi.)
+    const replyLang: VoiceLang = /[ऀ-ॿ]/.test(text) ? 'hi' : (lang as VoiceLang);
     // Instant intent preview: if this is "take me to…", go there now and show a skeleton
     // instead of a long "Thinking…" while the full answer is written.
     const openedPaths = new Set<string>();
