@@ -261,6 +261,12 @@ File parsing moved server-side (`/files/parse`) because PDF/Excel libraries don'
 designed in: in-app account deletion, no in-app purchase of digital subscriptions (plans are informational; paid
 features unlock if the account has a plan), minimal permissions, privacy manifest. Trade-off: a second UI to maintain —
 mitigated by keeping logic on the server.
+
+**D-53  Own the intelligence; use AI for language, not for facts.** PayWatch must feel like a finance brain of its own,
+not an AI wrapper. Rule: facts, prices, maths, routing and decisions come from first-party engines and data we own and
+test (tax/insurance/brain engines, `priceCatalog.ts`, `planNavigation`, `detectReplyLang`); the LLM only phrases answers
+and handles open-ended language, and is never allowed to override our own data (sanity bounds). Also: always answer in
+the language the user just used; navigation intent is resolved instantly (no AI) so the UI never looks stuck.
 ---
 
 ## E. Reversals / revisits log

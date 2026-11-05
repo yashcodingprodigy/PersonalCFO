@@ -268,7 +268,7 @@ function Checkout({ plan, category, cover, addOns, coverages, me, onClose }: any
     <div className="fixed inset-0 z-50 bg-pine-950/70 flex items-end sm:items-center justify-center sm:p-4 no-print" onClick={onClose}>
       <div className="bg-paper rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {phase === 'calculating' ? (
-          <div className="bg-pine-950 min-h-[60vh] flex items-center"><WittyLoader dark title="calculating your final premium" messages={CALC_MSGS} /></div>
+          <div className="bg-pine-950 min-h-[60vh] w-full flex items-center justify-center rounded-t-2xl sm:rounded-2xl px-6" role="status" aria-live="polite"><WittyLoader dark title="Calculating your final premium" messages={CALC_MSGS} className="w-full max-w-sm mx-auto" /></div>
         ) : phase === 'done' ? (
           <div className="p-6 text-center">
             <p className="text-4xl">🎉</p>

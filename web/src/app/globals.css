@@ -232,3 +232,8 @@ body {
 @keyframes pw-eq { 0%,100% { height: 20%; } 50% { height: 100%; } }
 .pw-eq { height: 30%; animation: pw-eq 1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .pw-eq { animation: none; height: 50%; } }
+
+/* Voice assistant skeleton shimmer (while an answer / page is loading) */
+@keyframes pw-voice-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.pw-voice-shimmer { animation: pw-voice-shimmer 1.3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pw-voice-shimmer { animation: none; } }

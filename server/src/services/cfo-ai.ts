@@ -257,7 +257,9 @@ COMPLIANCE — never break (legal requirements):
 3. Ground every number in the user's actual profile above; use Indian formats (₹, lakh, crore).
 4. For sizing guidance (like insurance cover), give a rounded range, not a falsely precise figure.${opts.lang === 'hi' ? `
 
-LANGUAGE: Reply in simple, natural everyday Hindi (Devanagari), the way a friendly young Indian speaks. Keep ₹ amounts, numbers and common terms (SIP, EMI, ITR, PAN, UPI, CA, tax regime) as they are.` : ''}`;
+LANGUAGE: Reply in simple, natural everyday Hindi (Devanagari), the way a friendly young Indian speaks. Keep ₹ amounts, numbers and common terms (SIP, EMI, ITR, PAN, UPI, CA, tax regime) as they are.` : `
+
+LANGUAGE: The user wrote in English — reply in clear, simple English only, even if earlier messages in this conversation were in Hindi.`}`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

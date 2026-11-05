@@ -1,7 +1,7 @@
 // Hands-free voice with the money brain: tap once → it listens, notices when you stop,
 // thinks, answers out loud in a natural voice, then listens again. Tap the orb to interrupt.
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { Animated, Linking, Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -28,6 +28,7 @@ export default function Voice() {
   const [note, setNote] = useState('');
   const [denied, setDenied] = useState(false);
   const [human, setHuman] = useState(false);
+  const [opening, setOpening] = useState<string | null>(null);
   const conv = useRef<string | null>(convId);
   const handle = useRef<ListenHandle | null>(null);
   const alive = useRef(true);
@@ -58,8 +59,13 @@ export default function Voice() {
     handle.current = null;
     if (!alive.current) return;
     if (!text) { setP('idle'); if (error === 'denied') setDenied(true); setNote(t(ERR[error || 'no-speech'])); return; }
-    setHeard(text); setReply(''); setP('thinking');
+    setHeard(text); setReply(''); setOpening(null); setP('thinking');
     const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
+    // Instant preview of where we're going, so "Thinking…" never looks stuck.
+    ask('/qa/intent', { content: text, lang: replyLang }).then((r: any) => {
+      const nav = (r?.actions || []).find((a: any) => a.type === 'navigate');
+      if (nav && alive.current && phaseRef.current === 'thinking') setOpening(nav.label);
+    }).catch(() => {});
     try {
       const body = { content: text, lang: replyLang, mode: 'voice' };
       const res: any = conv.current ? await ask(`/qa/conversations/${conv.current}/messages`, body, 60000) : await ask('/qa/conversations', body, 60000);
@@ -70,8 +76,9 @@ export default function Voice() {
       const otherActions = (res.actions || []).filter((a: any) => a.type !== 'navigate');
       if (otherActions.length) runActions(otherActions);
       if (!alive.current) return;
-      setReply(cleanForSpeech(answer)); setP('speaking');
-      await speak(answer, replyLang, (r) => {
+      setOpening(null); setReply(cleanForSpeech(answer)); setP('speaking');
+      const spokenLang: VoiceLang = res.reply_lang === 'hi' || res.reply_lang === 'en' ? res.reply_lang : /[ऀ-ॿ]/.test(answer) ? 'hi' : replyLang;
+      await speak(answer, spokenLang, (r) => {
         const max = contentH.current - 220; if (max > 0) scroll.current?.scrollTo({ y: Math.max(0, max * r - 40), animated: true });
       });
       if (!alive.current) return;
@@ -85,7 +92,7 @@ export default function Voice() {
     if (phase === 'speaking') { stopSpeaking(); setP('idle'); setTimeout(turn, 150); return; }
     if (phase === 'idle') turn();
   }
-  const label = phase === 'starting' ? t('vo.starting') : phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? t('vo.thinking') : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
+  const label = phase === 'starting' ? t('vo.starting') : phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? (opening ? `${lang === 'hi' ? 'खोल रहा हूँ:' : 'Opening'} ${opening}…` : t('vo.thinking')) : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.pine950 }}>
@@ -112,6 +119,7 @@ export default function Voice() {
         {heard ? <Txt noTr style={{ color: 'rgba(255,255,255,0.55)', marginTop: 10, textAlign: 'center', fontSize: 15 }} numberOfLines={3}>“{heard}”</Txt> : null}
         {note ? <Txt noTr style={{ color: C.gold, marginTop: 14, textAlign: 'center', fontSize: 15, lineHeight: 22 }}>{note}</Txt> : null}
         {denied && <Button small kind="light" title="Open Settings" onPress={() => Linking.openSettings()} style={{ marginTop: 12 }} />}
+        {phase === 'thinking' && !reply ? <VoiceSkeleton /> : null}
         {reply ? (
           <ScrollView ref={scroll} style={{ marginTop: 16, alignSelf: 'stretch', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
             contentContainerStyle={{ padding: 18 }} onContentSizeChange={(_, h) => { contentH.current = h; }}>
@@ -124,5 +132,18 @@ export default function Voice() {
         <Button kind="light" small title={t('vo.switchChat')} onPress={() => { close(); setTimeout(() => router.navigate('/ask'), 200); }} />
       </View>
     </SafeAreaView>
+  );
+}
+
+function VoiceSkeleton() {
+  const a = React.useRef(new Animated.Value(0.35)).current;
+  React.useEffect(() => {
+    const l = Animated.loop(Animated.sequence([Animated.timing(a, { toValue: 0.8, duration: 700, useNativeDriver: true }), Animated.timing(a, { toValue: 0.35, duration: 700, useNativeDriver: true })]));
+    l.start(); return () => l.stop();
+  }, [a]);
+  return (
+    <View style={{ marginTop: 20, alignSelf: 'stretch', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', padding: 18, gap: 10 }} accessibilityLabel="Loading">
+      {[92, 78, 85, 60].map((w, i) => <Animated.View key={i} style={{ height: 12, width: `${w}%`, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.15)', opacity: a }} />)}
+    </View>
   );
 }

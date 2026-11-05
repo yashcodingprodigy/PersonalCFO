@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { detectReplyLang } from '../services/langDetect';
+import { planNavigation } from '../services/assistantActions';
 import { z } from 'zod';
 import { query, one } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
@@ -60,7 +62,8 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: parsed.error.issues[0].message });
   const question = parsed.data.content;
   const langRow = await one(`SELECT language FROM users WHERE user_id = $1`, [req.userId]);
-  const lang = parsed.data.lang || asLang(langRow?.language);
+  // Answer in the language the user just used (typed or spoken), not just the app setting.
+  const lang = detectReplyLang(question, parsed.data.lang || asLang(langRow?.language));
   const mode = parsed.data.mode || 'chat';
 
   // Plan limits: Starter = 5 questions/month (SRS §12.3)
@@ -142,7 +145,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
     } else {
       // No price given? The brain hears the dream anyway, estimates a sensible
       // cost, and plans it automatically (marked "estimated — edit anytime").
-      const cap = await captureDream(req.userId!, question, mode === 'voice' ? 'voice' : 'chat').catch(() => null);
+      const cap = await captureDream(req.userId!, question, mode === 'voice' ? 'voice' : 'chat', lang).catch(() => null);
       if (cap) answer.content = `${cap.message}\n\n${answer.content}`;
     }
   }
@@ -163,8 +166,20 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   // private RAG memory — future answers know what they care about.
   await remember(req.userId!, 'question_asked', `Asked: ${question.slice(0, 100)}`, `On ${new Date().toISOString().slice(0, 10)} the user asked: "${question}". Topic relevance for future personalisation.`);
 
-  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction, actions: act.actions });
+  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction, actions: act.actions, reply_lang: lang });
 }
+
+// POST /qa/intent — instant preview of what the assistant will do (navigation), so the app can
+// move and show a skeleton while the full answer is still being written. No AI, no writes.
+qaRouter.post('/intent', rateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'qaintent' }), async (req: AuthedRequest, res) => {
+  const content = String(req.body?.content || '').slice(0, 2000);
+  if (!content.trim()) return res.json({ actions: [] });
+  const langRow = await one(`SELECT language FROM users WHERE user_id = $1`, [req.userId]);
+  const lang = detectReplyLang(content, req.body?.lang === 'hi' || req.body?.lang === 'en' ? req.body.lang : asLang(langRow?.language));
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.json({ actions: [], reply_lang: lang });
+  res.json({ ...planNavigation(content, p, lang), reply_lang: lang });
+});
 
 const qaLimit = rateLimit({ windowMs: 60_000, max: 15, keyPrefix: 'qa' });
 qaRouter.post('/conversations', qaLimit, (req: AuthedRequest, res) => handleMessage(req, res, null));

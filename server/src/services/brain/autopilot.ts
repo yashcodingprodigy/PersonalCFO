@@ -138,8 +138,8 @@ export function scheduleBrainTick(userId: string, reason: string, delayMs = 1500
 }
 
 // A dream heard anywhere → a planned dream. Returns null if the text isn't a dream.
-export async function captureDream(userId: string, text: string, source: string): Promise<{ goalId: string; dream: DetectedDream; message: string } | null> {
-  const lang = await userLang(userId);
+export async function captureDream(userId: string, text: string, source: string, langOverride?: Lang): Promise<{ goalId: string; dream: DetectedDream; message: string } | null> {
+  const lang = langOverride || await userLang(userId);
   const d = detectDream(text, lang);
   if (!d) return null;
   const T = M(lang);

@@ -51,8 +51,9 @@ function Gauge({ size = 96 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
       <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6" />
-      <path d="M50 8 a42 42 0 0 1 40 42" fill="none" stroke="#2FBC9B" strokeWidth="6" strokeLinecap="round" className="pw-spin" style={{ transformOrigin: '50px 50px' }} />
-      <g className="pw-sweep">
+      <path d="M50 8 a42 42 0 0 1 40 42" fill="none" stroke="#2FBC9B" strokeWidth="6" strokeLinecap="round" className="pw-spin" style={{ transformOrigin: '50px 50px', transformBox: 'view-box' }} />
+      {/* explicit origin + box: Safari otherwise rotates the needle around its own middle */}
+      <g className="pw-sweep" style={{ transformOrigin: '50px 50px', transformBox: 'view-box' }}>
         <line x1="50" y1="50" x2="50" y2="20" stroke="#2FBC9B" strokeWidth="3.5" strokeLinecap="round" />
       </g>
       <circle cx="50" cy="50" r="5" fill="#2FBC9B" />
@@ -114,7 +115,8 @@ export function LoadingScreen({ loading, quips, delayMs = 200 }: { loading: bool
         <circle cx="50" cy="50" r="45" fill="none" stroke="#0F3D34" strokeOpacity="0.10" strokeWidth="5" />
         <circle cx="50" cy="50" r="45" fill="none" stroke="#2FBC9B" strokeWidth="5" strokeLinecap="round"
           strokeDasharray="283" transform="rotate(-90 50 50)" className="pw-ring-draw" />
-        <g className="pw-sweep"><line x1="50" y1="50" x2="50" y2="18" stroke="#2FBC9B" strokeWidth="3.5" strokeLinecap="round" /></g>
+        {/* explicit origin + box: Safari otherwise rotates the needle around its own middle */}
+      <g className="pw-sweep" style={{ transformOrigin: '50px 50px', transformBox: 'view-box' }}><line x1="50" y1="50" x2="50" y2="18" stroke="#2FBC9B" strokeWidth="3.5" strokeLinecap="round" /></g>
         <circle cx="50" cy="50" r="5" fill="#2FBC9B" />
       </svg>
       <p key={i} className="pw-fade-up font-display text-3xl sm:text-4xl font-medium text-pine-900 max-w-xl px-6 leading-snug">

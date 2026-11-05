@@ -174,6 +174,17 @@ export async function planActions(userId: string, question: string, p: ProfileDa
   }
 
   // 4) Navigation (+ a guide for pages where one helps)
+  const nav = planNavigation(q, p, lang);
+  actions.push(...nav.actions); if (nav.note) notes.push(nav.note);
+
+  return { actions, note: notes.length ? notes.join(' ') : null, confirm };
+}
+
+/** Pure, instant (no AI, no writes): where should the app go for this message? Used before the answer is ready. */
+export function planNavigation(q: string, p: ProfileData, lang: 'en' | 'hi'): { actions: AssistantAction[]; note: string | null } {
+  const hi = lang === 'hi';
+  const actions: AssistantAction[] = [];
+  const notes: string[] = [];
   if (VERB.test(q) || /\b(take|le)\b/i.test(q)) {
     if (INSURANCE.test(q) && SHOPPING.test(q)) {
       const a = analyseInsurance(p);
@@ -197,5 +208,5 @@ export async function planActions(userId: string, question: string, p: ProfileDa
     }
   }
 
-  return { actions, note: notes.length ? notes.join(' ') : null, confirm };
+  return { actions, note: notes.length ? notes.join(' ') : null };
 }

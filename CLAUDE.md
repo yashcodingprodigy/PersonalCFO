@@ -318,9 +318,10 @@ unread-alerts badge, native biometric lock overlay).
 - **Money format (D-49):** every ₹ figure uses Indian grouping (₹1,20,000 · ₹18,60,000 · ₹1,25,00,000). Server: `lib/money.ts`
   `inrIN()` / `inrRangeIN()` used by all services; web: `lib/format` `inr()` full by default (`{compact:true}` only on
   request), `groupDigits()` formats money inputs as you type (state keeps plain digits).
+- **Reply language + instant intent (D-53):** `services/langDetect.ts` `detectReplyLang()` — answers come in the language the user just used (Devanagari → hi, Hinglish → hi, English → en, 1–2 neutral words → app language); `/qa` returns `reply_lang` and the voice clients speak in it; `captureDream` takes the same lang. `POST /qa/intent` = `assistantActions.planNavigation()` (pure, no AI, no writes) → clients show "Opening X…" + a skeleton instantly (web voice also navigates early).
 - **Price guide (D-50):** `brain/priceGuide.ts` — `POST /v1/brain/price-guide {text}` → typical prices for a dream as it is
   typed (property ₹/sq ft by city & locality incl. South Mumbai, trips per person × people, cars, bikes, phones, laptops,
-  weddings, courses, businesses, health cover); built-in table + Claude refinement (Haiku, 24 h cache); planning ranges,
+  weddings, courses, businesses, health cover); built-in table + Claude refinement (Haiku, 24 h cache); **D-53: `brain/priceCatalog.ts` = PayWatch's own brand/model price catalogue (Porsche, BMW, Mercedes, JLR, Royal Enfield, iPhone, MacBook, Rolex…); a brand/model match is trusted and never overridden by AI; AI estimates >4× off our table are discarded; `detectDream` names dreams by model ("Porsche 911") with catalogue prices**; planning ranges,
   never a quote. Web `components/PriceGuide.tsx` on the Dreams form + "Can I afford it?" (tap an option to fill cost).
 - **Assistant actions (D-51):** `services/assistantActions.ts` `planActions()` runs before every Ask answer (chat + voice):
   navigate to any page (EN/HI/Hinglish), insurance marketplace deep-link `?category=` (picks the user's biggest gap),
@@ -606,7 +607,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **216 assertions** (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **223 assertions** (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

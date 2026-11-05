@@ -257,6 +257,14 @@ check('hears dreams in English, Hinglish and Hindi — estimates price when not 
   const d = detectDream('my dream is to open my own cafe in 3 years', 'en', NOW)!;
   assert.strictEqual(d.kind, 'milestone'); assert.strictEqual(d.months, 36);
 });
+check('price catalogue: brands & models beat generic categories (Porsche is not a hatchback)', () => {
+  const g = tableGuide('I want a Porsche')!;
+  assert.strictEqual(g.item, 'Porsche'); assert(g.low >= R(90_00_000), 'Porsche starts near ₹1 crore');
+  assert.strictEqual(tableGuide('porsche 911 turbo s')!.item, 'Porsche 911');
+  assert(tableGuide('a new car')!.low < R(10_00_000), 'generic car stays affordable');
+  const d = detectDream('I want a Porsche 911 in 5 years', 'en', NOW)!;
+  assert.strictEqual(d.name, 'Porsche 911'); assert(d.amount >= R(1_50_00_000)); assert.strictEqual(d.months, 60);
+});
 check('ignores questions and non-dreams', () => {
   assert.strictEqual(detectDream('what is my tax this year?', 'en', NOW), null);
   assert.strictEqual(detectDream('I want to understand my score', 'en', NOW), null);

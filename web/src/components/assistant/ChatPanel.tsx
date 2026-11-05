@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { get, post, del } from '@/lib/api';
+import { get, post, del, api } from '@/lib/api';
 import { useLang, TKey } from '@/lib/i18n';
 import { Markdown } from './Markdown';
 
@@ -53,6 +53,9 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
     if (!content || busy) return;
     setBusy(true); setErr(''); setInput('');
     setMessages((m) => [...m, { message_id: `tmp_${Date.now()}`, role: 'user', content }]);
+    setOpening(null);
+    api('/qa/intent', { method: 'POST', body: JSON.stringify({ content, lang }) })
+      .then((r: any) => { const nav = (r?.actions || []).find((a: any) => a.type === 'navigate'); if (nav) setOpening(nav.label); }).catch(() => {});
     try {
       const body = { content, lang, mode: 'chat' };
       const res = activeId ? await post(`/qa/conversations/${activeId}/messages`, body) : await post('/qa/conversations', body);
@@ -66,7 +69,7 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
       if (res.actions?.length) onActions?.(res.actions);
     } catch (e: any) {
       setErr(e.message); setMessages((m) => m.slice(0, -1)); setInput(content);
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setOpening(null); }
   }
 
   async function confirmProposed(mid: string, benefit: any) {
@@ -74,6 +77,7 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
     catch (e: any) { setErr(e.message || 'Could not save that. Please try again.'); }
   }
   const [confirmClear, setConfirmClear] = useState(false);
+  const [opening, setOpening] = useState<string | null>(null);
   async function clearChat(all = false) {
     setErr('');
     try {
@@ -138,7 +142,7 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
           {busy && (
             <div className="flex justify-start">
               <div className="bg-paper-50 border border-paper-200 rounded-2xl rounded-bl-md px-4 py-3 text-sm text-ink-faint flex items-center gap-2">
-                <span className="pw-typing"><i /><i /><i /></span>{t('as.thinking')}
+                <span className="pw-typing"><i /><i /><i /></span>{opening ? `${t('vo.opening')} ${opening}…` : t('as.thinking')}
               </div>
             </div>
           )}

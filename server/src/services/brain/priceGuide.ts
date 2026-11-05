@@ -4,6 +4,7 @@
 // Every number is an approximate planning range — never a quote. Amounts in paise.
 
 import { config } from '../../config';
+import { catalogLookup } from './priceCatalog';
 
 export interface PriceOption { label: string; amount: number; note?: string }
 export interface PriceGuide {
@@ -116,11 +117,25 @@ function simpleGuide(t: string): PriceGuide | null {
   };
 }
 
-/** Built-in table only (fast, offline). */
+/** Brand / model catalogue (PayWatch's own price knowledge) — the most specific answer we have. */
+function catalogGuide(t: string): PriceGuide | null {
+  const hit = catalogLookup(t);
+  if (!hit) return null;
+  const vs = hit.model ? hit.model.variants : hit.brand.fallback;
+  const vals = vs.map((v) => v.rupees);
+  return {
+    found: true, item: hit.model ? hit.model.name : hit.brand.brand,
+    options: vs.slice(0, 4).map((v) => ({ label: v.label, amount: R(v.rupees), note: v.note })),
+    low: R(Math.min(...vals)), typical: R(vals[Math.floor((vals.length - 1) / 2)]), high: R(Math.max(...vals)),
+    basis: hit.brand.basis, source: 'table', disclaimer: DISCLAIMER,
+  };
+}
+
+/** Built-in knowledge only (fast, offline): brand/model catalogue → property → trips → categories. */
 export function tableGuide(text: string): PriceGuide | null {
   const t = (text || '').trim();
   if (t.length < 3) return null;
-  return propertyGuide(t) || tripGuide(t) || simpleGuide(t);
+  return catalogGuide(t) || propertyGuide(t) || tripGuide(t) || simpleGuide(t);
 }
 
 // ── AI layer ─────────────────────────────────────────────────────────────────
@@ -167,7 +182,11 @@ export async function priceGuide(text: string): Promise<PriceGuide> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.g || emptyGuide();
   const table = tableGuide(key);
-  const ai = await aiGuide(text.trim(), table);
+  // A brand/model match is first-party knowledge — trust it, don't let a model guess override it.
+  const trusted = !!catalogLookup(key);
+  let ai = trusted ? null : await aiGuide(text.trim(), table);
+  // Sanity check: an AI estimate wildly off our own table (>4× either way) is discarded.
+  if (ai && table && table.typical > 0 && (ai.typical > table.typical * 4 || ai.typical * 4 < table.typical)) ai = null;
   const g = ai || table;
   cache.set(key, { at: Date.now(), g });
   if (cache.size > 800) cache.delete(cache.keys().next().value as string);

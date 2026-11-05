@@ -5,6 +5,7 @@
 //
 // Pure parsing here (`detectDream`); persistence lives in `captureDream` (DB).
 
+import { catalogLookup } from './priceCatalog';
 import { Lang } from './i18n';
 import { DreamKind } from './dreams';
 
@@ -111,6 +112,21 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function detectDream(text: string, lang: Lang = 'en', now = new Date()): DetectedDream | null {
   if (!text || text.length > 400) return null;
   if (!INTENT.test(text)) return null;
+  // Brand / model the user named ("a Porsche 911", "iPhone 17 Pro") → PayWatch's own price catalogue.
+  const hit = catalogLookup(text);
+  // Only real brands/models here; generic words ("laptop", "phone") keep the simpler dream names below.
+  const named = hit && !hit.brand.generic ? hit : null;
+  if (named) {
+    const v = (named.model ? named.model.variants : named.brand.fallback)[0];
+    const k = named.brand.kind;
+    const stated = parseRupees(text);
+    const nm = named.model ? named.model.name : named.brand.brand;
+    const months = parseMonths(text, now) ?? (k === 'car' ? 60 : k === 'bike' ? 18 : k === 'watch' ? 12 : 6);
+    return {
+      name: nm, names: { en: nm, hi: nm }, kind: 'purchase', goalType: k === 'car' || k === 'bike' ? 'car_purchase' : 'custom',
+      amount: stated > 0 ? stated : v.rupees * 100, estimated: stated <= 0, months, inflation: k === 'car' || k === 'bike' ? 0.04 : 0.03,
+    };
+  }
   const item = CATALOG.find((c) => c.re.test(text));
   if (!item) return null;
   const stated = parseRupees(text);

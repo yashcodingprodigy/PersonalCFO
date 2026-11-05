@@ -6,7 +6,7 @@
 // Replies in the language you spoke (English or Hindi).
 
 import { useEffect, useRef, useState } from 'react';
-import { post } from '@/lib/api';
+import { post, api } from '@/lib/api';
 import { listen, speak, stopSpeaking, voiceStatus, cleanForSpeech, ListenHandle, VoiceLang, ListenError, releaseMic, readyChime } from '@/lib/voice';
 import type { TKey } from '@/lib/i18n';
 
@@ -31,6 +31,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
   const [reply, setReply] = useState('');
   const [note, setNote] = useState('');
   const [engine, setEngine] = useState<'human' | 'browser'>('browser');
+  const [opening, setOpening] = useState<string | null>(null); // "Opening Insurance…" while the answer is written
   const convRef = useRef<string | null>(conversationId || null);
   const handleRef = useRef<ListenHandle | null>(null);
   const alive = useRef(true);
@@ -68,24 +69,39 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
     handleRef.current = null;
     if (!alive.current) return;
     if (!text) { setP('idle'); setHeard(''); setNote(t(ERR_KEY[error || 'no-speech'])); return; }
-    setHeard(text); setReply(''); setP('thinking');
+    setHeard(text); setReply(''); setOpening(null); setP('thinking');
     const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
+    // Instant intent preview: if this is "take me to…", go there now and show a skeleton
+    // instead of a long "Thinking…" while the full answer is written.
+    const openedPaths = new Set<string>();
+    api('/qa/intent', { method: 'POST', body: JSON.stringify({ content: text, lang: replyLang }) }).then((r: any) => {
+      if (!alive.current || phaseRef.current !== 'thinking') return;
+      const nav = (r?.actions || []).find((a: any) => a.type === 'navigate');
+      if (!nav) return;
+      setOpening(nav.label);
+      openedPaths.add(nav.path);
+      onActions?.(r.actions);
+    }).catch(() => {});
     try {
       const body = { content: text, lang: replyLang, mode: 'voice' };
       const res = convRef.current ? await post(`/qa/conversations/${convRef.current}/messages`, body) : await post('/qa/conversations', body);
+      setOpening(null);
       if (res.conversation_id && res.conversation_id !== convRef.current) { convRef.current = res.conversation_id; onConversation?.(res.conversation_id); }
       const answer: string = res.message?.content || '';
       if (/✨|✅/.test(answer)) onDataChanged?.();
       // Actions (open a page, pin a guide, update a dream…) happen right away, behind this screen.
-      const navigated = res.actions?.length ? !!onActions?.(res.actions) : false;
+      const fresh = (res.actions || []).filter((a: any) => !(a.type === 'navigate' && openedPaths.has(a.path)));
+      const navigated = openedPaths.size > 0 || (fresh.length ? !!onActions?.(fresh) : false);
       if (!alive.current) return;
       setReply(cleanForSpeech(answer)); setP('speaking');
-      await speak(answer, replyLang, follow);
+      // Speak in the language the answer is actually in (the server answers in the language you used).
+      const spokenLang: VoiceLang = res.reply_lang === 'hi' || res.reply_lang === 'en' ? res.reply_lang : /[ऀ-ॿ]/.test(answer) ? 'hi' : replyLang;
+      await speak(answer, spokenLang, follow);
       if (!alive.current) return;
       if (navigated) { close(); return; } // step aside so the page (and its guide) is visible
       if (phaseRef.current === 'speaking') turn(); // keep the conversation going
     } catch (e: any) {
-      setP('idle'); setNote(e.message || 'Something went wrong.');
+      setOpening(null); setP('idle'); setNote(e.message || 'Something went wrong.');
     }
   }
 
@@ -95,7 +111,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
     if (phase === 'idle') turn();
   }
 
-  const label = phase === 'starting' ? t('vo.starting') : phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? t('vo.thinking') : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
+  const label = phase === 'starting' ? t('vo.starting') : phase === 'listening' ? t('vo.listening') : phase === 'thinking' ? (opening ? `${t('vo.opening')} ${opening}…` : t('vo.thinking')) : phase === 'speaking' ? t('vo.speaking') : t('vo.tapToTalk');
   const scale = 1 + (phase === 'listening' ? level * 0.35 : phase === 'speaking' ? 0.06 : 0);
   return (
     <div className="fixed inset-0 z-[80] flex flex-col items-center text-white pw-voice-bg" role="dialog" aria-label="PayWatch voice">
@@ -120,6 +136,18 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
         <p className="mt-5 shrink-0 text-sm font-semibold tracking-wide text-mint-300">{label}</p>
         {heard && <p className="mt-3 shrink-0 text-white/55 text-sm text-center max-w-lg line-clamp-2">“{heard}”</p>}
         {note && <p className="mt-4 shrink-0 text-sm text-gold-500 text-center max-w-md leading-relaxed">{note}</p>}
+        {phase === 'thinking' && !reply && (
+          <div className="mt-6 w-full max-w-lg rounded-3xl bg-white/[0.06] border border-white/10 px-5 py-5 pw-fade-in" aria-busy="true" aria-label={opening || t('vo.thinking')}>
+            {opening && <p className="text-[11px] font-bold uppercase tracking-widest text-mint-300 mb-3">{t('vo.opening')} {opening}</p>}
+            <div className="space-y-2.5">
+              {[92, 78, 85, 60].map((w, i) => (
+                <div key={i} className="h-3 rounded-full bg-white/10 overflow-hidden" style={{ width: `${w}%` }}>
+                  <div className="h-full w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent pw-voice-shimmer" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {reply && (
           <div ref={replyRef} className="mt-5 w-full flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-3xl bg-white/[0.06] border border-white/10 px-5 py-4 sm:px-7 sm:py-5 pw-fade-in">
             <p className="text-[15px] sm:text-base leading-7 text-white/90 whitespace-pre-line">{reply}</p>

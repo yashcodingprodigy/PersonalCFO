@@ -62,6 +62,7 @@ const D = {
   'as.s4': ['Am I on the right track?', 'क्या मैं सही रास्ते पर हूँ?'],
   'vo.listening': ['Listening…', 'सुन रहा हूँ…'],
   'vo.thinking': ['Thinking…', 'सोच रहा हूँ…'],
+  'vo.opening': ['Opening', 'खोल रहा हूँ:'],
   'vo.speaking': ['Speaking…', 'बोल रहा हूँ…'],
   'vo.tapToTalk': ['Tap to talk', 'बोलने के लिए छुएँ'],
   'vo.tapToStop': ['Tap to stop', 'रोकने के लिए छुएँ'],
