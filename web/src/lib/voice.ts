@@ -10,7 +10,7 @@
 import { api, apiBlob, get } from './api';
 
 export type VoiceLang = 'en' | 'hi';
-type Status = { tts: 'elevenlabs' | 'browser'; ttsHi?: 'sarvam' | 'elevenlabs' | 'browser'; stt: 'elevenlabs' | 'browser' };
+type Status = { tts: 'elevenlabs' | 'browser'; ttsHi?: 'sarvam' | 'elevenlabs' | 'browser'; stt: 'elevenlabs' | 'sarvam' | 'browser' };
 
 let statusP: Promise<Status> | null = null;
 export function voiceStatus(): Promise<Status> {
@@ -136,7 +136,7 @@ function micError(e: any): ListenError {
 
 /** Mic level meter so the orb visibly reacts — proves the mic is actually hearing you. */
 function meter(stream: MediaStream, onLevel?: (v: number) => void) {
-  let raf = 0, ctx: AudioContext | null = null, lastLoud = 0, spoke = false;
+  let raf = 0, ctx: AudioContext | null = null, lastLoud = 0, spoke = false, heard = false;
   try {
     ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     ctx.resume?.().catch(() => {});
@@ -148,12 +148,13 @@ function meter(stream: MediaStream, onLevel?: (v: number) => void) {
       const rms = Math.sqrt(sum / buf.length);
       onLevel?.(Math.min(1, rms * 6));
       if (rms > 0.025) { spoke = true; lastLoud = Date.now(); } // low enough to catch a quiet "yes" / "haan"
+      if (rms > 0.012) heard = true;                             // any voice at all (whispered single words)
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
   } catch { /* level meter is cosmetic */ }
   return {
-    get spoke() { return spoke; }, get lastLoud() { return lastLoud; },
+    get spoke() { return spoke; }, get heard() { return heard; }, get lastLoud() { return lastLoud; },
     /** false when the browser kept the meter suspended — then we can't detect silence. */
     get working() { return !!ctx && ctx.state === 'running'; },
     stop() { cancelAnimationFrame(raf); onLevel?.(0); ctx?.close().catch(() => {}); },
@@ -202,8 +203,9 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
     const m = meter(stream, onLevel);
     const release = () => { m.stop(); }; // keep the mic warm for the next turn
 
-    // 2a) ElevenLabs Scribe: record → transcribe on our server (works in every modern browser).
-    if (st.stt === 'elevenlabs' && (window as any).MediaRecorder) {
+    // 2a) Server speech-to-text (ElevenLabs Scribe or Sarvam): record → transcribe on our server.
+    // The mic is already open, so recording starts instantly — no lost first words, and a single "yes" is kept.
+    if (st.stt !== 'browser' && (window as any).MediaRecorder) {
       const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((x) => (window as any).MediaRecorder.isTypeSupported?.(x)) || '';
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       const chunks: BlobPart[] = [];
@@ -221,7 +223,7 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
       rec.start(250);
       onReady?.(); // recording is live — speak now
       await done;
-      const spoke = m.spoke || !m.working;
+      const spoke = m.spoke || m.heard || !m.working;
       release();
       if (!spoke || !chunks.length) return { text: '', language: null, error: 'no-speech' };
       const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
@@ -242,14 +244,17 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
     return await new Promise<ListenResult>((resolve) => {
       const r = new SR();
       r.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
-      r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
-      let finalText = '', interim = '', err: ListenError | undefined, settled = false;
+      // Desktop: keep the recogniser running (continuous) and end the turn ourselves when the mic meter
+      // hears ~1.2 s of silence after speech — Chrome's own end-pointing cuts off short replies like "yes".
+      r.interimResults = true; r.continuous = shareMic; r.maxAlternatives = 1;
+      let finalText = '', interim = '', err: ListenError | undefined, settled = false, lastResult = 0;
       const finish = () => {
         if (settled) return; settled = true; releaseOnce();
         const text = (finalText || interim).trim();
         resolve(text ? { text, language: lang } : { text: '', language: null, error: err || 'no-speech' });
       };
       r.onresult = (e: any) => {
+        lastResult = Date.now();
         interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0]?.transcript || '';
@@ -269,10 +274,22 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
       r.onend = finish;
       let readyFired = false;
       const ready = () => { if (!readyFired) { readyFired = true; onReady?.(); } };
-      r.onaudiostart = ready; r.onstart = () => setTimeout(ready, 250);
+      // "Listening" + chime only once audio is actually being captured, so the first word isn't spoken too early.
+      r.onaudiostart = () => setTimeout(ready, 120); r.onstart = () => setTimeout(ready, 700);
       r.onsoundstart = () => { if (!shareMic) onLevel?.(0.5); };
       r.onspeechend = () => { if (!shareMic) onLevel?.(0); };
       stopFn = () => { try { r.stop(); } catch { finish(); } };
+      if (shareMic) {
+        const t0 = Date.now();
+        const iv = setInterval(() => {
+          if (settled) { clearInterval(iv); return; }
+          const now = Date.now();
+          const gotWords = !!(finalText || interim).trim();
+          // speech then silence → done; nothing at all for 9 s → done (no-speech)
+          const lastSound = m.working ? Math.max(m.lastLoud, lastResult) : lastResult;
+          if ((gotWords && now - lastSound > (m.working ? 1200 : 1600)) || (!gotWords && now - t0 > 9000)) { clearInterval(iv); try { r.stop(); } catch { finish(); } }
+        }, 150);
+      }
       // Safety: never hang forever.
       setTimeout(() => { try { r.stop(); } catch {} setTimeout(finish, 800); }, 25000);
       try { r.start(); } catch { err = 'unsupported'; finish(); }

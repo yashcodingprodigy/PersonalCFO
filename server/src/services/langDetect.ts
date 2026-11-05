@@ -1,9 +1,9 @@
-// Which language should PayWatch answer in? (D-57 — the app language is the default; only an
-// unmistakable switch overrides it.)
-//  • App in English → English. Only Hindi typed/spoken in Devanagari switches the reply to Hindi.
-//    (Hinglish typed in Latin letters gets an English reply — the user chose English for the app.)
-//  • App in Hindi → Hindi, unless the message is clearly plain English (3+ words, no Hinglish).
-//  • Numbers/emoji/one-word messages → the app language.
+// Which language should PayWatch answer in? (D-57, refined D-58)
+//  1. An explicit request wins: "reply in Hindi", "hindi mein batao", "in English please".
+//  2. Hindi wins when the user actually speaks/writes Hindi — in Devanagari, or Hindi in Latin letters
+//     (device speech recognition often writes spoken Hindi that way: "mujhe goa jana hai").
+//  3. A language the user asked for earlier in this conversation sticks (until they ask otherwise).
+//  4. Otherwise the app language: English app → English; Hindi app → Hindi unless clearly plain English.
 export type ReplyLang = 'en' | 'hi';
 
 const HINGLISH = new Set([
@@ -13,6 +13,9 @@ const HINGLISH = new Set([
   'jana', 'jaana', 'paisa', 'paise', 'paiso', 'bachat', 'kharcha', 'kharch', 'naya', 'nayi', 'acha', 'accha', 'achha', 'theek', 'thik',
   'nahi', 'nahin', 'haan', 'bhi', 'aur', 'ya', 'se', 'ko', 'ka', 'ki', 'ke', 'mein', 'liye', 'abhi', 'sakta', 'sakti', 'sakte', 'wala', 'wali',
   'saal', 'mahina', 'mahine', 'lakh', 'hazaar', 'hazar', 'bahut', 'zyada', 'kam', 'sapna', 'sapne', 'ghar', 'gaadi', 'gadi',
+  'hun', 'hoon', 'hu', 'raha', 'rahi', 'rahe', 'karta', 'karti', 'karte', 'sahi', 'galat', 'kuch', 'sab', 'kyunki', 'lekin', 'agar', 'toh',
+  'yaar', 'bhai', 'chalo', 'achchha', 'samjhao', 'samjha', 'bolo', 'suno', 'jaldi', 'kaisa', 'kaisi', 'kidhar', 'idhar', 'udhar', 'wahan', 'yahan',
+  'humko', 'tumko', 'unko', 'isko', 'usko', 'kitna', 'kharidna', 'kharid', 'bachana', 'bachaun', 'chahiye', 'milega', 'milegi', 'hoga', 'sakta',
 ]);
 // Words shared with English that shouldn't count on their own.
 const AMBIGUOUS = new Set(['main', 'ho', 'ya', 'se', 'ko', 'ka', 'ki', 'ke', 'kam', 'bhi', 'aur', 'kar']);
@@ -27,12 +30,32 @@ export function isHinglish(text: string): boolean {
   return strong >= 2 || (strong >= 1 && score / words.length >= 0.2);
 }
 
-export function detectReplyLang(text: string, appLang: ReplyLang = 'en'): ReplyLang {
+/** "reply in Hindi" / "hindi mein bolo" / "in English please" → that language; otherwise null. */
+export function explicitLang(text: string): ReplyLang | null {
+  const q = String(text || '');
+  const hi = /\b(in|into|to)\s+hindi\b|\bhindi\s*(me|mein|mai|main|mei)\b|\b(talk|speak|reply|answer|respond|baat|bolo|bol)\b[^.?!]{0,20}\bhindi\b|switch to hindi|हिंदी में|हिन्दी में|हिंदी मे/i.test(q);
+  const en = /\b(in|into|to)\s+english\b|\benglish\s*(me|mein|mai|main|mei)\b|\b(talk|speak|reply|answer|respond|baat|bolo|bol)\b[^.?!]{0,20}\benglish\b|switch to english|अंग्रेज़ी में|अंग्रेजी में|इंग्लिश में/i.test(q);
+  if (hi && !en) return 'hi';
+  if (en && !hi) return 'en';
+  return null;
+}
+
+/** The last language the user explicitly asked for in this conversation (most recent first). */
+export function stickyLang(userMessages: string[]): ReplyLang | null {
+  for (let i = userMessages.length - 1; i >= 0; i--) { const l = explicitLang(userMessages[i]); if (l) return l; }
+  return null;
+}
+
+export function detectReplyLang(text: string, appLang: ReplyLang = 'en', sticky: ReplyLang | null = null): ReplyLang {
   const s = String(text || '');
-  if (/[ऀ-ॿ]/.test(s)) return 'hi';             // Devanagari is an unmistakable choice of Hindi
-  if (appLang === 'en') return 'en';            // English app: Latin-script messages always get English
+  const ex = explicitLang(s);
+  if (ex) return ex;                            // 1. asked for a language
+  if (/[ऀ-ॿ]/.test(s)) return 'hi';             // 2. Hindi in Devanagari
+  if (isHinglish(s)) return 'hi';               //    Hindi in Latin letters (typed or device speech-to-text)
+  if (sticky) return sticky;                    // 3. asked earlier in this conversation
+  if (appLang === 'en') return 'en';            // 4. English app
   const words = s.toLowerCase().match(/[a-z]+/g) || [];
-  if (words.length >= 3 && !isHinglish(s)) return 'en';   // Hindi app, but a clearly English sentence
+  if (words.length >= 3) return 'en';           //    Hindi app, but a clearly English sentence
   return 'hi';
 }
 

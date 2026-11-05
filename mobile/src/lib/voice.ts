@@ -43,7 +43,7 @@ export function listen(recorder: AudioRecorder, lang: VoiceLang, cb: { onLevel?:
   const result = (async (): Promise<ListenResult> => {
     if (!(await ensureMic())) return { text: '', language: null, error: 'denied' };
     const st = await voiceStatus();
-    if (st.stt !== 'elevenlabs') return deviceListen(lang, cb, () => stopRequested || cancelled, (f) => { finish = f; });
+    if (st.stt === 'browser') return deviceListen(lang, cb, () => stopRequested || cancelled, (f) => { finish = f; });
     try {
       await recordMode();
       await recorder.prepareToRecordAsync();
@@ -62,7 +62,7 @@ export function listen(recorder: AudioRecorder, lang: VoiceLang, cb: { onLevel?:
         const level = Math.max(0, Math.min(1, (db + 55) / 45));
         cb.onLevel?.(level);
         const now = Date.now();
-        if (level > 0.28) { if (!heardAt) heardAt = now; lastLoud = now; }
+        if (level > 0.2) { if (!heardAt) heardAt = now; lastLoud = now; } // low enough for a quick "yes" / "haan"
         const silentFor = lastLoud ? now - lastLoud : 0;
         if ((heardAt && silentFor > 1300 && now - heardAt > 500) || now - started > 20000 || (!heardAt && now - started > 7000)) { clearInterval(iv); resolve(); }
       }, 100);

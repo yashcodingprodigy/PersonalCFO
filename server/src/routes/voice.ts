@@ -15,12 +15,14 @@ export const voiceRouter = Router();
 voiceRouter.use(requireAuth);
 
 const live = () => !!config.elevenLabsKey;
+// Speech-to-text: ElevenLabs Scribe if keyed, else Sarvam (great at Hindi, English and Hinglish), else the device.
+const sttProvider = () => (config.elevenLabsKey ? 'elevenlabs' : config.sarvamKey ? 'sarvam' : 'browser');
 const hiProvider = () => (config.sarvamKey ? 'sarvam' : live() ? 'elevenlabs' : 'browser');
 voiceRouter.get('/status', (_req, res) => {
   res.json({
     tts: live() ? 'elevenlabs' : 'browser',           // English voice
     ttsHi: hiProvider(),                                  // Hindi voice (Sarvam = native Indian accent)
-    stt: live() ? 'elevenlabs' : 'browser',
+    stt: sttProvider(),
     languages: ['en', 'hi'],
   });
 });
@@ -133,24 +135,32 @@ voiceRouter.post('/tts', rateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'tts'
 });
 
 voiceRouter.post('/stt', rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'stt' }), async (req: AuthedRequest, res) => {
-  if (!live()) return res.status(503).json({ error: 'stt_unavailable' });
+  const provider = sttProvider();
+  if (provider === 'browser') return res.status(503).json({ error: 'stt_unavailable' });
   const b64 = String(req.body?.audio || '');
   if (!b64 || b64.length > 8_000_000) return res.status(400).json({ error: 'invalid_audio' });
   const mime = String(req.body?.mime || 'audio/webm').slice(0, 40);
+  const ext = mime.includes('mp4') || mime.includes('m4a') ? 'mp4' : mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : 'webm';
+  const norm = (lc: string) => (lc.startsWith('hi') ? 'hi' : lc.startsWith('en') ? 'en' : lc || null);
   try {
     const bytes = Buffer.from(b64.replace(/^data:[^;]+;base64,/, ''), 'base64');
     const form = new FormData();
-    form.append('model_id', config.elevenSttModel);
-    form.append('file', new Blob([bytes], { type: mime }), `speech.${mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm'}`);
-    if (req.body?.lang === 'hi' || req.body?.lang === 'en') form.append('language_code', req.body.lang === 'hi' ? 'hin' : 'eng');
-    const r = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': config.elevenLabsKey }, body: form });
-    if (!r.ok) {
-      console.error('[voice] stt failed', r.status, await r.text().catch(() => ''));
-      return res.status(502).json({ error: 'stt_failed' });
+    form.append('file', new Blob([bytes], { type: mime }), `speech.${ext}`);
+    if (provider === 'elevenlabs') {
+      form.append('model_id', config.elevenSttModel);
+      // No language hint: Scribe auto-detects, so Hindi spoken in an English app still comes back as Hindi.
+      const r = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': config.elevenLabsKey }, body: form });
+      if (!r.ok) { console.error('[voice] stt failed', r.status, (await r.text().catch(() => '')).slice(0, 300)); return res.status(502).json({ error: 'stt_failed' }); }
+      const j: any = await r.json();
+      return res.json({ text: String(j.text || '').trim(), language: norm(String(j.language_code || '').toLowerCase()) });
     }
+    // Sarvam saaras: auto-detects the language; Hindi comes back in Devanagari, English in English.
+    form.append('model', process.env.SARVAM_STT_MODEL || 'saaras:v4');
+    form.append('language_code', 'unknown');
+    const r = await fetch('https://api.sarvam.ai/speech-to-text', { method: 'POST', headers: { 'api-subscription-key': config.sarvamKey }, body: form });
+    if (!r.ok) { console.error('[voice] sarvam stt failed', r.status, (await r.text().catch(() => '')).slice(0, 300)); return res.status(502).json({ error: 'stt_failed' }); }
     const j: any = await r.json();
-    const lc = String(j.language_code || '').toLowerCase();
-    res.json({ text: String(j.text || '').trim(), language: lc.startsWith('hi') ? 'hi' : lc.startsWith('en') ? 'en' : lc || null });
+    res.json({ text: String(j.transcript || '').trim(), language: norm(String(j.language_code || '').toLowerCase()) });
   } catch (e: any) {
     console.error('[voice] stt error', e?.message);
     res.status(502).json({ error: 'stt_failed' });

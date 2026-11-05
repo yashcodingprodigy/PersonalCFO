@@ -6,6 +6,7 @@
 // Deterministic and bilingual (EN / Hindi / Hinglish) so it works with or without an AI key.
 // Compliance: guides are general pointers from the user's own inputs — never a product pick.
 
+import { explicitLang } from './langDetect';
 import { query, one } from '../db';
 import { ProfileData } from './score';
 import { analyseInsurance } from './insurance';
@@ -130,8 +131,8 @@ export async function planActions(userId: string, question: string, p: ProfileDa
   let confirm: string | null = null;
 
   // 1) Language switch
-  const toHi = /\b(talk|speak|reply|answer|baat)\b.*\b(hindi)\b|switch to hindi|hindi (mein|me|में)|हिंदी में/i.test(q);
-  const toEn = /\b(talk|speak|reply|answer|baat)\b.*\benglish\b|switch to english|english (mein|me|में)|अंग्रेज़ी में|इंग्लिश में/i.test(q);
+  const ex = explicitLang(q);
+  const toHi = ex === 'hi', toEn = ex === 'en';
   if (toHi || toEn) {
     const v = toHi ? 'hi' : 'en';
     await query(`UPDATE users SET language = $2 WHERE user_id = $1`, [userId, v]).catch(() => {});

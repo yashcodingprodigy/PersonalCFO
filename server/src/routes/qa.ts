@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { detectReplyLang } from '../services/langDetect';
+import { detectReplyLang, stickyLang } from '../services/langDetect';
 import { planNavigation } from '../services/assistantActions';
 import { z } from 'zod';
 import { query, one } from '../db';
@@ -65,7 +65,8 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   const question = parsed.data.content;
   const langRow = await one(`SELECT language FROM users WHERE user_id = $1`, [req.userId]);
   // Answer in the language the user just used (typed or spoken), not just the app setting.
-  const lang = detectReplyLang(question, parsed.data.lang || asLang(langRow?.language));
+  const appLang = parsed.data.lang || asLang(langRow?.language);
+  let lang = detectReplyLang(question, appLang);
   const mode = parsed.data.mode || 'chat';
 
   // Plan limits: Starter = 5 questions/month (SRS §12.3)
@@ -111,6 +112,8 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
     [convId]
   );
   history.reverse();
+  // A language the user asked for earlier in this chat ("reply in Hindi") sticks for the rest of it.
+  lang = detectReplyLang(question, appLang, stickyLang(history.filter((m: any) => m.role === 'user').map((m: any) => String(m.content))));
 
   await query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convId, question]);
 

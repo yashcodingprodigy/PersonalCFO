@@ -294,6 +294,13 @@ English replies for anything typed/spoken in Latin letters (even Hinglish); Hind
 Hindi, unless the message is clearly plain English. Enforced three ways: the language tag on the user turn + top of
 the system prompt, a post-check (`replyMatches`) that translates a wrong-language reply, and device↔account language
 sync (the screen the user sees updates `users.language`). Guardrail/limit messages are bilingual too. Refines D-53.
+
+**D-58  Speak Hindi, get Hindi — even in English mode (Nov 2026, refines D-57).** Reply-language order: (1) an explicit
+request ("reply in Hindi", "hindi mein batao", "in English please") — it also sticks for the rest of the conversation;
+(2) Hindi actually used — Devanagari or Hindi in Latin letters (device speech-to-text writes spoken Hindi that way);
+(3) the app language. Speech-to-text no longer forces the app language (Scribe/Sarvam auto-detect). Server STT order:
+ElevenLabs Scribe → Sarvam saaras (if `SARVAM_API_KEY`) → device recogniser. Device recogniser on desktop now runs
+continuously and PayWatch ends the turn after ~1.2 s of silence, so short answers like "yes" are kept.
 ---
 
 ## E. Reversals / revisits log
