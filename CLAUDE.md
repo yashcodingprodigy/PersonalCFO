@@ -199,6 +199,11 @@ unread-alerts badge, native biometric lock overlay).
   Settings → App language. **Overview (D-47)** = dream-first story with a three.js money brain
   (`components/overview/BrainScene.tsx`, `parts.tsx`: DreamCard/Tilt/MoneyFlow/AwayFeed/Reveal); CSS in `globals.css`
   (`pw-orb*`, `pw-voice-bg`, `pw-tilt`, `pw-rise`, `pw-stagger`, `pw-flow-path`).
+- **Reply visuals (D-55)** — when a message is about a dream/purchase (named dream, captured dream, afford question,
+  or "trip/car/home…" + intent words), `/qa` returns `message.visuals` (stored in `messages.visuals` JSONB): dream
+  plan card, cost split, savings path (start now vs in 6 months), price tiers, afford verdict. Built by
+  `brain/visuals.ts` `buildVisuals()` from the brain's own numbers (no AI call). Web `components/assistant/Visuals.tsx`
+  (chat + voice), mobile `src/components/ReplyVisuals.tsx` (Ask tab + voice).
 - **Ask PayWatch** (`ask`, RAG
   Q&A — renamed from "Ask your CFO"; can **create goals from chat**; topical scope guard rejects
   off-topic/abuse), **Reports**, **Plans** (pricing/subscribe), **Settings** (+ Vehicle asset field).
@@ -269,7 +274,7 @@ unread-alerts badge, native biometric lock overlay).
   permission; 15-min cache; fails soft). Google News removed. See D-54.
 - `alerts.ts` — alert generators; `monitor.ts` — shared regenerate/gatherSignals (used by route + cron).
 - `goals.ts`, `cfo-ai.ts` (RAG Q&A — scope guard `checkScope()`, `parseGoalIntent()` for chat goal
-  creation, model `claude-sonnet-4`; **context includes the user's active goals AND uploaded insurance
+  creation, models per D-56: chat `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), voice `VOICE_MODEL` (default `claude-haiku-5-5`), benefit extraction on the fast model; **context includes the user's active goals AND uploaded insurance
   policies with exact expiry/renewal/maturity dates** so "when does my insurance expire?" answers from real
   data — both in the Claude prompt and the rules fallback), `rag.ts` (Postgres FTS, **47-doc** seeded KB,
   incremental seed), `profile.ts` (load ProfileData + recalc).
@@ -365,7 +370,7 @@ routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base
 
 ### DB tables
 `users`(+state,risk_appetite,email,**connect_code**), `otp_codes`, `refresh_tokens`, `profiles`,
-`score_history`, `actions`(+priority), `goals`, `transactions`(+**fingerprint**, partial-unique on
+`score_history`, `actions`(+priority), `goals`, `messages`(+**visuals** JSONB), `transactions`(+**fingerprint**, partial-unique on
 user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`, `invoices`, `consents`,
 `notifications`, `documents`, **`monthly_records`**(period YYYY-MM, doc_type, encrypted file +
 `extracted` JSONB), **`insurance_policies`**(category, insurer, sum_assured, premium, issue/expiry/maturity/
@@ -470,7 +475,7 @@ aggregates for the shared catalog), and the **CA portal**: `cas`,
   Disabled until `CRON_SECRET` set.
 - **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
   `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
-  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice; HI auto-picked if blank), **`SARVAM_API_KEY`** (+opt `SARVAM_SPEAKER_HI`, `SARVAM_TTS_MODEL`) for native Hindi voice, `TRANSLATE_MODEL`(opt), **`NEWSDATA_API_KEY`** (opt, paid plan) + `RBI_FEED_PERMITTED`/`SEBI_FEED_PERMITTED` (opt, `1` only with written permission), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
+  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice; HI auto-picked if blank), **`SARVAM_API_KEY`** (+opt `SARVAM_SPEAKER_HI`, `SARVAM_TTS_MODEL`) for native Hindi voice, `ANTHROPIC_MODEL`/`TRANSLATE_MODEL`/`VOICE_MODEL` (opt — leave unset to use the D-56 defaults Sonnet 5.5 / Haiku 5.5 / Haiku 5.5), **`NEWSDATA_API_KEY`** (opt, paid plan) + `RBI_FEED_PERMITTED`/`SEBI_FEED_PERMITTED` (opt, `1` only with written permission), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
   `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery),
   **`SUPABASE_URL`+`SUPABASE_SERVICE_KEY`+`SUPABASE_BUCKET`** (opt — enables CA document sharing; use the
   new `sb_secret_` key; create a **private** bucket `ca-documents`).
@@ -615,7 +620,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **232 assertions** (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **238 assertions** (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

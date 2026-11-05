@@ -277,6 +277,16 @@ matters". News only from sources we may use commercially: **PIB** (Govt reuse wi
 (`RBI_FEED_PERMITTED=1` / `SEBI_FEED_PERMITTED=1`). We show headline + publisher + link only (never full articles).
 Google News RSS removed (terms don't clearly allow commercial apps). Live index prices (Nifty/Sensex) need a licensed
 market-data vendor — not added. Still education only: no security named, no buy/sell calls.
+
+**D-55  Replies about dreams come with visuals, built by our engines (Nov 2026).** Talking about a dream ("Bali trip",
+"can I afford a car?") returns up to 4 cards: dream plan, cost split, savings path (now vs 6 months later), price tiers,
+afford verdict. Numbers come from the brain + price tables (`brain/visuals.ts`), never the LLM — free to produce, always
+consistent with the Dreams page (D-53). No stock photos (licensing) — charts and illustrations only.
+
+**D-56  Cost discipline for AI (Nov 2026).** Right model per job: chat + document reading on Sonnet 5.5 (cheaper and
+better than Sonnet 4); voice replies, translation, price estimates and small extractions on Haiku 5.5 (~20× cheaper).
+Our own tables answer first (price guide calls AI only when the table knows nothing); translations cached forever;
+visuals/afford/plan maths never use AI. Model ids are env-overridable (`ANTHROPIC_MODEL`, `VOICE_MODEL`, `TRANSLATE_MODEL`).
 ---
 
 ## E. Reversals / revisits log

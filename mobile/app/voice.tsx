@@ -13,6 +13,7 @@ import { useAssistant } from '@/lib/assistant';
 import { listen, speak, stopSpeaking, cleanForSpeech, voiceStatus, RECORDING, ListenHandle, ListenError, VoiceLang } from '@/lib/voice';
 import { C, SP } from '@/lib/theme';
 import { Icon, Orb, Txt, Small, Button } from '@/components/ui';
+import { ReplyVisuals } from '@/components/ReplyVisuals';
 
 type Phase = 'idle' | 'starting' | 'listening' | 'thinking' | 'speaking';
 const ERR: Record<ListenError, TKey> = { denied: 'vo.denied', 'no-mic': 'vo.denied', unsupported: 'vo.didntCatch', 'no-speech': 'vo.didntCatch', 'stt-failed': 'vo.didntCatch', network: 'vo.didntCatch' };
@@ -25,6 +26,7 @@ export default function Voice() {
   const [level, setLevel] = useState(0);
   const [heard, setHeard] = useState('');
   const [reply, setReply] = useState('');
+  const [visuals, setVisuals] = useState<any[] | null>(null);
   const [note, setNote] = useState('');
   const [denied, setDenied] = useState(false);
   const [human, setHuman] = useState(false);
@@ -59,7 +61,7 @@ export default function Voice() {
     handle.current = null;
     if (!alive.current) return;
     if (!text) { setP('idle'); if (error === 'denied') setDenied(true); setNote(t(ERR[error || 'no-speech'])); return; }
-    setHeard(text); setReply(''); setOpening(null); setP('thinking');
+    setHeard(text); setReply(''); setVisuals(null); setOpening(null); setP('thinking');
     const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
     // Instant preview of where we're going, so "Thinking…" never looks stuck.
     ask('/qa/intent', { content: text, lang: replyLang }).then((r: any) => {
@@ -76,7 +78,7 @@ export default function Voice() {
       const otherActions = (res.actions || []).filter((a: any) => a.type !== 'navigate');
       if (otherActions.length) runActions(otherActions);
       if (!alive.current) return;
-      setOpening(null); setReply(cleanForSpeech(answer)); setP('speaking');
+      setOpening(null); setReply(cleanForSpeech(answer)); setVisuals(res.message?.visuals || null); setP('speaking');
       const spokenLang: VoiceLang = res.reply_lang === 'hi' || res.reply_lang === 'en' ? res.reply_lang : /[ऀ-ॿ]/.test(answer) ? 'hi' : replyLang;
       await speak(answer, spokenLang, (r) => {
         const max = contentH.current - 220; if (max > 0) scroll.current?.scrollTo({ y: Math.max(0, max * r - 40), animated: true });
@@ -124,6 +126,7 @@ export default function Voice() {
           <ScrollView ref={scroll} style={{ marginTop: 16, alignSelf: 'stretch', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
             contentContainerStyle={{ padding: 18 }} onContentSizeChange={(_, h) => { contentH.current = h; }}>
             <Txt noTr selectable style={{ color: 'rgba(255,255,255,0.92)', fontSize: 17, lineHeight: 27 }}>{reply}</Txt>
+            <ReplyVisuals visuals={visuals} />
           </ScrollView>
         ) : null}
       </View>

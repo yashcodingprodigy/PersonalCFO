@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { get, post, del, api } from '@/lib/api';
 import { useLang, TKey } from '@/lib/i18n';
 import { Markdown } from './Markdown';
+import { ReplyVisuals } from './Visuals';
 
 export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, conversationId, onConversation, onActions, onCleared }: {
   variant?: 'page' | 'overlay'; initialQuestion?: string; onDataChanged?: () => void;
@@ -123,6 +124,7 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
             <div key={m.message_id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === 'user' ? 'bg-pine-900 text-white rounded-br-md whitespace-pre-wrap' : 'bg-paper-50 border border-paper-200 rounded-bl-md'}`}>
                 {m.role === 'user' ? <span data-no-translate>{m.content}</span> : <Markdown text={m.content} />}
+                {m.role === 'assistant' && <ReplyVisuals visuals={m.visuals} />}
                 {m.role === 'assistant' && m.proposedAction && m._actionState !== 'dismissed' && (
                   <div className="mt-3 rounded-xl border border-pine-700/30 bg-mint-100/50 p-3">
                     {m._actionState === 'added' ? <p className="text-xs font-semibold text-pine-800">✓ Added to your profile.</p> : (

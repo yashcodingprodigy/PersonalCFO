@@ -248,6 +248,8 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id, created_at);
+-- Visual cards shown with an assistant reply (dream plan, cost split, savings path, afford verdict). D-55.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS visuals JSONB;
 
 -- Local RAG store. user_id NULL = global knowledge base.
 CREATE TABLE IF NOT EXISTS rag_documents (

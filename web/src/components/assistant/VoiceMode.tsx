@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { post, api } from '@/lib/api';
 import { listen, speak, stopSpeaking, voiceStatus, cleanForSpeech, ListenHandle, VoiceLang, ListenError, releaseMic, readyChime } from '@/lib/voice';
 import type { TKey } from '@/lib/i18n';
+import { ReplyVisuals } from './Visuals';
 
 const ERR_KEY: Record<ListenError, TKey> = {
   denied: 'vo.err.denied', 'no-mic': 'vo.err.noMic', unsupported: 'vo.err.unsupported', network: 'vo.err.network',
@@ -29,6 +30,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
   const [level, setLevel] = useState(0);
   const [heard, setHeard] = useState('');
   const [reply, setReply] = useState('');
+  const [visuals, setVisuals] = useState<any[] | null>(null);
   const [note, setNote] = useState('');
   const [engine, setEngine] = useState<'human' | 'browser'>('browser');
   const [opening, setOpening] = useState<string | null>(null); // "Opening Insurance…" while the answer is written
@@ -69,7 +71,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
     handleRef.current = null;
     if (!alive.current) return;
     if (!text) { setP('idle'); setHeard(''); setNote(t(ERR_KEY[error || 'no-speech'])); return; }
-    setHeard(text); setReply(''); setOpening(null); setP('thinking');
+    setHeard(text); setReply(''); setVisuals(null); setOpening(null); setP('thinking');
     const replyLang: VoiceLang = language === 'hi' || /[ऀ-ॿ]/.test(text) ? 'hi' : language === 'en' ? 'en' : (lang as VoiceLang);
     // Instant intent preview: if this is "take me to…", go there now and show a skeleton
     // instead of a long "Thinking…" while the full answer is written.
@@ -93,7 +95,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
       const fresh = (res.actions || []).filter((a: any) => !(a.type === 'navigate' && openedPaths.has(a.path)));
       const navigated = openedPaths.size > 0 || (fresh.length ? !!onActions?.(fresh) : false);
       if (!alive.current) return;
-      setReply(cleanForSpeech(answer)); setP('speaking');
+      setReply(cleanForSpeech(answer)); setVisuals(res.message?.visuals || null); setP('speaking');
       // Speak in the language the answer is actually in (the server answers in the language you used).
       const spokenLang: VoiceLang = res.reply_lang === 'hi' || res.reply_lang === 'en' ? res.reply_lang : /[ऀ-ॿ]/.test(answer) ? 'hi' : replyLang;
       await speak(answer, spokenLang, follow);
@@ -151,6 +153,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
         {reply && (
           <div ref={replyRef} className="mt-5 w-full flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-3xl bg-white/[0.06] border border-white/10 px-5 py-4 sm:px-7 sm:py-5 pw-fade-in">
             <p className="text-[15px] sm:text-base leading-7 text-white/90 whitespace-pre-line">{reply}</p>
+            <div className="text-ink"><ReplyVisuals visuals={visuals} /></div>
           </div>
         )}
       </div>

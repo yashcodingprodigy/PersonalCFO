@@ -184,7 +184,8 @@ export async function priceGuide(text: string): Promise<PriceGuide> {
   const table = tableGuide(key);
   // A brand/model match is first-party knowledge — trust it, don't let a model guess override it.
   const trusted = !!catalogLookup(key);
-  let ai = trusted ? null : await aiGuide(text.trim(), table);
+  // Our own table already answers most dreams; only ask the AI when the table knows nothing (saves a call per keystroke pause).
+  let ai = trusted || table ? null : key.length >= 6 ? await aiGuide(text.trim(), table) : null;
   // Sanity check: an AI estimate wildly off our own table (>4× either way) is discarded.
   if (ai && table && table.typical > 0 && (ai.typical > table.typical * 4 || ai.typical * 4 < table.typical)) ai = null;
   const g = ai || table;

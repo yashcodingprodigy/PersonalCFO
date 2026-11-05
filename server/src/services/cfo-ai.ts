@@ -177,6 +177,9 @@ export interface CfoAnswer {
   content: string;
   citations: { tag: string; title: string }[];
   engine: 'claude' | 'rules' | 'guardrail';
+  /** Brain outputs computed for this answer — reused for the reply's visual cards (no recompute). */
+  plan?: import('./brain/dreams').DreamPlan | null;
+  afford?: import('./brain/dreams').AffordResult | null;
   // A structured action the AI PROPOSES from the user's message (e.g. a benefit
   // fact it detected). The AI never writes data itself — the user confirms this
   // in the UI, and a deterministic handler applies it. Foundation for voice too.
@@ -200,7 +203,7 @@ async function extractBenefit(question: string): Promise<CfoAnswer['proposedActi
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: config.anthropicModel, max_tokens: 300, system: sys, messages: [{ role: 'user', content: question }] }),
+      body: JSON.stringify({ model: config.translateModel, max_tokens: 300, system: sys, messages: [{ role: 'user', content: question }] }),
     });
     if (!res.ok) return undefined;
     const data: any = await res.json();
@@ -269,7 +272,7 @@ LANGUAGE: The user wrote in English — reply in clear, simple English only, eve
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: config.anthropicModel,
+      model: opts.voice ? config.voiceModel : config.anthropicModel,
       max_tokens: opts.voice ? 300 : 1024,
       system,
       messages: [...history.slice(-6), { role: 'user', content: question }],
@@ -427,8 +430,11 @@ export async function answerQuestion(
   // The money brain: dreams plan summary + a deterministic verdict for
   // "can I afford X?" questions, so the AI never guesses affordability.
   let affordNote: string | null = null;
+  let brainPlan: CfoAnswer['plan'] = null;
+  let affordRes: CfoAnswer['afford'] = null;
   try {
     const brain = await runBrain(userId, opts.lang);
+    brainPlan = brain?.plan || null;
     if (brain?.plan.hasData) {
       userContext += `\nPayWatch plan: ${brain.plan.summary} Free to plan each month: ${inr(brain.map.free)}; spare cash above safety net: ${inr(brain.map.excessCash)}.`;
       const dreamsLine = brain.plan.items.filter((i) => !i.virtual).map((i) => `${i.name} (${i.status.replace('_', ' ')}, needs ${inr(i.need)}/mo, plan sets aside ${inr(i.allocated)}/mo${i.projectedDate ? `, done ~${i.projectedDate}` : ''})`).join('; ');
@@ -438,6 +444,7 @@ export async function answerQuestion(
     if (ai) {
       const r = await brainAfford(userId, ai.amount, ai.months, ai.label, opts.lang);
       if (r) {
+        affordRes = r;
         affordNote = r.headline + (r.levers.length ? `\n\n${opts.lang === 'hi' ? 'इसे संभव बनाने के तरीके:' : 'Ways to make it work:'}\n` + r.levers.slice(0, 3).map((l) => `• ${l.label}`).join('\n') : '');
         userContext += `\nPAYWATCH BRAIN VERDICT for this question (computed from the user's real plan — lead with it and never contradict its numbers): ${affordNote.replace(/\n+/g, ' ')}`;
       }
@@ -476,5 +483,5 @@ export async function answerQuestion(
   const citations = docs.slice(0, 4).map((d) => ({ tag: d.source_tag, title: d.title }));
   // (guardrail/off-topic messages return earlier, so we only reach here for real answers)
   const proposedAction = await extractBenefit(question);
-  return { content, citations, engine, proposedAction };
+  return { content, citations, engine, proposedAction, plan: brainPlan, afford: affordRes };
 }

@@ -14,6 +14,8 @@ import { captureDream } from '../services/brain/autopilot';
 import { asLang } from '../services/brain/i18n';
 import { inrIN } from '../lib/money';
 import { planActions, ActionPlan } from '../services/assistantActions';
+import { buildVisuals, looksLikeDreamTalk, Visual } from '../services/brain/visuals';
+import { runBrain } from '../services/brain';
 
 const fmtRupees = inrIN;
 
@@ -120,6 +122,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   }
   if (act.confirm) answer.content = `${act.confirm}\n\n${answer.content}`;
 
+  let focusName: string | null = null;   // dream created/captured by this message (for visuals)
   // Goal creation from chat: if the user asked to create a goal and gave an
   // amount, add it directly (respecting their plan's goal limit) and confirm.
   if (answer.engine !== 'guardrail') {
@@ -138,6 +141,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
           [req.userId, g.goal_type, g.name, g.target_amount, g.target_date, g.monthly_contribution, JSON.stringify({ ...defaultMeta, source: 'chat' })]
         );
         import('../services/brain/autopilot').then((m) => m.scheduleBrainTick(req.userId!, 'dream_added', 300)).catch(() => {});
+        focusName = g.name;
         answer.content = (lang === 'hi'
           ? `✅ हो गया — मैंने **${g.name}** (${fmtRupees(g.target_amount)}${g.target_date ? `, ${g.target_date} तक` : ''}) आपके सपनों में जोड़ दिया। प्लान अपने-आप अपडेट हो गया है।\n\n`
           : `✅ Done — I've added **${g.name}** of ${fmtRupees(g.target_amount)}${g.target_date ? ` by ${g.target_date}` : ''} to your dreams. Your plan has updated itself.\n\n`) + answer.content;
@@ -146,8 +150,21 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
       // No price given? The brain hears the dream anyway, estimates a sensible
       // cost, and plans it automatically (marked "estimated — edit anytime").
       const cap = await captureDream(req.userId!, question, mode === 'voice' ? 'voice' : 'chat', lang).catch(() => null);
-      if (cap) answer.content = `${cap.message}\n\n${answer.content}`;
+      if (cap) { answer.content = `${cap.message}\n\n${answer.content}`; focusName = cap.dream.name; }
     }
+  }
+
+  // Visual cards for dream talk (plan, cost split, savings path, price tiers, afford verdict).
+  // Built from the brain's own numbers — no AI call. Only re-runs the brain if this message just added a dream.
+  let visuals: Visual[] = [];
+  if (answer.engine !== 'guardrail') {
+    try {
+      let plan = answer.plan || null;
+      if (focusName) plan = (await runBrain(req.userId!, lang))?.plan || plan;
+      if (focusName || answer.afford || looksLikeDreamTalk(question, plan)) {
+        visuals = buildVisuals({ question, lang, plan, focusName, afford: answer.afford });
+      }
+    } catch (e) { console.error('[qa] visuals failed', e); }
   }
 
   // Human review layer (SRS §12.1): on paid plans, answers containing
@@ -157,9 +174,9 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   const reviewStatus = plan === 'starter' ? 'ai_only' : needsReview ? 'pending_review' : 'ai_only';
 
   const msg = await one(
-    `INSERT INTO messages (conversation_id, role, content, citations, review_status, engine)
-     VALUES ($1,'assistant',$2,$3,$4,$5) RETURNING *`,
-    [convId, answer.content, JSON.stringify(answer.citations), reviewStatus, answer.engine]
+    `INSERT INTO messages (conversation_id, role, content, citations, review_status, engine, visuals)
+     VALUES ($1,'assistant',$2,$3,$4,$5,$6) RETURNING *`,
+    [convId, answer.content, JSON.stringify(answer.citations), reviewStatus, answer.engine, visuals.length ? JSON.stringify(visuals) : null]
   );
 
   // Personalisation: the question itself becomes part of the user's

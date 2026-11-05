@@ -14,9 +14,12 @@ export const config = {
   billingProvider: process.env.BILLING_PROVIDER || 'sandbox',
   aaProvider: process.env.AA_PROVIDER || 'mock',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
-  anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-  // Cheaper/faster model for bulk Hindi translation (falls back to the main model).
-  translateModel: process.env.TRANSLATE_MODEL || 'claude-haiku-4-5-20251001', // fast + cheap; falls back to ANTHROPIC_MODEL
+  // Main model for chat answers + document reading (Sonnet 5.5: better and cheaper than Sonnet 4). D-56.
+  anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
+  // Fast/cheap model for translation, price-guide estimates and small extractions (Haiku 5.5). D-56.
+  translateModel: process.env.TRANSLATE_MODEL || 'claude-haiku-5-5', // falls back to ANTHROPIC_MODEL
+  // Voice replies are 2–4 short spoken sentences — the fast model is quicker to answer and ~20× cheaper.
+  voiceModel: process.env.VOICE_MODEL || process.env.TRANSLATE_MODEL || 'claude-haiku-5-5',
   // ElevenLabs — human-sounding multilingual voice (TTS) + speech-to-text (Scribe).
   elevenLabsKey: process.env.ELEVENLABS_API_KEY || '',
   elevenVoiceEn: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL', // "Sarah" — warm, young, conversational (premade)

@@ -10,6 +10,7 @@ import { useAssistant } from '@/lib/assistant';
 import { C, FONT, R, SP } from '@/lib/theme';
 import { Button, Icon, Orb, Select, Small, Tiny, Txt, Soft } from '@/components/ui';
 import { Markdown } from '@/components/Markdown';
+import { ReplyVisuals } from '@/components/ReplyVisuals';
 
 const SUGGEST = {
   en: ['Can I afford a ₹80,000 laptop?', 'I want to go to Goa in December', 'How much tax will I pay this year?', 'Show me health insurance options'],
@@ -120,6 +121,7 @@ export default function Ask() {
                 backgroundColor: m.role === 'user' ? C.pine900 : C.white, borderWidth: m.role === 'user' ? 0 : 1, borderColor: C.paper200,
                 borderBottomRightRadius: m.role === 'user' ? 6 : 18, borderBottomLeftRadius: m.role === 'user' ? 18 : 6 }}>
                 {m.role === 'user' ? <Txt noTr selectable style={{ color: C.white, fontSize: 15.5 }}>{m.content}</Txt> : <Markdown text={m.content} />}
+                {m.role === 'assistant' && <ReplyVisuals visuals={m.visuals} />}
                 {m.role === 'assistant' && m.proposedAction && m._state !== 'dismissed' && (
                   <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: C.mint100, padding: 10 }}>
                     {m._state === 'added' ? <Small style={{ color: C.pine800, fontWeight: '700' }}>✓ Added to your profile.</Small> : <>
