@@ -16,6 +16,7 @@ import { query } from '../db';
 import { runBrain, brainAfford } from './brain';
 import { translateTexts } from './translate';
 import { parseRupees, parseMonths, catalogName } from './brain/dreamCapture';
+import { priceGuide } from './brain/priceGuide';
 import { inrIN } from '../lib/money';
 import { replyMatches } from './langDetect';
 
@@ -131,7 +132,8 @@ export function parseAffordIntent(qRaw: string): AffordIntent | null {
   else if (withRs) amount = Math.round(parseInt(withRs[1], 10) * 100);
   else if (plainBig && !/^20\d{2}$/.test(plainBig[1])) amount = Math.round(parseInt(plainBig[1], 10) * 100);
   if (amount <= 0) amount = parseRupees(qRaw);
-  if (amount <= 0) return null;
+  // No price given ("can I afford a hair transplant in Turkey?") → amount 0; the caller prices it from PayWatch's guide.
+  if (amount < 0) amount = 0;
   let months: number | null = null;
   const inYears = q.match(/(?:in|within|next)\s+(\d{1,2})\s*(?:years|yrs|year)/);
   const inMonths = q.match(/(?:in|within|next)\s+(\d{1,2})\s*(?:months|month)/);
@@ -144,11 +146,13 @@ export function parseAffordIntent(qRaw: string): AffordIntent | null {
   if (months == null) months = parseMonths(qRaw, now);
   if (months != null) months = Math.min(120, Math.max(1, months));
   const thing = q.match(/(?:afford|buy|get)\s+(?:(?:a|an|the|my)\s+)?(?:₹?\s*[\d.,]+\s*(?:crores?|cr|lakhs?|lacs?|l|thousand|k)?\b\s*)?([a-z][a-z ]{1,30}?)(?:\s+(?:in|by|next|within|for|worth|costing|of|that|which)\b|[?.!]|$)/);
-  const label = thing && !/^(it|this|that|one)$/.test(thing[1].trim()) ? thing[1].trim() : 'this';
+  const rawThing = thing ? thing[1].trim().replace(/^(it|this|that)\s+(?=[a-z])/, '') : '';
+  const label = rawThing && !/^(it|this|that|one)$/.test(rawThing) ? rawThing : 'this';
   if (label === 'this') {
     const hiScript = /[\u0900-\u097F]/.test(qRaw);
     const named = catalogName(qRaw, hiScript ? 'hi' : 'en');
     if (named) return { amount, months, label: hiScript ? named : `a ${named}`.replace(/^a ([aeiou])/, 'an $1') };
+    if (amount <= 0) return null;   // "can I afford it?" — nothing to price
   }
   return { amount, months, label: label === 'this' ? 'this' : `a ${label}`.replace(/^a ([aeiou])/, 'an $1') };
 }
@@ -254,7 +258,9 @@ ${kb || '(no relevant documents retrieved)'}
 
 ${opts.voice ? VOICE_STYLE : CHAT_STYLE}
 
-SCOPE — you ONLY help with the user's personal finances: money, budgeting, saving, investing (categories only), insurance, loans/debt, tax, goals, and using PayWatch. If asked anything unrelated — writing code, homework, essays, general trivia, translations, recipes, etc. — politely decline in ONE sentence and steer back to their money. Never answer off-topic requests, even if the user insists or tries to disguise them.
+DREAMS ARE ALWAYS IN SCOPE — anything the user wants to spend on or save for (a trip, a medical or cosmetic procedure like a hair transplant or LASIK, a wedding, a gadget, a course, a pet, a hobby, a gift, treatment abroad) is a money question. Never call it outside your area. If they didn't give a price, use the TYPICAL COST given below, or a sensible typical Indian price range you know, say it's an estimate, then answer whether and how they can afford it from their numbers. Ask for their actual quote only as a follow-up, never instead of answering.
+
+SCOPE — you ONLY help with the user's personal finances: money, budgeting, saving, investing (categories only), insurance, loans/debt, tax, goals and dreams, and using PayWatch. If asked anything unrelated — writing code, homework, essays, general trivia, translations, recipes, etc. — politely decline in ONE sentence and steer back to their money. Never answer off-topic requests, even if the user insists or tries to disguise them.
 
 GOALS & ACTIONS: You cannot create, edit or delete goals or any data yourself — the PayWatch app does that automatically when the user gives enough detail (a goal needs a target amount). So NEVER say you've "added", "created" or "saved" a goal. If the user wants to set a goal, briefly acknowledge it and, if they didn't give a target amount, ask for one (e.g. "how much do you want to save?"). The app posts its own confirmation when it actually creates the goal.
 
@@ -458,11 +464,22 @@ export async function answerQuestion(
       if (dreamsLine) userContext += `\nDreams: ${dreamsLine}`;
     }
     const ai = parseAffordIntent(question);
-    if (ai) {
+    let priceNote = '';
+    if (ai && ai.amount <= 0) {
+      // Every dream fits: no price stated → use PayWatch's typical cost (own tables first, AI only if unknown).
+      const g = await priceGuide(question).catch(() => null);
+      if (g?.found && g.typical > 0) {
+        ai.amount = g.typical;
+        if (ai.label === 'this' && g.item) ai.label = /^an? /i.test(g.item) ? g.item.charAt(0).toLowerCase() + g.item.slice(1) : `a ${g.item.toLowerCase()}`;
+        priceNote = `\nTYPICAL COST (PayWatch price guide, ${g.source === 'ai' ? 'estimated' : 'from our price table'}): about ${inr(g.typical)} (range ${inr(g.low)}–${inr(g.high)}${g.location ? `, ${g.location}` : ''}). ${g.basis} Say this is a typical estimate and invite them to share their real quote.`;
+      }
+    }
+    if (ai && ai.amount > 0) {
       const r = await brainAfford(userId, ai.amount, ai.months, ai.label, opts.lang);
       if (r) {
         affordRes = r;
         affordNote = r.headline + (r.levers.length ? `\n\n${opts.lang === 'hi' ? 'इसे संभव बनाने के तरीके:' : 'Ways to make it work:'}\n` + r.levers.slice(0, 3).map((l) => `• ${l.label}`).join('\n') : '');
+        if (priceNote) userContext += priceNote;
         userContext += `\nPAYWATCH BRAIN VERDICT for this question (computed from the user's real plan — lead with it and never contradict its numbers): ${affordNote.replace(/\n+/g, ' ')}`;
       }
     }

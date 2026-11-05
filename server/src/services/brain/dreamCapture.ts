@@ -33,6 +33,11 @@ const INTENT = new RegExp([
 interface CatalogItem { re: RegExp; en: string; hi: string; kind: DreamKind; goalType: string; rupees: number; months: number; inflation: number }
 // Rough Indian price points for a first estimate (paise computed below). Order matters: specific first.
 const CATALOG: CatalogItem[] = [
+  // Health & personal procedures — real dreams too ("every dream fits").
+  { re: /hair\s*transplant|हेयर ट्रांसप्लांट/i, en: 'Hair transplant', hi: 'हेयर ट्रांसप्लांट', kind: 'purchase', goalType: 'custom', rupees: 200000, months: 9, inflation: 0.06 },
+  { re: /\blasik\b|eye\s*surgery|आँखों का ऑपरेशन/i, en: 'LASIK eye surgery', hi: 'लेसिक आँखों का ऑपरेशन', kind: 'purchase', goalType: 'custom', rupees: 85000, months: 6, inflation: 0.06 },
+  { re: /dental\s*implant|\b(?:braces|aligners?|invisalign)\b/i, en: 'Dental treatment', hi: 'दाँतों का इलाज', kind: 'purchase', goalType: 'custom', rupees: 120000, months: 9, inflation: 0.06 },
+  { re: /\bivf\b|fertility treatment/i, en: 'Fertility treatment', hi: 'फ़र्टिलिटी ट्रीटमेंट', kind: 'family', goalType: 'custom', rupees: 350000, months: 12, inflation: 0.06 },
   { re: /europe|paris|london|switzerland|usa|america|japan|tokyo|australia|new york|यूरोप|अमेरिका|जापान/i, en: 'International trip', hi: 'विदेश यात्रा', kind: 'experience', goalType: 'custom', rupees: 250000, months: 12, inflation: 0.05 },
   { re: /bali|thailand|bangkok|dubai|singapore|maldives|vietnam|seoul|korea|sri lanka|nepal|bhutan|abroad|international|बाली|थाईलैंड|दुबई|विदेश/i, en: 'Trip abroad', hi: 'विदेश यात्रा', kind: 'experience', goalType: 'custom', rupees: 150000, months: 12, inflation: 0.05 },
   { re: /goa|manali|ladakh|leh|kerala|kashmir|rishikesh|udaipur|jaipur|shimla|ooty|andaman|गोवा|मनाली|लद्दाख|केरल/i, en: 'Trip', hi: 'यात्रा', kind: 'experience', goalType: 'custom', rupees: 50000, months: 6, inflation: 0.05 },

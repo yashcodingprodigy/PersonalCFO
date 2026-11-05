@@ -333,7 +333,7 @@ unread-alerts badge, native biometric lock overlay).
 - **Price guide (D-50):** `brain/priceGuide.ts` — `POST /v1/brain/price-guide {text}` → typical prices for a dream as it is
   typed (property ₹/sq ft by city & locality incl. South Mumbai, trips per person × people, cars, bikes, phones, laptops,
   weddings, courses, businesses, health cover); built-in table + Claude refinement (Haiku, 24 h cache); **D-53: `brain/priceCatalog.ts` = PayWatch's own brand/model price catalogue (Porsche, BMW, Mercedes, JLR, Royal Enfield, iPhone, MacBook, Rolex…); a brand/model match is trusted and never overridden by AI; AI estimates >4× off our table are discarded; `detectDream` names dreams by model ("Porsche 911") with catalogue prices**; planning ranges,
-  never a quote. Web `components/PriceGuide.tsx` on the Dreams form + "Can I afford it?" (tap an option to fill cost).
+  never a quote. **Every dream fits:** the table also covers health/personal procedures (hair transplant incl. Turkey packages, LASIK, dental, braces, IVF, cosmetic, surgery) and pets; "can I afford X?" with no price is priced from the guide (`parseAffordIntent` returns amount 0 → `priceGuide` → brain verdict) and the prompt never treats a dream as off-topic. Web `components/PriceGuide.tsx` on the Dreams form + "Can I afford it?" (tap an option to fill cost).
 - **Assistant actions (D-51):** `services/assistantActions.ts` `planActions()` runs before every Ask answer (chat + voice):
   navigate to any page (EN/HI/Hinglish), insurance marketplace deep-link `?category=` (picks the user's biggest gap),
   personal corner **guide** (do / avoid, compliance footnote) for marketplace/tax/invest, update a dream's amount/date,
@@ -620,7 +620,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **240 assertions** (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **241 assertions** (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

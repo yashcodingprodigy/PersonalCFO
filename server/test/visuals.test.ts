@@ -2,6 +2,7 @@
 import assert from 'assert';
 import { buildVisuals, costSplit, savingsPath, findDream, looksLikeDreamTalk } from '../src/services/brain/visuals';
 import { tableGuide } from '../src/services/brain/priceGuide';
+import { parseAffordIntent } from '../src/services/cfo-ai';
 
 let passed = 0, failed = 0;
 const check = (n: string, f: () => void) => { try { f(); passed++; console.log(`  ✓ ${n}`); } catch (e: any) { failed++; console.log(`  ✗ ${n}\n      ${e.message}`); } };
@@ -40,6 +41,15 @@ check('Hindi labels when the user speaks Hindi', () => {
 check('ordinary questions don’t trigger visuals; dream talk does', () => {
   assert.equal(looksLikeDreamTalk('which tax regime is better for me?', plan), false);
   assert.equal(looksLikeDreamTalk('how much does a goa trip cost?', null), true);
+});
+
+check('afford questions with no price still get priced from PayWatch’s table (every dream fits)', () => {
+  const a = parseAffordIntent('can I afford hair transplant in Turkey')!;
+  assert(a && a.amount === 0 && a.label === 'a hair transplant', JSON.stringify(a));
+  const g = tableGuide('can I afford hair transplant in Turkey')!;
+  assert(g.found && g.typical >= R(100000) && g.typical <= R(500000), String(g.typical));
+  assert(tableGuide('can i afford lasik')!.found);
+  assert.strictEqual(parseAffordIntent('Can I afford it?'), null);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
