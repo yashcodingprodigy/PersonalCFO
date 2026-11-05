@@ -7,6 +7,7 @@ import { prettyDate, rupeesToPaise } from '@/lib/format';
 import { C, FONT, SP } from '@/lib/theme';
 import { Button, Card, Chip, Empty, ErrorBox, Label, Loading, MoneyInput, Num, Screen, Segmented, Select, Small, Soft, Txt, Icon, Gap } from '@/components/ui';
 import { ScoreCard } from '@/components/brain';
+import { LevelMap, buildLevels } from '@/components/LevelMap';
 
 const TYPES: Record<string, { v: string; label: string }[]> = {
   investment: [{ v: 'index_fund', label: 'Index fund' }, { v: 'mutual_fund', label: 'Mutual fund' }, { v: 'stocks', label: 'Stocks' }, { v: 'nps', label: 'NPS' }, { v: 'ppf', label: 'PPF' }, { v: 'gold', label: 'Gold (SGB / ETF)' }, { v: 'fd', label: 'Fixed deposit' }],
@@ -36,7 +37,13 @@ export default function Actions() {
 
   async function complete(a: any, body: any) {
     setBusy(true);
-    try { await post(`/actions/${a.action_id}/complete`, body); setConfirm(null); setMsg('Done — your profile and score are updated.'); setTimeout(() => setMsg(''), 3500); }
+    try {
+      await post(`/actions/${a.action_id}/complete`, body); setConfirm(null);
+      const next = buildLevels(all.map((x) => (x.action_id === a.action_id ? { ...x, status: 'done', completed_at: new Date().toISOString() } : x)));
+      const cur = next.find((l) => !l.done);
+      setMsg(`★ Level up! You're on Level ${cur ? cur.n : next.length} — your profile and score are updated.`); setTimeout(() => setMsg(''), 4000);
+      list.reload(); stats.reload();
+    }
     catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
   }
 
@@ -49,6 +56,12 @@ export default function Actions() {
           <Card style={{ flex: 1 }}><Num style={{ fontFamily: FONT.display, fontSize: 24 }}>{stats.data.open ?? 0}</Num><Small>open</Small></Card>
         </View>
       )}
+      <Gap h={SP.lg} />
+      {all.length ? <LevelMap actions={all} onPick={(id) => {
+        const a = all.find((x) => x.action_id === id);
+        if (a?.status === 'done' && status === 'open') setStatus('all');
+        setPri('all'); setOpen(id);
+      }} /> : null}
       <Gap h={SP.lg} />
       <Segmented value={status} onChange={setStatus} options={[{ v: 'open', label: 'Open' }, { v: 'done', label: 'Done' }, { v: 'all', label: 'All' }]} />
       <Gap h={8} />

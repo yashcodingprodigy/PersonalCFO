@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { get, patch, post } from '@/lib/api';
 import { rupeesToPaise, groupDigits } from '@/lib/format';
 import { LoadingScreen } from '@/components/Skeleton';
+import { LevelMap, buildLevels } from '@/components/actions/LevelMap';
 
 // Sarcastic captions that rotate while the action plan loads.
 const LOADING_QUIPS = [
@@ -58,6 +59,8 @@ export default function ActionsPage() {
   const [sortBy, setSortBy] = useState<'priority' | 'points'>('priority');
   const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(true);
+  const [celebrate, setCelebrate] = useState(0);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
 
   // confirmation flow state
   const [confirm, setConfirm] = useState<{ id: string; step: 'ask' | 'details' } | null>(null);
@@ -90,6 +93,11 @@ export default function ActionsPage() {
       const res = await post(`/actions/${a.action_id}/complete`, body);
       setActions((prev) => prev.map((x) => (x.action_id === a.action_id ? { ...x, ...res.action } : x)));
       setConfirm(null); setOpenId(null);
+      // Level up: the finished action becomes a star and the pin moves to the next level.
+      const next = buildLevels(actions.map((x) => (x.action_id === a.action_id ? { ...x, status: 'done', completed_at: new Date().toISOString() } : x)));
+      const nextCur = next.find((l) => !l.done);
+      setCelebrate((c) => c + 1); setLevelUp(nextCur ? nextCur.n : next.length);
+      setTimeout(() => setLevelUp(null), 3200);
       flash(body.invested_amount ? 'Marked done — added to your profile and your score has been updated.' : 'Marked done — your score has been updated.');
       get('/actions/stats/summary').then(setStats).catch(() => {});
     } catch (e: any) { flash(e.message); } finally { setBusy(false); }
@@ -112,8 +120,25 @@ export default function ActionsPage() {
       : (prRank[x.priority || 'medium'] - prRank[y.priority || 'medium']) || (y.impact_score - x.impact_score)
   );
 
+  function pick(id: string) {
+    const a = actions.find((x) => x.action_id === id); if (!a) return;
+    if (a.status === 'done' && status === 'open') setStatus('all');
+    if (a.status !== 'done' && status === 'done') setStatus('open');
+    setPriority('all'); setOpenId(id);
+    setTimeout(() => document.getElementById(`action-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+  }
+
   return (
     <div className="space-y-6">
+      {levelUp != null && (
+        <div className="fixed inset-x-0 top-24 z-[70] flex justify-center pointer-events-none">
+          <div className="pw-levelup rounded-3xl px-8 py-5 text-center text-white shadow-2xl" style={{ background: 'linear-gradient(135deg,#16544B,#2FBC9B)' }}>
+            <p className="text-[11px] font-extrabold uppercase tracking-[.3em] text-mint-100">Level up!</p>
+            <p className="font-display text-4xl font-bold mt-1">★ Level {levelUp}</p>
+            <p className="text-xs text-white/80 mt-1">Nice — your score just moved.</p>
+          </div>
+        </div>
+      )}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-display text-3xl font-medium">Action plan</h1>
@@ -127,6 +152,8 @@ export default function ActionsPage() {
         )}
       </div>
 
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+      <div className="space-y-6 min-w-0">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex gap-2">
@@ -164,7 +191,7 @@ export default function ActionsPage() {
           const opts = TYPE_OPTIONS[a.category];
           const isInsurance = a.category === 'insurance';
           return (
-            <article key={a.action_id} className={`card overflow-hidden ${a.status === 'done' ? 'opacity-60' : ''}`}>
+            <article key={a.action_id} id={`action-${a.action_id}`} className={`card overflow-hidden ${a.status === 'done' ? 'opacity-60' : ''}`}>
               <button className="w-full text-left p-5" onClick={() => setOpenId(openId === a.action_id ? null : a.action_id)}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
@@ -249,6 +276,11 @@ export default function ActionsPage() {
         })}
         </div>
         )}
+      </div>
+      </div>
+      <div className="order-first lg:order-none">
+        {!loading && <LevelMap actions={actions} onPick={pick} celebrate={celebrate} />}
+      </div>
       </div>
     </div>
   );

@@ -118,6 +118,11 @@ unread-alerts badge, native biometric lock overlay).
 - **Alerts** (`alerts`) — proactive inbox (urgent/warning/info/good), mark read/dismiss.
 - **Actions** (`actions`) — quantified action plan; **priority** badges + filters (status/priority/sort);
   "Mark done" → confirmation → optional "how much / into what" → writes to profile + recalcs score.
+  **Money Quest (D-60):** Candy-Crush-style level map on the right (web `components/actions/LevelMap.tsx`, sticky; mobile
+  `src/components/LevelMap.tsx`, horizontal path above the list). Each action = a level (done first by `completed_at`,
+  then open by priority/impact); stars = done, pulsing pin = current level, locked above; 5 levels per world (Sprout
+  Valley → Shield Fort → Tax Canyon → Wealth Woods → Freedom Peak); XP bar = score points earned; tap a level → opens that
+  action; completing one → confetti + "Level up!" banner. Pure client-side (no API/DB change).
 - **Net worth** (`networth`) — allocation **donut**, assets/liabilities, growth projection w/ horizon
   toggle, spending breakdown.
 - **Invest** (`invest`) — SEBI-compliant: risk profile, target-mix donut, collapsible fund-category

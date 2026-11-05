@@ -263,3 +263,15 @@ body {
   .pw-deck-in { animation: none; }
   .pw-flip-wrap, .pw-flip-wrap:hover { transform: none; }
 }
+
+/* Actions "Money Quest" level map */
+.pw-quest-path { transition: d .8s ease; }
+@keyframes pw-quest-pin { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -6px); } }
+.pw-quest-pin { animation: pw-quest-pin 1.4s ease-in-out infinite; }
+@keyframes pw-quest-cur { 0% { box-shadow: 0 0 0 0 rgba(47,188,155,.55); } 100% { box-shadow: 0 0 0 16px rgba(47,188,155,0); } }
+.pw-quest-cur { animation: pw-quest-cur 1.6s ease-out infinite; }
+@keyframes pw-confetti { 0% { transform: translateY(-20px) rotate(0); opacity: 1; } 100% { transform: translateY(620px) rotate(540deg); opacity: 0; } }
+.pw-confetti { animation: pw-confetti 1.8s cubic-bezier(.2,.6,.4,1) forwards; }
+@keyframes pw-levelup { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+.pw-levelup { animation: pw-levelup .5s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .pw-quest-pin, .pw-quest-cur, .pw-confetti, .pw-levelup { animation: none !important; } }

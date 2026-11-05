@@ -306,6 +306,10 @@ continuously and PayWatch ends the turn after ~1.2 s of silence, so short answer
 you" part sat far below. Now every fact/news item is a bold card (Spotify-Wrapped style); tapping flips it to the
 personal meaning, so the news and its impact are always one tap apart. Deck built on the server (`marketDeck.ts`) so
 web and mobile match. Same licensed sources and education-only rules as D-54.
+
+**D-60  Gamify the action plan with a level map (Nov 2026).** PFM apps die from tracking, not acting; a visible
+Candy-Crush-style path makes each finished action feel like progress (level up, stars, worlds). Levels are the user's
+real actions in the order PayWatch recommends — no fake tasks, no streak pressure; XP = the score points each action adds.
 ---
 
 ## E. Reversals / revisits log
