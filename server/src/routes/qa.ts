@@ -89,18 +89,21 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   }
 
   const p = await loadProfileData(req.userId!);
-  if (!p) return res.status(404).json({ error: 'not_found' });
+  if (!p) return res.status(404).json({ error: 'not_found', message: lang === 'hi' ? 'आपकी प्रोफ़ाइल नहीं मिली — कृपया फिर से साइन इन करें।' : 'We couldn’t find your profile — please sign in again.' });
 
   let convId = conversationId;
+  // A conversation that no longer exists (cleared chat, or the demo account was re-seeded) must not break
+  // chat/voice with a 404 — just start a fresh conversation. Scoped to this user, so it can't touch anyone else's.
+  if (convId) {
+    const exists = await one(`SELECT 1 FROM conversations WHERE conversation_id = $1 AND user_id = $2`, [convId, req.userId]).catch(() => null);
+    if (!exists) convId = null;
+  }
   if (!convId) {
     const conv = await one(
       `INSERT INTO conversations (user_id, title) VALUES ($1, $2) RETURNING conversation_id`,
       [req.userId, question.slice(0, 120)]
     );
     convId = conv!.conversation_id;
-  } else {
-    const conv = await one(`SELECT 1 FROM conversations WHERE conversation_id = $1 AND user_id = $2`, [convId, req.userId]);
-    if (!conv) return res.status(404).json({ error: 'not_found' });
   }
 
   const history = await query(
@@ -203,5 +206,6 @@ qaRouter.post('/intent', rateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'qain
 });
 
 const qaLimit = rateLimit({ windowMs: 60_000, max: 15, keyPrefix: 'qa' });
-qaRouter.post('/conversations', qaLimit, (req: AuthedRequest, res) => handleMessage(req, res, null));
-qaRouter.post('/conversations/:id/messages', qaLimit, (req: AuthedRequest, res) => handleMessage(req, res, req.params.id));
+// Async errors go to the JSON error handler (never an unhandled rejection / bare 502).
+qaRouter.post('/conversations', qaLimit, (req: AuthedRequest, res, next) => { handleMessage(req, res, null).catch(next); });
+qaRouter.post('/conversations/:id/messages', qaLimit, (req: AuthedRequest, res, next) => { handleMessage(req, res, req.params.id).catch(next); });

@@ -79,7 +79,7 @@ export async function api<T = any>(path: string, opts: RequestInit = {}, retried
     throw new ApiError(401, 'unauthorised', 'Session expired');
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error || 'error', data.message || 'Request failed');
+  if (!res.ok) throw new ApiError(res.status, data.error || 'error', data.message || `Couldn’t reach PayWatch right now (error ${res.status}). Please try again.`);
   return data as T;
 }
 

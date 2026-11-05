@@ -268,24 +268,35 @@ LANGUAGE: Reply in simple, natural everyday Hindi (Devanagari), the way a friend
 
 LANGUAGE: The user wrote in English — reply in clear, simple English only, even if earlier messages in this conversation were in Hindi.`}`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': config.anthropicApiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: opts.voice ? config.voiceModel : config.anthropicModel,
-      max_tokens: opts.voice ? 300 : 1024,
-      system,
-      // The language tag rides on the user turn (not saved) — models follow it far more reliably than a system line alone.
-      messages: [...history.slice(-6), { role: 'user', content: `${question}\n\n[Reply in ${langName} only.]` }],
-    }),
-  });
-  if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
-  const data: any = await res.json();
-  return data.content?.[0]?.text || 'I could not generate a response. Please try again.';
+  // Try the model for this mode first; if it errors (unknown id, overload, outage), fall back to the main model
+  // before giving up to the rules engine. Each call has a timeout so a slow API can never hang the request.
+  const models = [opts.voice ? config.voiceModel : config.anthropicModel, config.anthropicModel, 'claude-sonnet-4-20250514']
+    .filter((m, k, a) => m && a.indexOf(m) === k);
+  let lastErr = '';
+  for (const model of models) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), opts.voice ? 20000 : 45000);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          max_tokens: opts.voice ? 300 : 1024,
+          system,
+          // The language tag rides on the user turn (not saved) — models follow it far more reliably than a system line alone.
+          messages: [...history.slice(-6), { role: 'user', content: `${question}\n\n[Reply in ${langName} only.]` }],
+        }),
+      });
+      if (!res.ok) { lastErr = `Claude API ${res.status} (${model}): ${(await res.text()).slice(0, 300)}`; console.error('[cfo-ai]', lastErr); continue; }
+      const data: any = await res.json();
+      const text = data.content?.find?.((c: any) => c.type === 'text')?.text;
+      if (text) return text;
+      lastErr = `empty reply (${model})`;
+    } catch (e: any) { lastErr = `${model}: ${e?.name === 'AbortError' ? 'timeout' : e?.message}`; console.error('[cfo-ai]', lastErr); }
+    finally { clearTimeout(timer); }
+  }
+  throw new Error(lastErr || 'Claude API failed');
 }
 
 // ── Deterministic fallback engine ───────────────────────────────────
