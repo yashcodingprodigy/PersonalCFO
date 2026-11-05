@@ -38,6 +38,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
   const handleRef = useRef<ListenHandle | null>(null);
   const alive = useRef(true);
   const phaseRef = useRef<Phase>('idle');
+  const retriedStt = useRef(false);
   const replyRef = useRef<HTMLDivElement>(null);
   // Each new answer starts at the top, then the box follows the voice as it reads.
   useEffect(() => { const el = replyRef.current; if (el) el.scrollTo({ top: 0 }); }, [reply]);
@@ -70,6 +71,13 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
     const { text, language, error } = await h.result;
     handleRef.current = null;
     if (!alive.current) return;
+    if (!text && error === 'stt-failed' && !retriedStt.current) {
+      // The server couldn't transcribe — switch to the device recogniser and listen again straight away.
+      retriedStt.current = true;
+      const msg = lang === 'hi' ? 'फिर से बोलिए — अब डिवाइस से सुन रहा हूँ।' : 'Please say that again — listening with your device now.';
+      setTimeout(() => { turn(); setNote(msg); }, 300);
+      return;
+    }
     if (!text) { setP('idle'); setHeard(''); setNote(t(ERR_KEY[error || 'no-speech'])); return; }
     setHeard(text); setReply(''); setVisuals(null); setOpening(null); setP('thinking');
     // D-57: the app language decides; only Hindi in Devanagari (what speech-to-text gives for spoken Hindi) switches it.

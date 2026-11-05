@@ -165,6 +165,7 @@ function meter(stream: MediaStream, onLevel?: (v: number) => void) {
 // The mic stays open for the whole voice session, so the next turn starts instantly
 // (re-opening it each turn is what swallowed the first ~2 seconds of speech).
 let keptStream: MediaStream | null = null;
+let serverSttBroken = false;
 async function getMic(md: any): Promise<MediaStream> {
   if (keptStream && keptStream.getAudioTracks().some((t) => t.readyState === 'live')) return keptStream;
   keptStream = await md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
@@ -205,7 +206,7 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
 
     // 2a) Server speech-to-text (ElevenLabs Scribe or Sarvam): record → transcribe on our server.
     // The mic is already open, so recording starts instantly — no lost first words, and a single "yes" is kept.
-    if (st.stt !== 'browser' && (window as any).MediaRecorder) {
+    if (st.stt !== 'browser' && !serverSttBroken && (window as any).MediaRecorder) {
       const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((x) => (window as any).MediaRecorder.isTypeSupported?.(x)) || '';
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       const chunks: BlobPart[] = [];
@@ -230,7 +231,12 @@ export function listen(lang: VoiceLang, onLevel?: (v: number) => void, onPartial
       try {
         const r = await api<{ text: string; language: string | null }>('/voice/stt', { method: 'POST', body: JSON.stringify({ audio: await blobToBase64(blob), mime: blob.type }) });
         return r.text ? { text: r.text, language: r.language } : { text: '', language: null, error: 'no-speech' };
-      } catch { return { text: '', language: null, error: 'stt-failed' }; }
+      } catch (e: any) {
+        // Server speech-to-text failed (provider down / bad key): use the device recogniser for the rest of this visit.
+        console.warn('[voice] server speech-to-text failed — switching to the device recogniser', e?.message);
+        serverSttBroken = true;
+        return { text: '', language: null, error: 'stt-failed' };
+      }
     }
 
     // 2b) Browser speech recognition (Chrome, Edge, Safari with Dictation on, Android).

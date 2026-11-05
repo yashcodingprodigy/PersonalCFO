@@ -19,6 +19,7 @@ export interface ListenHandle { result: Promise<ListenResult>; stop: () => void;
 export const RECORDING: RecordingOptions = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1, bitRate: 64000, sampleRate: 22050, isMeteringEnabled: true };
 
 let statusCache: { tts: string; ttsHi: string; stt: string } | null = null;
+let serverSttBroken = false; // server speech-to-text failed this session → use the phone's recogniser
 export async function voiceStatus() {
   if (statusCache) return statusCache;
   try { statusCache = await api('/voice/status'); } catch { statusCache = { tts: 'browser', ttsHi: 'browser', stt: 'browser' }; }
@@ -43,7 +44,7 @@ export function listen(recorder: AudioRecorder, lang: VoiceLang, cb: { onLevel?:
   const result = (async (): Promise<ListenResult> => {
     if (!(await ensureMic())) return { text: '', language: null, error: 'denied' };
     const st = await voiceStatus();
-    if (st.stt === 'browser') return deviceListen(lang, cb, () => stopRequested || cancelled, (f) => { finish = f; });
+    if (st.stt === 'browser' || serverSttBroken) return deviceListen(lang, cb, () => stopRequested || cancelled, (f) => { finish = f; });
     try {
       await recordMode();
       await recorder.prepareToRecordAsync();
@@ -81,6 +82,7 @@ export function listen(recorder: AudioRecorder, lang: VoiceLang, cb: { onLevel?:
       if (!text) return { text: '', language: null, error: 'no-speech' };
       return { text, language: r.language === 'hi' ? 'hi' : r.language === 'en' ? 'en' : null };
     } catch (e: any) {
+      if (e?.status !== 0) serverSttBroken = true; // next turn listens on the device instead
       return { text: '', language: null, error: e?.status === 0 ? 'network' : 'stt-failed' };
     }
   })();

@@ -140,13 +140,14 @@ voiceRouter.post('/stt', rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'stt'
   const b64 = String(req.body?.audio || '');
   if (!b64 || b64.length > 8_000_000) return res.status(400).json({ error: 'invalid_audio' });
   const mime = String(req.body?.mime || 'audio/webm').slice(0, 40);
+  const cleanMime = mime.split(';')[0].trim() || 'audio/webm';   // "audio/webm;codecs=opus" → "audio/webm"
   const ext = mime.includes('mp4') || mime.includes('m4a') ? 'mp4' : mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : 'webm';
   const norm = (lc: string) => (lc.startsWith('hi') ? 'hi' : lc.startsWith('en') ? 'en' : lc || null);
   try {
     const bytes = Buffer.from(b64.replace(/^data:[^;]+;base64,/, ''), 'base64');
-    const form = new FormData();
-    form.append('file', new Blob([bytes], { type: mime }), `speech.${ext}`);
     if (provider === 'elevenlabs') {
+      const form = new FormData();
+      form.append('file', new Blob([bytes], { type: cleanMime }), `speech.${ext}`);
       form.append('model_id', config.elevenSttModel);
       // No language hint: Scribe auto-detects, so Hindi spoken in an English app still comes back as Hindi.
       const r = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': config.elevenLabsKey }, body: form });
@@ -154,13 +155,25 @@ voiceRouter.post('/stt', rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'stt'
       const j: any = await r.json();
       return res.json({ text: String(j.text || '').trim(), language: norm(String(j.language_code || '').toLowerCase()) });
     }
-    // Sarvam saaras: auto-detects the language; Hindi comes back in Devanagari, English in English.
-    form.append('model', process.env.SARVAM_STT_MODEL || 'saaras:v4');
-    form.append('language_code', 'unknown');
-    const r = await fetch('https://api.sarvam.ai/speech-to-text', { method: 'POST', headers: { 'api-subscription-key': config.sarvamKey }, body: form });
-    if (!r.ok) { console.error('[voice] sarvam stt failed', r.status, (await r.text().catch(() => '')).slice(0, 300)); return res.status(502).json({ error: 'stt_failed' }); }
-    const j: any = await r.json();
-    res.json({ text: String(j.transcript || '').trim(), language: norm(String(j.language_code || '').toLowerCase()) });
+    // Sarvam: auto-detects the language; Hindi comes back in Devanagari, English in English.
+    // Try the newest model first, then older ones, so a model/plan mismatch never breaks listening.
+    const models = [process.env.SARVAM_STT_MODEL, 'saaras:v4', 'saaras:v3', 'saarika:v2.5'].filter((m, k, a) => m && a.indexOf(m) === k) as string[];
+    let lastErr = '';
+    for (const model of models) {
+      const f = new FormData();
+      f.append('file', new Blob([bytes], { type: cleanMime }), `speech.${ext}`);
+      f.append('model', model);
+      f.append('language_code', 'unknown');
+      const r = await fetch('https://api.sarvam.ai/speech-to-text', { method: 'POST', headers: { 'api-subscription-key': config.sarvamKey }, body: f });
+      if (r.ok) {
+        const j: any = await r.json();
+        return res.json({ text: String(j.transcript || '').trim(), language: norm(String(j.language_code || '').toLowerCase()), engine: `sarvam:${model}` });
+      }
+      lastErr = `${r.status} ${(await r.text().catch(() => '')).slice(0, 300)}`;
+      console.error('[voice] sarvam stt failed', model, lastErr);
+      if (r.status === 401 || r.status === 403) break;   // bad key — other models won't help
+    }
+    return res.status(502).json({ error: 'stt_failed', detail: lastErr.slice(0, 200) });
   } catch (e: any) {
     console.error('[voice] stt error', e?.message);
     res.status(502).json({ error: 'stt_failed' });
