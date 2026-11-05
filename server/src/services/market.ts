@@ -1,3 +1,4 @@
+import { buildDeck, Pamphlet } from './marketDeck';
 // Markets & Learn service.
 //
 // COMPLIANCE: PayWatch is an education/organisation tool, NOT a SEBI-registered
@@ -61,6 +62,7 @@ import { fetchNews, newsSources, NewsSource } from '../adapters/news';
 import { buildImpacts, personaliseNews, Impact, NewsCard, THEME_LABEL } from './marketImpact';
 
 export interface MarketPage {
+  deck: Pamphlet[];
   facts: MarketFact[];
   impacts: Impact[];
   news: NewsCard[];
@@ -82,10 +84,13 @@ export async function getMarketPage(userId: string, lang: 'en' | 'hi'): Promise<
   const dreams = (goals || []).filter((g: any) => Number(g.current_amount) < Number(g.target_amount))
     .map((g: any) => ({ name: String(g.name), goalType: g.goal_type, target: Math.max(0, Number(g.target_amount) - Number(g.current_amount)) }));
   const profile = p || ({ user: { annual_gross_income: 0, monthly_take_home: 0, dependents_count: 0, age: null }, assets: {}, liabilities: {}, insurance: {}, tax_data: {}, monthlyExpenses: null } as any);
+  const impacts = buildImpacts(profile, MARKET_FACTS, dreams);
+  const news = personaliseNews(feed.items, profile);
   return {
+    deck: buildDeck({ facts: MARKET_FACTS, impacts, news, themeLabels: THEME_LABEL }),
     facts: MARKET_FACTS,
-    impacts: buildImpacts(profile, MARKET_FACTS, dreams),
-    news: personaliseNews(feed.items, profile),
+    impacts,
+    news,
     newsError: feed.items.length === 0 && feed.failed.length > 0,
     sources: newsSources(),
     themeLabels: THEME_LABEL,

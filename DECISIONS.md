@@ -301,6 +301,11 @@ request ("reply in Hindi", "hindi mein batao", "in English please") — it also 
 (3) the app language. Speech-to-text no longer forces the app language (Scribe/Sarvam auto-detect). Server STT order:
 ElevenLabs Scribe → Sarvam saaras (if `SARVAM_API_KEY`) → device recogniser. Device recogniser on desktop now runs
 continuously and PayWatch ends the turn after ~1.2 s of silence, so short answers like "yes" are kept.
+
+**D-59  Markets as "Money Wrapped" flip pamphlets (Nov 2026).** A list of headlines was boring and the "what it means for
+you" part sat far below. Now every fact/news item is a bold card (Spotify-Wrapped style); tapping flips it to the
+personal meaning, so the news and its impact are always one tap apart. Deck built on the server (`marketDeck.ts`) so
+web and mobile match. Same licensed sources and education-only rules as D-54.
 ---
 
 ## E. Reversals / revisits log
