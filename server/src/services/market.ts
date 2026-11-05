@@ -53,52 +53,46 @@ export function marketBasics(): string[] {
   ];
 }
 
-// Decode the handful of HTML entities that show up in RSS titles.
-function decode(s: string): string {
-  return s
-    .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, ' ')
-    .trim();
+// ── The personal Markets page ──────────────────────────────────────
+import { query } from '../db';
+import { loadProfileData } from './profile';
+import { MARKET_FACTS, MarketFact } from './marketFacts';
+import { fetchNews, newsSources, NewsSource } from '../adapters/news';
+import { buildImpacts, personaliseNews, Impact, NewsCard, THEME_LABEL } from './marketImpact';
+
+export interface MarketPage {
+  facts: MarketFact[];
+  impacts: Impact[];
+  news: NewsCard[];
+  newsError: boolean;
+  sources: NewsSource[];
+  themeLabels: typeof THEME_LABEL;
+  themes: MarketTheme[];
+  basics: string[];
+  disclaimer: string;
+  generatedAt: string;
 }
 
-// Fetch recent India markets/investing news from Google News RSS (keyless).
-// Framed as third-party news, not advice. Fails soft (returns []).
-export async function fetchMarketNews(): Promise<{ news: NewsItem[]; error: boolean }> {
-  const url = 'https://news.google.com/rss/search?q=' +
-    encodeURIComponent('when:7d (india stock market OR mutual fund OR investing OR personal finance OR sensex OR nifty)') +
-    '&hl=en-IN&gl=IN&ceid=IN:en';
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 6000);
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'PayWatch/1.0' } });
-    clearTimeout(t);
-    if (!res.ok) return { news: [], error: true };
-    const xml = await res.text();
-    const items = xml.split('<item>').slice(1, 13);
-    const news: NewsItem[] = items.map((block) => {
-      const title = decode((block.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '');
-      const link = decode((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '');
-      const source = decode((block.match(/<source[^>]*>([\s\S]*?)<\/source>/) || [])[1] || 'News');
-      const published = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/) || [])[1] || null;
-      // Google titles are "Headline - Source"; trim the trailing source.
-      const cleanTitle = title.replace(new RegExp(`\\s*-\\s*${source}\\s*$`), '');
-      return { title: cleanTitle, link, source, published };
-    }).filter((n) => n.title && n.link);
-    return { news, error: false };
-  } catch {
-    return { news: [], error: true };
-  }
-}
-
-export async function getMarketData(): Promise<MarketData> {
-  const { news, error } = await fetchMarketNews();
+export async function getMarketPage(userId: string, lang: 'en' | 'hi'): Promise<MarketPage> {
+  const [p, goals, feed] = await Promise.all([
+    loadProfileData(userId),
+    query<any>(`SELECT name, goal_type, target_amount, current_amount FROM goals WHERE user_id = $1`, [userId]).catch(() => [] as any[]),
+    fetchNews(lang),
+  ]);
+  const dreams = (goals || []).filter((g: any) => Number(g.current_amount) < Number(g.target_amount))
+    .map((g: any) => ({ name: String(g.name), goalType: g.goal_type, target: Math.max(0, Number(g.target_amount) - Number(g.current_amount)) }));
+  const profile = p || ({ user: { annual_gross_income: 0, monthly_take_home: 0, dependents_count: 0, age: null }, assets: {}, liabilities: {}, insurance: {}, tax_data: {}, monthlyExpenses: null } as any);
   return {
+    facts: MARKET_FACTS,
+    impacts: buildImpacts(profile, MARKET_FACTS, dreams),
+    news: personaliseNews(feed.items, profile),
+    newsError: feed.items.length === 0 && feed.failed.length > 0,
+    sources: newsSources(),
+    themeLabels: THEME_LABEL,
     themes: trendingThemes(),
     basics: marketBasics(),
-    news,
-    newsError: error,
     disclaimer:
-      'This page is for education and information only — not investment advice. PayWatch is not a SEBI-registered Investment Adviser and does not recommend specific stocks, funds or companies. Themes are general categories; news is third-party content shown for awareness. Always do your own research or consult a SEBI-registered adviser before investing.',
+      'Education and information only — not investment advice. PayWatch is not a SEBI-registered Investment Adviser and never recommends specific stocks, funds or companies. Rupee effects are estimates from the details you gave us and simple assumptions shown on each card. Rates and inflation figures are from the official sources listed; news headlines link to their original publisher.',
+    generatedAt: new Date().toISOString(),
   };
 }

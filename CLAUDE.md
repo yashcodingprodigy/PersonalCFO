@@ -126,7 +126,9 @@ unread-alerts badge, native biometric lock overlay).
   portfolios, start steps. Section nav. (`/portfolio` route now redirects here.)
 - **Your CA** (`advisor`) — connect to a Chartered Accountant: your connect code, enter a CA code,
   approve/decline requests, disconnect. Active CA → `/advisor/[id]` (messaging + document sharing). See §11.
-- **Markets & news** (`markets`) — **news first**, then educational investment themes (keyless RSS).
+- **Markets** (`markets`, D-54) — "what changed" fact cards (repo, CPI, food CPI, RBI projection; source + next date) →
+  **"What it means for you"** rupee impacts from the user's profile → money news with For-you/theme filters and a
+  personal "why it matters" → learn (themes/basics) → sources & licences. `GET /market?lang=`. Same on mobile.
 - **Tax** (`tax`) — **Full computation** section (`GET /tax/full` → `fullFiling`): comprehensive CA-usable
   breakdown across **every income head** (salary, interest, house property, dividends, business, STCG/LTCG),
   deductions, both regimes, ITR form + why, TDS reconciliation, refund/payable, downloadable for the CA.
@@ -260,7 +262,11 @@ unread-alerts badge, native biometric lock overlay).
   by risk (`conservative/moderate/aggressive`), nominal; returns `riskAppetite` + `assumedReturnPct`.
 - `actions.ts` — rule engine ACT-001…ACT-021, each with computed `priority`. Insurance sizing shown as
   rounded ranges (`inrRange`), not false-precise figures.
-- `market.ts` — educational themes + live news via keyless Google News RSS (fails soft).
+- `market.ts` `getMarketPage(userId, lang)` — combines `marketFacts.ts` (official rates/inflation table — **update it when
+  RBI/MoSPI publish**: CPI ~12th of each month, MPC dates), `marketImpact.ts` (`buildImpacts`, `classifyNews`,
+  `personaliseNews`, EN+HI) and `adapters/news.ts` (licensed sources only: PIB always; NewsData.io if
+  `NEWSDATA_API_KEY` (paid plan); RBI/SEBI only if `RBI_FEED_PERMITTED=1` / `SEBI_FEED_PERMITTED=1` after written
+  permission; 15-min cache; fails soft). Google News removed. See D-54.
 - `alerts.ts` — alert generators; `monitor.ts` — shared regenerate/gatherSignals (used by route + cron).
 - `goals.ts`, `cfo-ai.ts` (RAG Q&A — scope guard `checkScope()`, `parseGoalIntent()` for chat goal
   creation, model `claude-sonnet-4`; **context includes the user's active goals AND uploaded insurance
@@ -464,7 +470,7 @@ aggregates for the shared catalog), and the **CA portal**: `cas`,
   Disabled until `CRON_SECRET` set.
 - **Env vars:** Railway → `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`,
   `NODE_ENV=production`, `SMS_PROVIDER`, `BILLING_PROVIDER`, `AA_PROVIDER`, `ANTHROPIC_API_KEY`(opt),
-  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice; HI auto-picked if blank), **`SARVAM_API_KEY`** (+opt `SARVAM_SPEAKER_HI`, `SARVAM_TTS_MODEL`) for native Hindi voice, `TRANSLATE_MODEL`(opt), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
+  `CRON_SECRET`, **`ELEVENLABS_API_KEY`+`ELEVENLABS_VOICE_ID`+`ELEVENLABS_VOICE_ID_HI`** (opt — natural voice; HI auto-picked if blank), **`SARVAM_API_KEY`** (+opt `SARVAM_SPEAKER_HI`, `SARVAM_TTS_MODEL`) for native Hindi voice, `TRANSLATE_MODEL`(opt), **`NEWSDATA_API_KEY`** (opt, paid plan) + `RBI_FEED_PERMITTED`/`SEBI_FEED_PERMITTED` (opt, `1` only with written permission), `EMAIL_PROVIDER`(dev/resend)+`RESEND_API_KEY`+`EMAIL_FROM`, `APP_URL`,
   `FIREBASE_SERVICE_ACCOUNT`(opt — JSON string; enables FCM push delivery),
   **`SUPABASE_URL`+`SUPABASE_SERVICE_KEY`+`SUPABASE_BUCKET`** (opt — enables CA document sharing; use the
   new `sb_secret_` key; create a **private** bucket `ca-documents`).
@@ -603,11 +609,13 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 
 ## 10. Working agreements
 - Owner prefers concise, direct answers; owner is new to dev/ops — explain "where to run" things.
+- **After EVERY code change, end the reply with the exact git commands to push** (`cd ~/Claude/Projects/PersonalCFO`,
+  `git add …`, `git commit -m "…"`, `git push`) — owner pushes himself; never wait to be asked.
 - For deployed changes, always call out DB-migration and env-var implications before they go live.
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **223 assertions** (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **232 assertions** (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

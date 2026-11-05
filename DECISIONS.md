@@ -267,6 +267,16 @@ not an AI wrapper. Rule: facts, prices, maths, routing and decisions come from f
 test (tax/insurance/brain engines, `priceCatalog.ts`, `planNavigation`, `detectReplyLang`); the LLM only phrases answers
 and handles open-ended language, and is never allowed to override our own data (sanity bounds). Also: always answer in
 the language the user just used; navigation intent is resolved instantly (no AI) so the UI never looks stuck.
+
+**D-54  Markets = "what changed → what it means for you", from licensed sources only (Nov 2026).** The page leads with
+official facts (RBI repo, MoSPI CPI/food CPI, RBI projection — first-party table `marketFacts.ts`, cited and dated;
+facts aren't copyrightable), then rupee impacts computed from the user's own profile (`marketImpact.ts`: home-loan EMI
+pass-through, FD/fixed-rate, card debt, inflation vs savings/spending/dreams), then news personalised with a "why it
+matters". News only from sources we may use commercially: **PIB** (Govt reuse with acknowledgement) on by default;
+**NewsData.io** only with a *paid* key (`NEWSDATA_API_KEY`); **RBI/SEBI** feeds only after written permission
+(`RBI_FEED_PERMITTED=1` / `SEBI_FEED_PERMITTED=1`). We show headline + publisher + link only (never full articles).
+Google News RSS removed (terms don't clearly allow commercial apps). Live index prices (Nifty/Sensex) need a licensed
+market-data vendor — not added. Still education only: no security named, no buy/sell calls.
 ---
 
 ## E. Reversals / revisits log

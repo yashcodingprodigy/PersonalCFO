@@ -199,6 +199,12 @@ listen again. Hindi: `<Txt>` strings go through `/i18n/translate` in batches and
 
 **Releasing:** `eas build -p android|ios --profile production` → `eas submit`. Bump nothing by hand (EAS auto-increments).
 
+**Markets (D-54):** web/mobile `GET /market?lang=` → `getMarketPage` loads profile + open dreams → `MARKET_FACTS`
+(official table) → `buildImpacts(profile, facts, dreams)` (rupee effects) → `fetchNews(lang)` (PIB + any enabled
+licensed sources, 15-min cache) → `personaliseNews` (theme, For-you, why-it-matters) → `{facts, impacts, news,
+sources, …}`. **Monthly chore:** update `server/src/services/marketFacts.ts` after each CPI release (~12th) and RBI
+policy meeting, then push.
+
 ---
 
 ## 9. Future flows (fill in as built)

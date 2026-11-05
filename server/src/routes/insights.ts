@@ -17,7 +17,7 @@ import { analyseInsurance } from '../services/insurance';
 import { buildInvestmentGuidance, allocationAnalysis } from '../services/investment';
 import { analyzeStatement } from '../services/statement';
 import { analyzeHoldings } from '../services/holdings';
-import { getMarketData } from '../services/market';
+import { getMarketPage } from '../services/market';
 import { deductionUsage } from '../services/score';
 import { categorise } from '../adapters/aa';
 import { remember } from '../services/rag';
@@ -280,8 +280,9 @@ insightsRouter.delete('/insurance/applications/:id', async (req: AuthedRequest, 
 });
 
 // GET /market — educational themes + third-party financial news (no advice)
-insightsRouter.get('/market', async (_req: AuthedRequest, res) => {
-  res.json(await getMarketData());
+insightsRouter.get('/market', async (req: AuthedRequest, res) => {
+  const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+  res.json(await getMarketPage(req.userId!, lang));
 });
 
 // GET /tax/filing/prefill — ITR inputs assembled from the user's full data
