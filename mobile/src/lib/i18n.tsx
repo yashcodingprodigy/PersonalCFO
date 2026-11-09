@@ -42,7 +42,7 @@ const D = {
   'vo.didntCatch': ['I didn’t catch that — tap and try again.', 'सुन नहीं पाया — टैप करके फिर बोलिए।'],
   'vo.denied': ['Microphone access is off. Turn it on in Settings → PayWatch → Microphone.', 'माइक्रोफ़ोन बंद है। Settings → PayWatch → Microphone में चालू करें।'],
   'vo.switchChat': ['Switch to chat', 'चैट पर जाएँ'], 'vo.human': ['Natural voice', 'प्राकृतिक आवाज़'], 'vo.device': ['Device voice', 'डिवाइस की आवाज़'],
-  'gd.do': ['Do this', 'यह करें'], 'gd.avoid': ['Avoid', 'इनसे बचें'], 'gd.ask': ['Ask a follow-up', 'और पूछें'],
+  'gd.do': ['Do this', 'यह करें'], 'gd.avoid': ['Avoid', 'इनसे बचें'], 'gd.ask': ['Ask a follow-up', 'और पूछें'], 'gd.gotIt': ['Got it, hide', 'ठीक है, हटाएँ'],
   'set.lang': ['App language', 'ऐप की भाषा'],
   'login.title': ['Sign in to PayWatch', 'PayWatch में साइन इन करें'], 'login.email': ['Email', 'ईमेल'], 'login.sendCode': ['Send code', 'कोड भेजें'],
   'login.code': ['6-digit code', '6 अंकों का कोड'], 'login.verify': ['Verify & continue', 'जाँचें और आगे बढ़ें'], 'login.demo': ['Explore with a demo account', 'डेमो अकाउंट से देखें'],

@@ -21,7 +21,10 @@ export function GuideCard({ bottomOffset = 90 }: { bottomOffset?: number }) {
           <View style={{ width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}><Orb size={20} /></View>
           <Txt style={{ color: C.white, fontWeight: '700', flex: 1, fontSize: 14 }} numberOfLines={2}>{guide.title}</Txt>
           <Icon name={min ? 'chevron-up' : 'chevron-down'} color="rgba(255,255,255,0.8)" size={18} />
-          <Pressable onPress={() => setGuide(null)} hitSlop={10} accessibilityLabel={t('common.close')}><Icon name="close" color="rgba(255,255,255,0.8)" size={18} /></Pressable>
+          <Pressable onPress={() => setGuide(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.close')}
+            style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: C.white, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="close" color={C.pine900} size={18} />
+          </Pressable>
         </Pressable>
         {!min && (
           <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ padding: 12 }}>
@@ -41,7 +44,12 @@ export function GuideCard({ bottomOffset = 90 }: { bottomOffset?: number }) {
               ))}
             </>}
             {guide.footnote ? <Tiny style={{ marginTop: 10 }}>{guide.footnote}</Tiny> : null}
-            <Pressable onPress={() => openChat()} style={{ marginTop: 10 }}><Txt style={{ color: C.pine700, fontWeight: '700', fontSize: 14 }}>{t('gd.ask')} →</Txt></Pressable>
+            <View style={{ marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Pressable onPress={() => openChat()}><Txt style={{ color: C.pine700, fontWeight: '700', fontSize: 14 }}>{t('gd.ask')} →</Txt></Pressable>
+              <Pressable onPress={() => setGuide(null)} accessibilityRole="button" style={{ backgroundColor: C.paper100, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+                <Txt style={{ color: C.inkSoft, fontWeight: '700', fontSize: 13 }}>{t('gd.gotIt')}</Txt>
+              </Pressable>
+            </View>
           </ScrollView>
         )}
       </View>

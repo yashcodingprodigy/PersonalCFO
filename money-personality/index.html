@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>What's your Money Personality? 🧭🐿️🎯🎢</title>
+<meta name="description" content="7 money dilemmas. 60 seconds. Find out what kind of money person you are." />
+<meta property="og:title" content="What's your Money Personality?" />
+<meta property="og:description" content="7 quick money dilemmas → find out if you're a Planner, Squirrel, Smart Spender or YOLO Dreamer." />
+<meta name="theme-color" content="#0B2F2A" />
+<style>
+  :root { --ink:#13201D; --soft:#55635E; --paper:#FFF9EE; --mint:#2FBC9B; --gold:#F5B841; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", sans-serif;
+    color: #fff; background: #0B2F2A; overflow-x: hidden; }
+  .bg { position: fixed; inset: 0; z-index: -1; transition: background 0.8s ease;
+    background: radial-gradient(120% 80% at 10% 0%, #1D6A5F 0%, transparent 55%), radial-gradient(120% 90% at 100% 100%, #5B3A8E 0%, transparent 55%), #0B2F2A; }
+  .wrap { max-width: 460px; margin: 0 auto; min-height: 100%; padding: max(18px, env(safe-area-inset-top)) 20px 28px; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .lang { display: inline-flex; background: rgba(255,255,255,.12); border-radius: 999px; padding: 3px; }
+  .lang button { border: 0; background: transparent; color: rgba(255,255,255,.75); font: inherit; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  .lang button.on { background: #fff; color: var(--ink); }
+  .bar { flex: 1; height: 6px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--mint), var(--gold)); border-radius: 99px; transition: width .45s cubic-bezier(.2,.8,.2,1); }
+  .screen { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 18px 0; animation: rise .5s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 40px; line-height: 1.05; margin: 0 0 12px; letter-spacing: -.5px; }
+  h2 { font-size: 27px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -.2px; }
+  .kicker { font-size: 12px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: #9CE8D4; margin-bottom: 10px; }
+  p.lead { color: rgba(255,255,255,.78); font-size: 17px; line-height: 1.5; margin: 0 0 22px; }
+  .emoji-row { font-size: 44px; letter-spacing: 6px; margin: 4px 0 18px; animation: bob 3s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .btn { display: block; width: 100%; border: 0; border-radius: 18px; padding: 17px 20px; font: inherit; font-size: 18px; font-weight: 800; cursor: pointer;
+    background: #fff; color: var(--ink); box-shadow: 0 10px 30px rgba(0,0,0,.25); transition: transform .12s ease; }
+  .btn:active { transform: scale(.97); }
+  .btn.ghost { background: rgba(255,255,255,.12); color: #fff; box-shadow: none; }
+  .small { font-size: 12.5px; color: rgba(255,255,255,.6); line-height: 1.5; margin-top: 14px; text-align: center; }
+  /* this-or-that */
+  .vs { display: grid; grid-template-rows: 1fr auto 1fr; gap: 10px; margin-top: 16px; }
+  .opt { border: 0; border-radius: 24px; padding: 22px 18px; min-height: 128px; font: inherit; color: var(--ink); cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.22); transition: transform .15s ease, opacity .25s ease; }
+  .opt .e { font-size: 46px; line-height: 1; }
+  .opt .t { font-size: 20px; font-weight: 800; line-height: 1.2; }
+  .opt:active { transform: scale(.97); }
+  .opt.picked { transform: scale(1.03) rotate(-1deg); }
+  .opt.dim { opacity: .35; transform: scale(.96); }
+  .or { justify-self: center; font-weight: 900; font-size: 14px; letter-spacing: .2em; background: rgba(255,255,255,.14); padding: 6px 12px; border-radius: 99px; }
+  .a { background: linear-gradient(135deg, #9BE7FF, #CFF5FF); }
+  .b { background: linear-gradient(135deg, #FFD1EA, #FFE9F4); }
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .tile { border: 0; border-radius: 18px; padding: 14px 12px; background: rgba(255,255,255,.95); color: var(--ink); font: inherit; font-weight: 800; font-size: 15px;
+    cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px; min-height: 64px; box-shadow: 0 8px 20px rgba(0,0,0,.18); transition: transform .12s; }
+  .tile .e { font-size: 26px; }
+  .tile:active { transform: scale(.96); }
+  .tile.on { background: var(--gold); }
+  .list { display: grid; gap: 10px; margin-top: 16px; }
+  .list .tile { min-height: 58px; }
+  /* result */
+  .card { border-radius: 28px; padding: 26px 22px; color: var(--ink); background: var(--paper); box-shadow: 0 20px 50px rgba(0,0,0,.3); position: relative; overflow: hidden; }
+  .card .big { font-size: 70px; line-height: 1; }
+  .card .name { font-size: 32px; font-weight: 900; margin: 10px 0 4px; letter-spacing: -.3px; }
+  .card .line { color: var(--soft); font-size: 15.5px; line-height: 1.5; }
+  .traits { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+  .traits span { border-radius: 99px; padding: 6px 12px; font-size: 13px; font-weight: 800; }
+  .tip { margin-top: 14px; border-radius: 18px; padding: 14px; font-size: 14.5px; line-height: 1.5; font-weight: 600; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .field { width: 100%; border: 0; border-radius: 14px; padding: 15px 14px; font: inherit; font-size: 16px; color: var(--ink); margin-top: 10px; }
+  .optin { margin-top: 18px; background: rgba(255,255,255,.1); border-radius: 22px; padding: 18px; }
+  .optin h3 { margin: 0 0 4px; font-size: 18px; }
+  .optin p { margin: 0; color: rgba(255,255,255,.72); font-size: 14px; line-height: 1.45; }
+  .ok { color: #9CE8D4; font-weight: 800; margin-top: 10px; font-size: 15px; }
+  .confetti { position: fixed; top: -10px; width: 9px; height: 14px; border-radius: 2px; z-index: 50; pointer-events: none; animation: fall 1.9s cubic-bezier(.2,.6,.4,1) forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+  html[lang=hi] .kicker, html[lang=hi] .or { letter-spacing: 0; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="bg" id="bg"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="bar"><i id="bar"></i></div>
+    <div class="lang"><button data-l="en" class="on">EN</button><button data-l="hi">हिं</button></div>
+  </div>
+  <main id="app"></main>
+</div>
+
+<script>
+/* ───────────── CONFIG ─────────────
+   Paste your Google Apps Script web-app URL here (see apps-script.gs / README.md).
+   Answers are sent anonymously to your Google Sheet. Leave empty to test locally. */
+const ENDPOINT = '';
+/* Shown in the share card + used for sharing. Set this after you deploy. */
+const SHARE_URL = location.origin + location.pathname;
+
+/* ───────────── CONTENT (EN + HI) ───────────── */
+const T = {
+  en: {
+    kicker: '60-second game', title: "What's your Money Personality?",
+    lead: '7 money dilemmas. No right answers. Find out if you’re a Planner, a Squirrel, a Smart Spender or a YOLO Dreamer.',
+    start: 'Let’s play →', anon: 'Anonymous · no sign-up · takes about a minute',
+    tot: 'This or that?', almost: 'Almost there…',
+    dreamQ: 'Your #1 dream for the next 2 years?', howQ: 'How are you getting there right now?', stopQ: 'What’s stopping you most?',
+    useQ: 'If an app turned your dream into a plan with a date — how much to save, by when — would you use it?',
+    you: 'You are', yourDream: 'Your dream', share: 'Share my result', again: 'Play again',
+    optinH: 'Want first access to that dream-planning app?', optinP: 'A small team is building it. Leave your email or WhatsApp number and we’ll invite you first. Optional — we never share it.',
+    optinPh: 'Email or WhatsApp number', optinBtn: 'Count me in', optinOk: 'You’re on the list! 🎉',
+    sharedOk: 'Copied! Paste it anywhere 💬', foot: 'Made by a small team of student builders · anonymous research',
+    cardFind: 'Find yours →',
+  },
+  hi: {
+    kicker: '60 सेकंड का गेम', title: 'आपकी मनी पर्सनैलिटी क्या है?',
+    lead: 'पैसों की 7 दुविधाएँ। कोई जवाब गलत नहीं। जानिए आप प्लानर हैं, गिलहरी, स्मार्ट स्पेंडर या YOLO ड्रीमर।',
+    start: 'चलो खेलें →', anon: 'गुमनाम · कोई साइन-अप नहीं · करीब 1 मिनट',
+    tot: 'ये या वो?', almost: 'बस थोड़ा और…',
+    dreamQ: 'अगले 2 साल में आपका सबसे बड़ा सपना?', howQ: 'अभी आप उस तक कैसे पहुँच रहे हैं?', stopQ: 'सबसे बड़ी रुकावट क्या है?',
+    useQ: 'अगर कोई ऐप आपके सपने को तारीख वाले प्लान में बदल दे — कितना बचाना है, कब तक — तो क्या आप इस्तेमाल करेंगे?',
+    you: 'आप हैं', yourDream: 'आपका सपना', share: 'रिज़ल्ट शेयर करें', again: 'फिर से खेलें',
+    optinH: 'उस ड्रीम-प्लानिंग ऐप का पहला एक्सेस चाहिए?', optinP: 'एक छोटी टीम इसे बना रही है। अपना ईमेल या WhatsApp नंबर दें, हम सबसे पहले बुलाएँगे। ज़रूरी नहीं — हम इसे कभी शेयर नहीं करते।',
+    optinPh: 'ईमेल या WhatsApp नंबर', optinBtn: 'मुझे जोड़ें', optinOk: 'आप लिस्ट में हैं! 🎉',
+    sharedOk: 'कॉपी हो गया! कहीं भी पेस्ट करें 💬', foot: 'छात्र बिल्डर्स की एक छोटी टीम · गुमनाम रिसर्च',
+    cardFind: 'अपनी जानें →',
+  },
+};
+
+// Each pick moves two axes: now(+)/later(−) and plan(+)/vibes(−).
+const DILEMMAS = [
+  { id: 'bonus', q: { en: 'Surprise ₹50,000 bonus!', hi: 'अचानक ₹50,000 बोनस!' },
+    a: { e: '✈️', en: 'Trip with friends', hi: 'दोस्तों के साथ ट्रिप', now: 1 }, b: { e: '🏦', en: 'Straight into savings', hi: 'सीधे बचत में', now: -1 } },
+  { id: 'phone', q: { en: 'You want the new phone', hi: 'नया फ़ोन चाहिए' },
+    a: { e: '📱', en: 'Buy now on EMI', hi: 'अभी EMI पर लो', now: 1, plan: -0.5 }, b: { e: '⏳', en: 'Save up, buy in 4 months', hi: 'बचाओ, 4 महीने में लो', now: -1, plan: 0.5 } },
+  { id: 'money', q: { en: 'Pick one', hi: 'एक चुनो' },
+    a: { e: '💵', en: '₹1 lakh today', hi: 'आज ₹1 लाख', now: 1 }, b: { e: '💰', en: '₹1.5 lakh in 2 years', hi: '2 साल बाद ₹1.5 लाख', now: -1 } },
+  { id: 'track', q: { en: 'Your spending style', hi: 'आपका खर्च करने का तरीका' },
+    a: { e: '📊', en: 'I track every rupee', hi: 'हर रुपये का हिसाब', plan: 1 }, b: { e: '🌊', en: 'Vibes-based', hi: 'मूड के हिसाब से', plan: -1 } },
+  { id: 'monthend', q: { en: 'Month-end is…', hi: 'महीने का आखिर…' },
+    a: { e: '🧘', en: 'Calm — I planned for it', hi: 'आराम से — प्लान था', plan: 1 }, b: { e: '😅', en: 'A surprise every time', hi: 'हर बार सरप्राइज़', plan: -1 } },
+  { id: 'sale', q: { en: 'SALE: 60% off!', hi: 'सेल: 60% छूट!' },
+    a: { e: '🛒', en: 'Add to cart now', hi: 'अभी कार्ट में', now: 1, plan: -0.5 }, b: { e: '📝', en: 'Wishlist, think later', hi: 'विशलिस्ट, बाद में सोचेंगे', now: -1, plan: 0.5 } },
+  { id: 'goal', q: { en: 'A big goal, like a bike', hi: 'बड़ा लक्ष्य, जैसे बाइक' },
+    a: { e: '🗓️', en: 'Fixed amount every month + a date', hi: 'हर महीने तय रकम + तारीख', plan: 1 }, b: { e: '🤞', en: 'Save whatever’s left', hi: 'जो बचे वो बचाओ', plan: -1 } },
+];
+
+const DREAMS = [
+  ['trip', '✈️', 'Trip', 'ट्रिप'], ['vehicle', '🏍️', 'Bike / car', 'बाइक / कार'], ['gadget', '📱', 'Phone / laptop', 'फ़ोन / लैपटॉप'],
+  ['home', '🏠', 'Own home', 'अपना घर'], ['parents', '❤️', 'Parents’ health', 'माता-पिता की सेहत'], ['wedding', '💍', 'Wedding', 'शादी'],
+  ['studies', '🎓', 'Studies', 'पढ़ाई'], ['business', '🚀', 'Own business', 'अपना बिज़नेस'], ['security', '🛡️', 'Just security', 'बस सुरक्षा'], ['other', '✨', 'Something else', 'कुछ और'],
+];
+const HOW = [
+  ['bank', '🏦', 'Saving in my bank account', 'बैंक खाते में बचत'], ['sip_fd', '📈', 'SIP or FD', 'SIP या FD'], ['loan', '💳', 'Will take a loan / EMI', 'लोन / EMI लूँगा'],
+  ['parents', '👨‍👩‍👧', 'Parents will help', 'माता-पिता मदद करेंगे'], ['not_started', '🙈', 'Haven’t started yet', 'अभी शुरू नहीं किया'],
+];
+const STOP = [
+  ['not_enough', '💸', 'Not enough left each month', 'हर महीने कम बचता है'], ['how_much', '🤔', 'Don’t know how much to save', 'पता नहीं कितना बचाऊँ'],
+  ['spend', '🛍️', 'I keep spending it', 'खर्च हो जाता है'], ['no_plan', '🗺️', 'No clear plan', 'कोई साफ़ प्लान नहीं'], ['on_track', '✅', 'Nothing — I’m on track', 'कुछ नहीं — सब ठीक है'],
+];
+const USE = [
+  ['yes_paid', '💳', 'Yes — even if it’s paid', 'हाँ — पैसे देकर भी'], ['yes_free', '🙌', 'Yes, if it’s free', 'हाँ, अगर फ्री हो'],
+  ['maybe', '🤷', 'Maybe', 'शायद'], ['no', '🙅', 'No', 'नहीं'],
+];
+
+const TYPES = {
+  planner: { e: '🧭', bg: ['#0F2F57', '#2E86C1'], accent: '#9BE7FF',
+    name: { en: 'The Planner', hi: 'द प्लानर' },
+    line: { en: 'You think in dates and numbers. Future-you sends a thank-you note every month.', hi: 'आप तारीख़ और नंबर में सोचते हैं। भविष्य वाले आप हर महीने शुक्रिया कहते हैं।' },
+    traits: { en: ['Patient', 'Organised', 'Goal-getter'], hi: ['धैर्यवान', 'व्यवस्थित', 'लक्ष्य पाने वाले'] },
+    tip: { en: 'Your superpower is consistency. Put your dream on autopilot — a fixed amount on salary day.', hi: 'आपकी ताकत है निरंतरता। सपने को ऑटोपायलट पर डालें — सैलरी वाले दिन तय रकम।' } },
+  squirrel: { e: '🐿️', bg: ['#123D20', '#3FBF6A'], accent: '#D9FFD0',
+    name: { en: 'The Squirrel', hi: 'द गिलहरी' },
+    line: { en: 'You save by instinct — a little here, a little there. Safe, but your nuts are scattered.', hi: 'आप आदत से बचाते हैं — थोड़ा यहाँ, थोड़ा वहाँ। सुरक्षित, पर बचत बिखरी हुई।' },
+    traits: { en: ['Careful', 'Calm', 'Quietly rich-ish'], hi: ['सावधान', 'शांत', 'चुपचाप बचाने वाले'] },
+    tip: { en: 'Give your savings a name and a date. A goal with a deadline grows 2× faster than “someday”.', hi: 'अपनी बचत को नाम और तारीख दें। डेडलाइन वाला लक्ष्य “कभी तो” से कहीं तेज़ पूरा होता है।' } },
+  smart: { e: '🎯', bg: ['#3B0F6E', '#8E5FD0'], accent: '#F0C4FF',
+    name: { en: 'The Smart Spender', hi: 'द स्मार्ट स्पेंडर' },
+    line: { en: 'You enjoy life today — but you know exactly where the money goes. Best of both worlds.', hi: 'आप आज ज़िंदगी जीते हैं — पर पैसा कहाँ जा रहा है, पूरा पता है। दोनों का मज़ा।' },
+    traits: { en: ['Intentional', 'Fun', 'In control'], hi: ['सोच-समझकर', 'मस्त', 'कंट्रोल में'] },
+    tip: { en: 'Pay your dream first, then spend guilt-free. Same fun, bigger dreams.', hi: 'पहले सपने को पैसा दें, फिर बेफ़िक्र खर्च करें। वही मज़ा, बड़े सपने।' } },
+  yolo: { e: '🎢', bg: ['#7C2D12', '#F59E0B'], accent: '#FFE29A',
+    name: { en: 'The YOLO Dreamer', hi: 'द YOLO ड्रीमर' },
+    line: { en: 'Big dreams, bigger vibes. Life is now — your bank balance just needs to catch up.', hi: 'बड़े सपने, उससे बड़ा जोश। ज़िंदगी अभी है — बस बैंक बैलेंस को साथ आना है।' },
+    traits: { en: ['Spontaneous', 'Generous', 'Big dreamer'], hi: ['मनमौजी', 'दिलदार', 'बड़े सपने'] },
+    tip: { en: 'You don’t need a budget — just one tiny auto-save toward your dream. Even ₹50 a day = ₹18,000 a year.', hi: 'बजट की ज़रूरत नहीं — बस सपने के लिए छोटी ऑटो-सेविंग। ₹50 रोज़ = ₹18,000 साल में।' } },
+};
+
+/* ───────────── STATE ───────────── */
+const params = new URLSearchParams(location.search);
+const S = {
+  lang: (navigator.language || '').startsWith('hi') ? 'hi' : 'en',
+  step: 0, now: 0, plan: 0, picks: {}, dream: null, how: null, stop: null, use: null,
+  sid: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).slice(0, 36),
+  src: (params.get('src') || params.get('utm_source') || 'direct').slice(0, 40),
+  ref: (params.get('ref') || '').slice(0, 40), t0: 0, sent: false,
+};
+try { const l = localStorage.getItem('mp_lang'); if (l === 'en' || l === 'hi') S.lang = l; } catch (e) {}
+const TOTAL = DILEMMAS.length + 4;
+const $ = (s) => document.querySelector(s);
+const app = $('#app');
+const L = () => T[S.lang];
+const tr = (o) => o[S.lang] || o.en;
+
+function setBar() { $('#bar').style.width = Math.round((Math.min(S.step, TOTAL) / TOTAL) * 100) + '%'; }
+function setLang(l) {
+  S.lang = l; try { localStorage.setItem('mp_lang', l); } catch (e) {}
+  document.documentElement.lang = l;
+  document.querySelectorAll('.lang button').forEach((b) => b.classList.toggle('on', b.dataset.l === l));
+  render();
+}
+document.querySelectorAll('.lang button').forEach((b) => b.onclick = () => setLang(b.dataset.l));
+
+function haptic() { try { navigator.vibrate && navigator.vibrate(12); } catch (e) {} }
+
+/* ───────────── SCREENS ───────────── */
+function render() {
+  setBar();
+  if (S.step === 0) return intro();
+  if (S.step <= DILEMMAS.length) return dilemma(DILEMMAS[S.step - 1]);
+  const k = S.step - DILEMMAS.length;
+  if (k === 1) return choice(L().dreamQ, DREAMS, 'dream', true);
+  if (k === 2) return choice(L().howQ, HOW, 'how');
+  if (k === 3) return choice(L().stopQ, STOP, 'stop');
+  if (k === 4) return choice(L().useQ, USE, 'use');
+  return result();
+}
+
+function intro() {
+  app.innerHTML = `<section class="screen">
+    <div class="kicker">${L().kicker}</div>
+    <div class="emoji-row">🧭🐿️🎯🎢</div>
+    <h1>${L().title}</h1>
+    <p class="lead">${L().lead}</p>
+    <button class="btn" id="go">${L().start}</button>
+    <div class="small">${L().anon}</div>
+    <div class="small" style="margin-top:28px;opacity:.6">${L().foot}</div>
+  </section>`;
+  $('#go').onclick = () => { S.t0 = Date.now(); S.step = 1; haptic(); send({ event: 'start' }); render(); };
+}
+
+function dilemma(d) {
+  app.innerHTML = `<section class="screen">
+    <div class="kicker">${L().tot} · ${S.step}/${DILEMMAS.length}</div>
+    <h2>${tr(d.q)}</h2>
+    <div class="vs">
+      <button class="opt a" data-k="a"><span class="e">${d.a.e}</span><span class="t">${tr(d.a)}</span></button>
+      <div class="or">OR</div>
+      <button class="opt b" data-k="b"><span class="e">${d.b.e}</span><span class="t">${tr(d.b)}</span></button>
+    </div>
+  </section>`;
+  app.querySelectorAll('.opt').forEach((btn) => btn.onclick = () => {
+    const k = btn.dataset.k, o = d[k];
+    S.picks[d.id] = k; S.now += o.now || 0; S.plan += o.plan || 0; haptic();
+    btn.classList.add('picked'); app.querySelectorAll('.opt').forEach((x) => x !== btn && x.classList.add('dim'));
+    setTimeout(() => { S.step++; render(); }, 320);
+  });
+}
+
+function choice(q, items, key, grid) {
+  app.innerHTML = `<section class="screen">
+    <div class="kicker">${L().almost}</div>
+    <h2>${q}</h2>
+    <div class="${grid ? 'tiles' : 'list'}">
+      ${items.map(([v, e, en, hi]) => `<button class="tile" data-v="${v}"><span class="e">${e}</span><span>${S.lang === 'hi' ? hi : en}</span></button>`).join('')}
+    </div>
+  </section>`;
+  app.querySelectorAll('.tile').forEach((btn) => btn.onclick = () => {
+    S[key] = btn.dataset.v; haptic(); btn.classList.add('on');
+    setTimeout(() => { S.step++; render(); }, 260);
+  });
+}
+
+function typeKey() {
+  const later = S.now <= 0, plan = S.plan > 0;
+  return later && plan ? 'planner' : later ? 'squirrel' : plan ? 'smart' : 'yolo';
+}
+
+function result() {
+  const k = typeKey(), t = TYPES[k];
+  const dream = DREAMS.find((d) => d[0] === S.dream) || DREAMS[DREAMS.length - 1];
+  $('#bg').style.background = `radial-gradient(120% 80% at 10% 0%, ${t.bg[1]} 0%, transparent 60%), ${t.bg[0]}`;
+  app.innerHTML = `<section class="screen">
+    <div class="kicker">${L().you}</div>
+    <div class="card">
+      <div class="big">${t.e}</div>
+      <div class="name">${tr(t.name)}</div>
+      <div class="line">${tr(t.line)}</div>
+      <div class="traits">${tr(t.traits).map((x) => `<span style="background:${t.accent};color:${t.bg[0]}">${x}</span>`).join('')}</div>
+      <div class="tip" style="background:${t.accent}55">${dream[1]} <b>${L().yourDream}: ${S.lang === 'hi' ? dream[3] : dream[2]}</b><br/>${tr(t.tip)}</div>
+    </div>
+    <div class="row">
+      <button class="btn" id="share">${L().share}</button>
+      <button class="btn ghost" id="again">${L().again}</button>
+    </div>
+    <div id="shareMsg" class="ok" style="display:none;text-align:center"></div>
+    <div class="optin">
+      <h3>${L().optinH}</h3>
+      <p>${L().optinP}</p>
+      <input class="field" id="contact" inputmode="email" autocomplete="email" placeholder="${L().optinPh}" maxlength="80" />
+      <button class="btn" id="join" style="margin-top:10px">${L().optinBtn}</button>
+      <div id="joined" class="ok" style="display:none">${L().optinOk}</div>
+    </div>
+    <div class="small">${L().foot}</div>
+  </section>`;
+  confetti(t);
+  if (!S.sent) { S.sent = true; send({ event: 'complete' }); }
+  $('#again').onclick = () => { Object.assign(S, { step: 0, now: 0, plan: 0, picks: {}, dream: null, how: null, stop: null, use: null, sent: false }); $('#bg').removeAttribute('style'); render(); };
+  $('#share').onclick = () => shareResult(t, dream);
+  $('#join').onclick = () => {
+    const v = $('#contact').value.trim();
+    if (!/^(\+?\d[\d\s-]{8,14}\d|[^\s@]+@[^\s@]+\.[^\s@]+)$/.test(v)) { $('#contact').style.outline = '3px solid #E5484D'; return; }
+    send({ event: 'optin', contact: v }); $('#join').style.display = 'none'; $('#contact').disabled = true; $('#joined').style.display = 'block'; haptic();
+  };
+}
+
+/* ───────────── DATA (anonymous) ───────────── */
+function send(extra) {
+  const row = {
+    ts: new Date().toISOString(), sid: S.sid, lang: S.lang, src: S.src, ref: S.ref,
+    type: typeKey(), now_score: S.now, plan_score: S.plan,
+    ...Object.fromEntries(DILEMMAS.map((d) => ['p_' + d.id, S.picks[d.id] || ''])),
+    dream: S.dream || '', how: S.how || '', blocker: S.stop || '', would_use: S.use || '',
+    secs: S.t0 ? Math.round((Date.now() - S.t0) / 1000) : '', device: /Mobi/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+    event: '', contact: '', ...extra,
+  };
+  if (!ENDPOINT) { console.log('[money-personality] (no ENDPOINT set) would send:', row); return; }
+  // text/plain + no-cors = no preflight, works with Google Apps Script web apps.
+  fetch(ENDPOINT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(row) }).catch(() => {});
+}
+
+/* ───────────── SHARE CARD ───────────── */
+function wrap(ctx, text, x, y, maxW, lh) {
+  const words = text.split(' '); let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, y); y += lh; line = w; } else line = t; }
+  if (line) ctx.fillText(line, x, y); return y + lh;
+}
+function cardCanvas(t, dream) {
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 1080, 1350); grad.addColorStop(0, t.bg[0]); grad.addColorStop(1, t.bg[1]);
+  g.fillStyle = grad; g.fillRect(0, 0, 1080, 1350);
+  g.globalAlpha = 0.25; g.fillStyle = t.accent; g.beginPath(); g.arc(940, 1210, 330, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+  const F = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", sans-serif';
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.font = `800 34px ${F}`; g.fillText(S.lang === 'hi' ? 'मेरी मनी पर्सनैलिटी' : 'MY MONEY PERSONALITY', 90, 150);
+  g.font = `200px ${F}`; g.fillText(t.e, 80, 400);
+  g.fillStyle = '#fff'; g.font = `900 104px ${F}`; g.fillText(tr(t.name), 90, 560);
+  g.font = `500 42px ${F}`; g.fillStyle = 'rgba(255,255,255,.88)'; let y = wrap(g, tr(t.line), 90, 650, 900, 58);
+  let x = 90; y += 20; g.font = `800 34px ${F}`;
+  for (const tr_ of tr(t.traits)) { const w = g.measureText(tr_).width + 56; g.fillStyle = t.accent; roundRect(g, x, y, w, 70, 35); g.fill(); g.fillStyle = t.bg[0]; g.fillText(tr_, x + 28, y + 47); x += w + 16; }
+  g.fillStyle = 'rgba(255,255,255,.95)'; roundRect(g, 90, 1080, 900, 170, 36); g.fill();
+  g.fillStyle = t.bg[0]; g.font = `800 40px ${F}`; g.fillText(`${dream[1]} ${L().yourDream}: ${S.lang === 'hi' ? dream[3] : dream[2]}`, 130, 1150);
+  g.font = `600 32px ${F}`; g.fillStyle = '#55635E'; g.fillText(`${L().cardFind} ${SHARE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '')}`, 130, 1210);
+  return c;
+}
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+async function shareResult(t, dream) {
+  send({ event: 'share' });
+  const text = S.lang === 'hi'
+    ? `मैं ${tr(t.name)} ${t.e} निकला/निकली! आपकी मनी पर्सनैलिटी क्या है? 60 सेकंड में जानें 👉 ${SHARE_URL}`
+    : `I'm ${tr(t.name)} ${t.e}! What's your money personality? Find out in 60 seconds 👉 ${SHARE_URL}`;
+  try {
+    const blob = await new Promise((r) => cardCanvas(t, dream).toBlob(r, 'image/png'));
+    const file = new File([blob], 'my-money-personality.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+    if (navigator.share) { await navigator.share({ text, url: SHARE_URL }); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'my-money-personality.png'; a.click();
+  } catch (e) { /* user cancelled */ }
+  try { await navigator.clipboard.writeText(text); const m = $('#shareMsg'); m.textContent = L().sharedOk; m.style.display = 'block'; } catch (e) {}
+}
+
+function confetti(t) {
+  const colors = [t.accent, '#F5B841', '#2FBC9B', '#fff', '#FFD1EA'];
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement('i'); s.className = 'confetti';
+    s.style.left = Math.random() * 100 + 'vw'; s.style.background = colors[i % colors.length]; s.style.animationDelay = (Math.random() * 0.4) + 's';
+    document.body.appendChild(s); setTimeout(() => s.remove(), 2600);
+  }
+}
+
+setLang(S.lang);
+</script>
+</body>
+</html>
