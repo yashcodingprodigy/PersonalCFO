@@ -75,7 +75,7 @@ export default function Voice() {
       const res: any = conv.current ? await ask(`/qa/conversations/${conv.current}/messages`, body, 60000) : await ask('/qa/conversations', body, 60000);
       if (res.conversation_id && res.conversation_id !== conv.current) { conv.current = res.conversation_id; setConvId(res.conversation_id); }
       const answer: string = res.message?.content || '';
-      if (/✨|✅/.test(answer)) notifyDataChanged();
+      if (res.data_changed || /✨|✅/.test(answer)) notifyDataChanged();
       const navActions = (res.actions || []).filter((a: any) => a.type === 'navigate');
       const otherActions = (res.actions || []).filter((a: any) => a.type !== 'navigate');
       if (otherActions.length) runActions(otherActions);

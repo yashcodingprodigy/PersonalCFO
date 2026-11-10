@@ -66,7 +66,7 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
         if (variant === 'page') get('/qa/conversations').then(setConversations).catch(() => {});
       }
       setMessages((m) => [...m, { ...res.message, proposedAction: res.proposedAction }]);
-      if (/✨|✅/.test(res.message?.content || '')) onDataChanged?.();
+      if (res.data_changed || /✨|✅/.test(res.message?.content || '')) onDataChanged?.();
       if (res.actions?.length) onActions?.(res.actions);
     } catch (e: any) {
       setErr(e.message); setMessages((m) => m.slice(0, -1)); setInput(content);
@@ -125,7 +125,17 @@ export function ChatPanel({ variant = 'page', initialQuestion, onDataChanged, co
               <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === 'user' ? 'bg-pine-900 text-white rounded-br-md whitespace-pre-wrap' : 'bg-paper-50 border border-paper-200 rounded-bl-md'}`}>
                 {m.role === 'user' ? <span data-no-translate>{m.content}</span> : <Markdown text={m.content} />}
                 {m.role === 'assistant' && <ReplyVisuals visuals={m.visuals} />}
-                {m.role === 'assistant' && m.proposedAction && m._actionState !== 'dismissed' && (
+                {m.role === 'assistant' && m.proposedAction?.kind === 'add_dream' && !m._actionState && (
+                  <div className="mt-3 rounded-xl border border-pine-700/30 bg-mint-100/50 p-3">
+                    <div className="text-xs text-ink-soft mb-2"><Markdown text={m.proposedAction.summary} /></div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => { setMessages((ms) => ms.map((x) => (x.message_id === m.message_id ? { ...x, _actionState: 'added' } : x))); send(m.proposedAction.confirmText); }}
+                        className="rounded-full bg-pine-900 text-white px-3 py-1.5 text-xs font-bold">{t('as.addDream')}</button>
+                      <button onClick={() => dismissProposed(m.message_id)} className="rounded-full bg-paper-100 text-ink-soft px-3 py-1.5 text-xs font-bold">{t('as.changeDream')}</button>
+                    </div>
+                  </div>
+                )}
+                {m.role === 'assistant' && m.proposedAction && m.proposedAction.kind !== 'add_dream' && m._actionState !== 'dismissed' && (
                   <div className="mt-3 rounded-xl border border-pine-700/30 bg-mint-100/50 p-3">
                     {m._actionState === 'added' ? <p className="text-xs font-semibold text-pine-800">✓ Added to your profile.</p> : (
                       <>

@@ -142,6 +142,16 @@ export async function captureDream(userId: string, text: string, source: string,
   const lang = langOverride || await userLang(userId);
   const d = detectDream(text, lang);
   if (!d) return null;
+  const saved = await saveDream(userId, { ...d, capturedText: text }, source, lang);
+  return saved ? { goalId: saved.goalId, dream: { ...d, amount: saved.amount }, message: saved.message } : null;
+}
+
+/** Save a dream (from a confirmed chat draft or a direct capture). Skips duplicates and respects plan limits. */
+export async function saveDream(
+  userId: string,
+  d: { name: string; names?: { en: string; hi: string }; kind: DetectedDream['kind']; goalType: string; amount: number; estimated: boolean; months: number; inflation: number; capturedText?: string },
+  source: string, lang: Lang,
+): Promise<{ goalId: string; amount: number; message: string } | null> {
   const T = M(lang);
   // Don't duplicate a dream the user already has.
   const dup = await one(`SELECT goal_id FROM goals WHERE user_id = $1 AND lower(name) = lower($2)`, [userId, d.name]);
@@ -161,7 +171,7 @@ export async function captureDream(userId: string, text: string, source: string,
   const row = await one<{ goal_id: string }>(
     `INSERT INTO goals (user_id, goal_type, name, target_amount, target_date, current_amount, monthly_contribution, meta)
      VALUES ($1,$2,$3,$4,$5,0,0,$6) RETURNING goal_id`,
-    [userId, d.goalType, d.name.slice(0, 100), amount, target, JSON.stringify({ kind: d.kind, priority: d.kind === 'safety' ? 1 : 2, inflation: d.inflation, source, estimated: d.estimated, captured_text: text.slice(0, 200), names: d.names })]
+    [userId, d.goalType, d.name.slice(0, 100), amount, target, JSON.stringify({ kind: d.kind, priority: d.kind === 'safety' ? 1 : 2, inflation: d.inflation, source, estimated: d.estimated, captured_text: (d.capturedText || '').slice(0, 200), names: d.names })]
   );
   const title = T.actCaptured(d.name, inr(amount));
   const i18n = {
@@ -174,7 +184,7 @@ export async function captureDream(userId: string, text: string, source: string,
   const message = lang === 'hi'
     ? `✨ मैंने **${d.name}** को आपके सपनों में जोड़ दिया — ${inr(amount)}${est}। आपका प्लान अपने-आप अपडेट हो गया है।`
     : `✨ Added **${d.name}** to your dreams — ${inr(amount)}${est}. Your plan has updated itself.`;
-  return { goalId: row!.goal_id, dream: { ...d, amount }, message };
+  return { goalId: row!.goal_id, amount, message };
 }
 
 /** The activity feed in the requested language (stored bilingual text; older rows are translated + cached). */

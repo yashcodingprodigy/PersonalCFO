@@ -310,6 +310,12 @@ web and mobile match. Same licensed sources and education-only rules as D-54.
 **D-60  Gamify the action plan with a level map (Nov 2026).** PFM apps die from tracking, not acting; a visible
 Candy-Crush-style path makes each finished action feel like progress (level up, stars, worlds). Levels are the user's
 real actions in the order PayWatch recommends — no fake tasks, no streak pressure; XP = the score points each action adds.
+
+**D-61  Dreams are talked through before they're saved (Nov 2026).** Auto-capturing a dream the moment it was mentioned
+("Added Wedding — ₹10L estimated") felt presumptuous. In chat/voice a dream is now a draft: the assistant asks roughly when
+and how much, checks affordability with the brain, suggests adjustments, and saves only when the user clearly says yes
+(button or "yes, add it"). Explicit "create a goal of ₹X" also goes through a confirm. Landing/onboarding captures (where
+the user typed the dream on purpose) still save directly. Refines D-43's auto-capture for conversations.
 ---
 
 ## E. Reversals / revisits log

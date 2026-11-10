@@ -10,7 +10,10 @@ import { answerQuestion, AI_DISCLAIMER, parseGoalIntent } from '../services/cfo-
 import { remember } from '../services/rag';
 import { GOAL_TYPES } from '../services/goals';
 import { PLANS, PlanKey } from '../config';
-import { captureDream } from '../services/brain/autopilot';
+import { saveDream } from '../services/brain/autopilot';
+import { DreamDraft, startDraft, updateDraft, isConfirm, isCancel, missing, draftNote } from '../services/brain/dreamDraft';
+import { brainAfford } from '../services/brain';
+import { prettyYm, ym } from '../services/brain/dreams';
 import { asLang } from '../services/brain/i18n';
 import { inrIN } from '../lib/money';
 import { planActions, ActionPlan } from '../services/assistantActions';
@@ -18,6 +21,16 @@ import { buildVisuals, looksLikeDreamTalk, Visual } from '../services/brain/visu
 import { runBrain } from '../services/brain';
 
 const fmtRupees = inrIN;
+
+/** "Create a goal of ₹5L for a bike by 2027" → a draft (still confirmed before saving). */
+function goalIntentDraft(question: string): DreamDraft | null {
+  const g = parseGoalIntent(question).goal;
+  if (!g) return null;
+  const months = g.target_date ? Math.max(1, Math.round((new Date(g.target_date).getTime() - Date.now()) / (30.44 * 864e5))) : 24;
+  const kind: DreamDraft['kind'] = g.goal_type === 'home_purchase' || g.goal_type === 'car_purchase' ? 'purchase'
+    : g.goal_type === 'retirement' ? 'growth' : g.goal_type === 'emergency_fund' ? 'safety' : g.goal_type === 'child_education' ? 'family' : 'milestone';
+  return { name: g.name, kind, goalType: g.goal_type, amount: g.target_amount, amountFromUser: true, months, monthsFromUser: !!g.target_date, inflation: 0.05, startedAt: new Date().toISOString() };
+}
 
 export const qaRouter = Router();
 qaRouter.use(requireAuth);
@@ -117,9 +130,46 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
 
   await query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convId, question]);
 
+  // ── Dream drafts (D-61): a dream is talked through first, and saved only when the user says yes. ──
+  const convRow = await one<{ pending_dream: DreamDraft | null }>(`SELECT pending_dream FROM conversations WHERE conversation_id = $1`, [convId]).catch(() => null);
+  let draft: DreamDraft | null = convRow?.pending_dream || null;
+  const lastAssistant = [...history].reverse().find((m: any) => m.role === 'assistant')?.content as string | undefined;
+  let focusName: string | null = null;   // dream saved by this message (for visuals)
+  let dreamAction: string | null = null; // what happened, for the AI to acknowledge
+  let draftChanged = false;
+  if (draft) {
+    if (isCancel(question, lastAssistant)) {
+      dreamAction = `The user decided not to add the ${draft.name} dream for now. Acknowledge warmly in one line; don't push.`;
+      draft = null; draftChanged = true;
+    } else {
+      // A different dream mentioned ("actually, a car instead") replaces the draft.
+      const other = startDraft(question, lang);
+      if (other && other.name.toLowerCase() !== draft.name.toLowerCase() && !isConfirm(question, lastAssistant)) { draft = other; draftChanged = true; }
+      else { const u = updateDraft(draft, question); if (u.changed) { draft = u.draft; draftChanged = true; } }
+      if (draft && isConfirm(question, lastAssistant)) {
+        const saved = await saveDream(req.userId!, { ...draft, estimated: !draft.amountFromUser, capturedText: question }, mode === 'voice' ? 'voice' : 'chat', lang).catch(() => null);
+        if (saved) {
+          focusName = draft.name;
+          dreamAction = `Saved "${draft.name}" (${fmtRupees(saved.amount)}, by ${prettyYm(ym(new Date(), draft.months))}) to the user's dreams after they confirmed. Confirm it in one happy sentence and say the plan has updated.`;
+        } else {
+          dreamAction = `Could NOT add "${draft.name}": it already exists in their dreams or their plan's dream limit is reached. Tell them kindly in one line (they can edit it on the Dreams page or upgrade).`;
+        }
+        draft = null; draftChanged = true;
+      }
+    }
+  } else {
+    const d = startDraft(question, lang) || goalIntentDraft(question);
+    if (d) { draft = d; draftChanged = true; }
+  }
+  if (draftChanged) await query(`UPDATE conversations SET pending_dream = $2 WHERE conversation_id = $1`, [convId, draft ? JSON.stringify(draft) : null]).catch(() => {});
+  const whenText = draft ? prettyYm(ym(new Date(), draft.months)) : '';
+  const draftAfford = draft ? await brainAfford(req.userId!, draft.amount, draft.months, draft.name, lang).catch(() => null) : null;
+  const dreamNote = draft ? draftNote(draft, draftAfford?.headline || null, fmtRupees, whenText) : null;
+
   // What should the app DO for this message? (navigate, guide, update a dream, settings)
   const act = await planActions(req.userId!, question, p, lang).catch(() => ({ actions: [], note: null, confirm: null } as ActionPlan));
-  const answer = await answerQuestion(req.userId!, question, p, history, { lang, voice: mode === 'voice', conversationId: convId, actionNote: act.note });
+  const actionNote = [act.note, dreamAction].filter(Boolean).join(' ') || null;
+  const answer = await answerQuestion(req.userId!, question, p, history, { lang, voice: mode === 'voice', conversationId: convId, actionNote, dreamNote, draftAfford });
   if (answer.engine === 'rules' && act.actions.some((a) => a.type === 'navigate')) {
     // Without the AI, keep it short and about the action instead of a generic answer.
     const nav = act.actions.find((a) => a.type === 'navigate') as any;
@@ -130,38 +180,29 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   }
   if (act.confirm) answer.content = `${act.confirm}\n\n${answer.content}`;
 
-  let focusName: string | null = null;   // dream created/captured by this message (for visuals)
-  // Goal creation from chat: if the user asked to create a goal and gave an
-  // amount, add it directly (respecting their plan's goal limit) and confirm.
-  if (answer.engine !== 'guardrail') {
-    const gi = parseGoalIntent(question);
-    if (gi.goal) {
-      const g = gi.goal;
-      const goalLimit = PLANS[plan].goalLimit;
-      const gcount = await one(`SELECT COUNT(*)::int AS c FROM goals WHERE user_id = $1`, [req.userId]);
-      if (gcount!.c >= goalLimit) {
-        answer.content = (lang === 'hi'
-          ? `ध्यान दें — आपके ${plan} प्लान में ${goalLimit} सपने ही जुड़ सकते हैं, इसलिए यह नहीं जुड़ा। असीमित सपनों के लिए प्लान अपग्रेड करें।\n\n`
-          : `Heads up — your ${plan} plan allows ${goalLimit} goals, so I couldn't add this one. You can upgrade for unlimited goals.\n\n`) + answer.content;
-      } else {
-        const defaultMeta = GOAL_TYPES.find((t) => t.type === g.goal_type)?.defaultMeta || {};
-        await query(
-          `INSERT INTO goals (user_id, goal_type, name, target_amount, target_date, current_amount, monthly_contribution, meta)
-           VALUES ($1,$2,$3,$4,$5,0,$6,$7)`,
-          [req.userId, g.goal_type, g.name, g.target_amount, g.target_date, g.monthly_contribution, JSON.stringify({ ...defaultMeta, source: 'chat' })]
-        );
-        import('../services/brain/autopilot').then((m) => m.scheduleBrainTick(req.userId!, 'dream_added', 300)).catch(() => {});
-        focusName = g.name;
-        answer.content = (lang === 'hi'
-          ? `✅ हो गया — मैंने **${g.name}** (${fmtRupees(g.target_amount)}${g.target_date ? `, ${g.target_date} तक` : ''}) आपके सपनों में जोड़ दिया। प्लान अपने-आप अपडेट हो गया है।\n\n`
-          : `✅ Done — I've added **${g.name}** of ${fmtRupees(g.target_amount)}${g.target_date ? ` by ${g.target_date}` : ''} to your dreams. Your plan has updated itself.\n\n`) + answer.content;
-      }
-    } else {
-      // No price given? The brain hears the dream anyway, estimates a sensible
-      // cost, and plans it automatically (marked "estimated — edit anytime").
-      const cap = await captureDream(req.userId!, question, mode === 'voice' ? 'voice' : 'chat', lang).catch(() => null);
-      if (cap) { answer.content = `${cap.message}\n\n${answer.content}`; focusName = cap.dream.name; }
+  // Without the AI, keep the dream conversation going with simple deterministic lines.
+  if (answer.engine === 'rules' && (draft || dreamAction)) {
+    const hi = lang === 'hi';
+    if (focusName) answer.content = hi ? `✨ हो गया — **${focusName}** आपके सपनों में जुड़ गया। प्लान अपने-आप अपडेट हो गया है।` : `✨ Done — **${focusName}** is in your dreams. Your plan has updated itself.`;
+    else if (draft) {
+      const need = missing(draft);
+      answer.content = need.includes('amount')
+        ? (hi ? `बढ़िया सपना! **${draft.name}** पर आप लगभग कितना खर्च करना चाहते हैं? आम तौर पर यह लगभग ${fmtRupees(draft.amount)} होता है।` : `Lovely! Roughly how much do you want to spend on **${draft.name}**? It's typically around ${fmtRupees(draft.amount)}.`)
+        : need.includes('when')
+          ? (hi ? `और यह लगभग कब तक चाहिए?` : `And roughly when — by which month or year?`)
+          : `${draftAfford?.headline || ''}\n\n${hi ? 'क्या इसे आपके सपनों में जोड़ दूँ?' : 'Shall I add it to your dreams?'}`;
     }
+  }
+
+  // While a dream is being discussed and has both a budget and a date, offer a one-tap "Add it" card.
+  if (draft && missing(draft).length === 0) {
+    const hi = lang === 'hi';
+    answer.proposedAction = {
+      kind: 'add_dream',
+      dream: { name: draft.name, amount: draft.amount, amountFromUser: draft.amountFromUser, months: draft.months, monthsFromUser: draft.monthsFromUser, when: whenText },
+      summary: hi ? `**${draft.name}** — ${fmtRupees(draft.amount)}, ${whenText} तक — आपके सपनों में जोड़ें?` : `Add **${draft.name}** — ${fmtRupees(draft.amount)} by ${whenText} — to your dreams?`,
+      confirmText: hi ? 'हाँ, इसे मेरे सपनों में जोड़ दो' : 'Yes, add it to my dreams',
+    };
   }
 
   // Visual cards for dream talk (plan, cost split, savings path, price tiers, afford verdict).
@@ -171,8 +212,8 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
     try {
       let plan = answer.plan || null;
       if (focusName) plan = (await runBrain(req.userId!, lang))?.plan || plan;
-      if (focusName || answer.afford || looksLikeDreamTalk(question, plan)) {
-        visuals = buildVisuals({ question, lang, plan, focusName, afford: answer.afford });
+      if (focusName || draft || answer.afford || looksLikeDreamTalk(question, plan)) {
+        visuals = buildVisuals({ question: draft ? `${question} ${draft.name}` : question, lang, plan, focusName, afford: answer.afford });
       }
     } catch (e) { console.error('[qa] visuals failed', e); }
   }
@@ -193,7 +234,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   // private RAG memory — future answers know what they care about.
   await remember(req.userId!, 'question_asked', `Asked: ${question.slice(0, 100)}`, `On ${new Date().toISOString().slice(0, 10)} the user asked: "${question}". Topic relevance for future personalisation.`);
 
-  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction, actions: act.actions, reply_lang: lang });
+  res.json({ conversation_id: convId, message: msg, disclaimer: AI_DISCLAIMER, proposedAction: answer.proposedAction, actions: act.actions, reply_lang: lang, data_changed: !!focusName });
 }
 
 // POST /qa/intent — instant preview of what the assistant will do (navigation), so the app can

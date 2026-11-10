@@ -213,7 +213,7 @@ unread-alerts badge, native biometric lock overlay).
   `brain/visuals.ts` `buildVisuals()` from the brain's own numbers (no AI call). Web `components/assistant/Visuals.tsx`
   (chat + voice), mobile `src/components/ReplyVisuals.tsx` (Ask tab + voice).
 - **Ask PayWatch** (`ask`, RAG
-  Q&A — renamed from "Ask your CFO"; can **create goals from chat**; topical scope guard rejects
+  Q&A — renamed from "Ask your CFO"; can **create dreams from chat — only after talking it through (D-61)**: a mentioned dream becomes a draft on the conversation (`conversations.pending_dream`, `brain/dreamDraft.ts`); the assistant asks when + how much, checks affordability (`brainAfford`), offers a one-tap "Yes, add it" card (`proposedAction.kind='add_dream'`), and saves via `autopilot.saveDream` only on a clear yes (bare yes/no count only if we just asked to add); `/qa` returns `data_changed`; topical scope guard rejects
   off-topic/abuse), **Reports**, **Plans** (pricing/subscribe), **Settings** (+ Vehicle asset field).
 - Public: `onboarding` (3-session, state→city dropdowns, risk question), `login` (+ **User/CA toggle**),
   landing `/`, `legal/*`. **CA portal** is separate: `/ca/login`, `/ca` (home), `/ca/client/[id]`.
@@ -628,7 +628,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **245 assertions** (incl. `marketdeck.test.ts`) (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **249 assertions** (incl. `dreamdraft.test.ts`) (incl. `marketdeck.test.ts`) (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property

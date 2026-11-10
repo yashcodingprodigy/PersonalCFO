@@ -31,6 +31,7 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
   const [heard, setHeard] = useState('');
   const [reply, setReply] = useState('');
   const [visuals, setVisuals] = useState<any[] | null>(null);
+  const [proposal, setProposal] = useState<any | null>(null);
   const [note, setNote] = useState('');
   const [engine, setEngine] = useState<'human' | 'browser'>('browser');
   const [opening, setOpening] = useState<string | null>(null); // "Opening Insurance…" while the answer is written
@@ -79,6 +80,12 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
       return;
     }
     if (!text) { setP('idle'); setHeard(''); setNote(t(ERR_KEY[error || 'no-speech'])); return; }
+    await respond(text);
+  }
+
+  /** Send what the user said (or tapped) and play the answer. */
+  async function respond(text: string) {
+    setProposal(null);
     setHeard(text); setReply(''); setVisuals(null); setOpening(null); setP('thinking');
     // D-57: the app language decides; only Hindi in Devanagari (what speech-to-text gives for spoken Hindi) switches it.
     // (The speech engine's own language guess is ignored — it often tags accented English as Hindi.)
@@ -100,12 +107,12 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
       setOpening(null);
       if (res.conversation_id && res.conversation_id !== convRef.current) { convRef.current = res.conversation_id; onConversation?.(res.conversation_id); }
       const answer: string = res.message?.content || '';
-      if (/✨|✅/.test(answer)) onDataChanged?.();
+      if (res.data_changed || /✨|✅/.test(answer)) onDataChanged?.();
       // Actions (open a page, pin a guide, update a dream…) happen right away, behind this screen.
       const fresh = (res.actions || []).filter((a: any) => !(a.type === 'navigate' && openedPaths.has(a.path)));
       const navigated = openedPaths.size > 0 || (fresh.length ? !!onActions?.(fresh) : false);
       if (!alive.current) return;
-      setReply(cleanForSpeech(answer)); setVisuals(res.message?.visuals || null); setP('speaking');
+      setReply(cleanForSpeech(answer)); setVisuals(res.message?.visuals || null); setProposal(res.proposedAction?.kind === 'add_dream' ? res.proposedAction : null); setP('speaking');
       // Speak in the language the answer is actually in (the server answers in the language you used).
       const spokenLang: VoiceLang = res.reply_lang === 'hi' || res.reply_lang === 'en' ? res.reply_lang : /[ऀ-ॿ]/.test(answer) ? 'hi' : replyLang;
       await speak(answer, spokenLang, follow);
@@ -163,6 +170,15 @@ export function VoiceMode({ onClose, onSwitchToChat, onDataChanged, conversation
         {reply && (
           <div ref={replyRef} className="mt-5 w-full flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-3xl bg-white/[0.06] border border-white/10 px-5 py-4 sm:px-7 sm:py-5 pw-fade-in">
             <p className="text-[15px] sm:text-base leading-7 text-white/90 whitespace-pre-line">{reply}</p>
+            {proposal && (
+              <div className="mt-4 rounded-2xl bg-white/10 border border-white/15 p-4">
+                <p className="text-sm text-white/90" dangerouslySetInnerHTML={{ __html: String(proposal.summary).replace(/[<>&]/g, '').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') }} />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button onClick={() => { stopSpeaking(); respond(proposal.confirmText); }} className="rounded-full bg-white text-pine-950 px-4 py-2 text-sm font-bold">{t('as.addDream')}</button>
+                  <button onClick={() => setProposal(null)} className="rounded-full bg-white/10 text-white px-4 py-2 text-sm font-bold">{t('as.changeDream')}</button>
+                </div>
+              </div>
+            )}
             <div className="text-ink"><ReplyVisuals visuals={visuals} /></div>
           </div>
         )}

@@ -86,6 +86,8 @@ const D = {
   'gd.ask': ['Ask a follow-up', 'और पूछें'],
   'gd.expand': ['Expand', 'खोलें'],
   'gd.collapse': ['Collapse', 'छोटा करें'],
+  'as.addDream': ['Yes, add it', 'हाँ, जोड़ दो'],
+  'as.changeDream': ['Change something', 'कुछ बदलना है'],
   'gd.gotIt': ['Got it, hide', 'ठीक है, हटाएँ'],
   'vo.switchChat': ['Switch to chat', 'चैट पर जाएँ'],
   'vo.human': ['Natural voice', 'असली जैसी आवाज़'],

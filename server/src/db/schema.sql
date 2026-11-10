@@ -236,6 +236,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   title           VARCHAR(140) NOT NULL DEFAULT 'New conversation',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- A dream being talked through in chat/voice, saved only after the user confirms (D-61).
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_dream JSONB;
 
 CREATE TABLE IF NOT EXISTS messages (
   message_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),

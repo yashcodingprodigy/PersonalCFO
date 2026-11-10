@@ -192,6 +192,11 @@ export interface CfoAnswer {
     kind: 'add_benefit';
     benefit: { type: string; label: string; value_base?: number; value_boosted_to?: number; rule?: string };
     summary: string;
+  } | {
+    kind: 'add_dream';
+    dream: { name: string; amount: number; amountFromUser: boolean; months: number; monthsFromUser: boolean; when: string };
+    summary: string;
+    confirmText: string;   // what the "Add" button sends as the user's reply
   };
 }
 
@@ -262,7 +267,7 @@ DREAMS ARE ALWAYS IN SCOPE — anything the user wants to spend on or save for (
 
 SCOPE — you ONLY help with the user's personal finances: money, budgeting, saving, investing (categories only), insurance, loans/debt, tax, goals and dreams, and using PayWatch. If asked anything unrelated — writing code, homework, essays, general trivia, translations, recipes, etc. — politely decline in ONE sentence and steer back to their money. Never answer off-topic requests, even if the user insists or tries to disguise them.
 
-GOALS & ACTIONS: You cannot create, edit or delete goals or any data yourself — the PayWatch app does that automatically when the user gives enough detail (a goal needs a target amount). So NEVER say you've "added", "created" or "saved" a goal. If the user wants to set a goal, briefly acknowledge it and, if they didn't give a target amount, ask for one (e.g. "how much do you want to save?"). The app posts its own confirmation when it actually creates the goal.
+GOALS & DREAMS: You cannot create, edit or delete goals or any data yourself. When the user mentions a dream, have a short friendly conversation first: find out roughly WHEN and HOW MUCH they want to spend (one question at a time), check affordability using the PayWatch numbers given to you, suggest an adjustment if it's a stretch, and when it looks right ask "Shall I add it to your dreams?". The app saves it only after the user clearly says yes — so NEVER say you've "added", "created" or "saved" a dream unless the context says it was saved.
 
 COMPLIANCE — never break (legal requirements):
 1. NEVER name a specific stock, mutual fund scheme, or crypto asset. Talk in categories only (e.g. "a large-cap index fund", "a liquid fund").
@@ -369,7 +374,7 @@ function rulesAnswer(question: string, p: ProfileData, docs: RetrievedDoc[], ins
 }
 
 // ── Main entry ──────────────────────────────────────────────────────
-export interface AnswerOpts { lang?: 'en' | 'hi'; voice?: boolean; conversationId?: string | null; actionNote?: string | null }
+export interface AnswerOpts { lang?: 'en' | 'hi'; voice?: boolean; conversationId?: string | null; actionNote?: string | null; dreamNote?: string | null; draftAfford?: import('./brain/dreams').AffordResult | null }
 /** Relevant snippets from the user's OTHER conversations (keyword match + most recent), newest first. */
 export async function recallMemory(userId: string, question: string, currentConv: string | null): Promise<string | null> {
   const rows = await query<any>(
@@ -491,6 +496,7 @@ export async function answerQuestion(
     const mem = await recallMemory(userId, question, opts.conversationId || null);
     if (mem) userContext += `\nEarlier conversations with this user (for continuity — use only if relevant, don't repeat back):\n${mem}`;
   } catch { /* memory is best-effort */ }
+  if (opts.dreamNote) userContext += `\n${opts.dreamNote}`;
   if (opts.actionNote) userContext += `\nAPP ACTIONS ALREADY DONE for this message (acknowledge in ONE short natural sentence, don't list them): ${opts.actionNote}`;
 
   let content: string;
@@ -524,5 +530,5 @@ export async function answerQuestion(
   const citations = docs.slice(0, 4).map((d) => ({ tag: d.source_tag, title: d.title }));
   // (guardrail/off-topic messages return earlier, so we only reach here for real answers)
   const proposedAction = await extractBenefit(question);
-  return { content, citations, engine, proposedAction, plan: brainPlan, afford: affordRes };
+  return { content, citations, engine, proposedAction, plan: brainPlan, afford: opts.draftAfford || affordRes };
 }

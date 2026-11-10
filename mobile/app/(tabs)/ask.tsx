@@ -51,7 +51,7 @@ export default function Ask() {
       const res: any = convId ? await askPost(`/qa/conversations/${convId}/messages`, body, 60000) : await askPost('/qa/conversations', body, 60000);
       if (!convId && res.conversation_id) { setConvId(res.conversation_id); loadConvs(); }
       setMessages((m) => [...m, { ...res.message, proposedAction: res.proposedAction }]);
-      if (/✨|✅/.test(res.message?.content || '')) notifyDataChanged();
+      if (res.data_changed || /✨|✅/.test(res.message?.content || '')) notifyDataChanged();
       if (res.actions?.length) runActions(res.actions);
     } catch (e: any) {
       setErr(e.message); setMessages((m) => m.slice(0, -1)); setInput(content);
@@ -122,7 +122,16 @@ export default function Ask() {
                 borderBottomRightRadius: m.role === 'user' ? 6 : 18, borderBottomLeftRadius: m.role === 'user' ? 18 : 6 }}>
                 {m.role === 'user' ? <Txt noTr selectable style={{ color: C.white, fontSize: 15.5 }}>{m.content}</Txt> : <Markdown text={m.content} />}
                 {m.role === 'assistant' && <ReplyVisuals visuals={m.visuals} />}
-                {m.role === 'assistant' && m.proposedAction && m._state !== 'dismissed' && (
+                {m.role === 'assistant' && m.proposedAction?.kind === 'add_dream' && !m._state && (
+                  <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: C.mint100, padding: 10 }}>
+                    <Markdown text={m.proposedAction.summary} />
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <Button small title={t('as.addDream')} onPress={() => { setMessages((ms) => ms.map((x) => (x.message_id === m.message_id ? { ...x, _state: 'added' } : x))); send(m.proposedAction.confirmText); }} />
+                      <Button small kind="secondary" title={t('as.changeDream')} onPress={() => setMessages((ms) => ms.map((x) => (x.message_id === m.message_id ? { ...x, _state: 'dismissed' } : x)))} />
+                    </View>
+                  </View>
+                )}
+                {m.role === 'assistant' && m.proposedAction && m.proposedAction.kind !== 'add_dream' && m._state !== 'dismissed' && (
                   <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: C.mint100, padding: 10 }}>
                     {m._state === 'added' ? <Small style={{ color: C.pine800, fontWeight: '700' }}>✓ Added to your profile.</Small> : <>
                       <Small noTr>{m.proposedAction.summary}</Small>
