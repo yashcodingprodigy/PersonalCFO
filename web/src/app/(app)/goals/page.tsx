@@ -35,6 +35,8 @@ const PICKS = [
   { key: 'home', emoji: '🏡', label: 'A home', goal_type: 'home_purchase', kind: 'purchase', name: 'Home down payment' },
   { key: 'wedding', emoji: '💍', label: 'A wedding', goal_type: 'custom', kind: 'family', name: 'Wedding' },
   { key: 'business', emoji: '☕', label: 'My own business', goal_type: 'custom', kind: 'milestone', name: 'My own business' },
+  { key: 'kids_edu', emoji: '🎒', label: 'Children’s education', goal_type: 'child_education', kind: 'family', name: 'Children’s education' },
+  { key: 'retire', emoji: '🌅', label: 'Retirement', goal_type: 'retirement', kind: 'growth', name: 'Retirement' },
   { key: 'other', emoji: '✨', label: 'Something else', goal_type: 'custom', kind: 'experience', name: '' },
 ];
 const ym = (s: string | null) => {

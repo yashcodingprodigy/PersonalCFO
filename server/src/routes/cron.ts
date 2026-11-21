@@ -11,6 +11,7 @@ import { buildInvestmentGuidance } from '../services/investment';
 import { sendEmail, renderDigestEmail } from '../adapters/email';
 import { sendPush } from '../adapters/push';
 import { brainTick } from '../services/brain/autopilot';
+import { loadFunnel } from '../services/analytics';
 
 export const cronRouter = Router();
 
@@ -80,4 +81,16 @@ cronRouter.post('/run', async (req, res) => {
   }
 
   res.json({ ok: true, users: users.length, alertsCreated, emailsSent, pushesSent });
+});
+
+// GET /cron/funnel?days=90 — investor-day funnel (D-69): signups → first dream → first next move done,
+// % within 7 days, median time to each step, users active in the last 7 days. Demo personas excluded.
+// Same secret as the cron: curl -H "x-cron-key: $CRON_SECRET" https://api.paywatch.in/v1/cron/funnel
+cronRouter.get('/funnel', async (req, res) => {
+  if (!authorised(req)) return res.status(401).json({ error: 'unauthorised' });
+  try {
+    res.json(await loadFunnel(Number(req.query.days) || 90));
+  } catch (e: any) {
+    res.status(500).json({ error: 'funnel_failed', message: e?.message });
+  }
 });

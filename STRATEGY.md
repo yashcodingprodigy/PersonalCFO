@@ -2,7 +2,7 @@
 
 > The one place that connects *why* (vision, research, canvases) to *what we do next* (product + weekly plan).
 > Read with `CLAUDE.md` (project context), `WORKFLOW.md` (how the code runs) and `DECISIONS.md` (why we chose).
-> Last updated: 21 Nov 2026 (status in §9).
+> Last updated: 21 Nov 2026 (status in §9; survey findings in §10).
 
 ---
 
@@ -131,3 +131,33 @@ Prabhu).
 on a next move in week 1"; (2) close the survey, summarise by segment, feed Daisy v2; (3) follow up the CA on name
 approval + DSC/DIN; (4) decide the brand (PayWatch vs Neodreams) before the trademark filing; (5) consider
 `eleven_flash_v2_5` for English voice if voice usage grows (D-67).
+
+## 10. Survey findings — Nov 2026 (primary + verified secondary)
+Full write-up: https://claude.ai/artifact/9HYp3wHKdfiTo4c9xmVoMf (Money & Dreams Research — Final Findings).
+**Sample:** 117 responses across the two unbranded forms → 100 valid (17 removed: attention check, duplicates, no
+consent), 17 states, 6–18 Nov 2026. 45 students · 28 working 18–30 · 27 aged 31+. Skewed: own network, 69% men, 63%
+already invest (India 9.5%) → treat as direction, ±10 pts.
+
+| What we learned | Number | So we… |
+|---|---|---|
+| Interest is real, pull is weak | 65% interest 4–5, 70% waitlist, **18% "very disappointed"** (PMF bar 40%) | Not PMF yet; re-ask after 2 weeks of real use |
+| First customer = young earners, not students | Working 18–30: 25% very disappointed, 82% waitlist; students 11% | Daisy = early earner (22–30, first job); students = free funnel |
+| Price expectations far below our plans | Van Westendorp medians: bargain ₹600, expensive ₹1,000, too expensive ₹1,500/yr; most-picked ₹99/month; 25+: 71% "can't say until I try" | Trial-first, test ~₹99/mo vs ₹799/yr (D-68) |
+| Hooks that bring people back | Dream progress 13/20, weekly check-in 13/20, deadline alerts 11/20, streaks 9, voice 1 | Home screen leads with these; voice kept but not the headline |
+| Dreams are big and long | 66% cost ≥ ₹10 lakh; travel 23%, higher studies 17%, home 14%, business 13%; 31+: children's education/wedding 30%, retirement 11% | Multi-year, loan-aware plans; add children's education + retirement quick-picks |
+| Advice gap | 42% ask nobody; family 47%; 31+: nobody 56% | Assistant = the knowledgeable friend; test family sharing of a plan |
+| Trust | 8/20 uncomfortable uploading a bank statement | Keep a no-upload path; plain-words encryption at upload; AA later |
+| Tax | 31+: 63% file via a CA; working 18–30: 32% self-file | CA packs for 31+, self-file guide for young earners |
+| Gamification | 65% say streaks/levels help (students 70%) | Keep Money Quest |
+
+**Secondary research check (Vighnesh, 79 stats, 67 links):** 59 links open and support the claim. Fix list: PIB links
+broken in both PDFs (`&reg=` → ®); #43 Redseer 21% is a different measure; #44 "Muthoot" not on the page; #45 "16%
+credit penetration" not on the page; #52 "62% used GenAI" not on the linked page; Money9 and Atlantis wouldn't load;
+BT–PRICE paywalled; richify.ai (Jupiter) removed. "Official source" over-used for company/consultancy reports; flag old
+data (DSP 2015, NCFE 2019, EY–Refyne 2021, PRICE/YouGov/Mintel 2023). Agrees with our survey on dreams, money stress,
+trust and rewards; disagrees on investing rate (sample skew); paying is mixed (willing in principle, only after a trial).
+
+**Built for this (21 Nov):** funnel tracking (D-69) + children's education/retirement quick-picks. **Vighnesh:** Task 8
+(value map → competitor edge → partners → connected BMC), due 10 Dec — https://claude.ai/artifact/6exAgesNxigapxUeUDvGb6.
+**Next:** onboard 20–30 working 22–30 testers from the waitlist; real-money pricing test; re-run the very-disappointed
+question; add the two dream quick-picks; Vighnesh fixes sources + re-exports PDFs; delete gift-card draw contacts after the draw.

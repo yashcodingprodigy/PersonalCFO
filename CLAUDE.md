@@ -10,7 +10,7 @@ analysis). Oct 2026: vision shift to the **Money Brain / dreams-first** product;
 email-OTP login + demo login; Supabase RLS lockdown; mentor sessions with Upendra Namburi & Ellen van Andel; canvases;
 promo video. **Companion docs: `STRATEGY.md` (vision, canvases, journeys, lifecycle economics, action plan — READ
 FIRST for "what are we doing and why"), `WORKFLOW.md` (runtime flow per feature) and `DECISIONS.md` (why we chose what
-we chose, D-01…D-67). Keep all four updated. Company / brand / outreach / founder admin = §12.**
+we chose, D-01…D-69). Keep all four updated. Company / brand / outreach / founder admin = §12.**
 
 **Vision (Oct 2026 — supersedes "CFO in your pocket" as the lead message):** PayWatch is **one money brain that turns
 every dream into a plan** — it quietly handles tax, insurance and investing in the background so the user can focus on
@@ -77,6 +77,9 @@ psychology — **Free ₹0** (anchor: Money Health Score + a taste), **Starter �
 `config.PLANS`, surfaced as `regular_price` from `/billing/plans`) create the launch-discount illusion.
 Plan keys stay `starter`/`cfo` (DB CHECK still lists `family` for back-compat; migrate any existing rows
 with `UPDATE users SET plan='cfo' WHERE plan='family';` since `PLANS['family']` no longer exists).
+**Nov 2026 (D-68): these prices are under review** — survey says people expect ~₹600–1,000/yr and want a trial first;
+next step is a real-money test of a 30-day free trial then ~₹99/month vs ~₹799/year. `config.PLANS` not changed yet.
+**Research findings:** STRATEGY.md §10 (first customer = working 22–30s; hooks = dream progress, weekly check-in, alerts).
 
 **Regulatory lane (critical — never drift):** PayWatch is a **financial education, organisation and
 tax-preparation** tool. It is **NOT** a SEBI-registered Investment Adviser and never recommends a
@@ -204,7 +207,8 @@ unread-alerts badge, native biometric lock overlay).
   CA-thread documents are removable too (`DELETE …/documents/:docId` both sides).
 - **Rent receipts** (`rent-receipts`) — generate a year of HRA receipts, print/PDF (not in nav; linked).
 - **Dreams** (`goals` route, nav label "Dreams") — dreams-first planner on top of the brain: quick-pick dreams (trip,
-  gadget, parents' health cover, course, emergency fund, vehicle, home, wedding, own business), priority (must-have /
+  gadget, parents' health cover, course, emergency fund, vehicle, home, wedding, own business, **children's education,
+  retirement** — added Nov 2026 from survey, D-68), priority (must-have /
   important / nice), per-dream need vs plan allocation, "done by" date (cascade), status chips, **"Make it a yes"**
   levers, virtual safety-net card, plan strip (free to plan, guilt-free money, spare cash, safety net), and the
   **"Can I afford it?"** checker (`POST /brain/afford`). Dashboard opens with **`NextMoves`** (ranked moves from `/brain`).
@@ -287,6 +291,12 @@ unread-alerts badge, native biometric lock overlay).
   `personaliseNews`, EN+HI) and `adapters/news.ts` (licensed sources only: PIB always; NewsData.io if
   `NEWSDATA_API_KEY` (paid plan); RBI/SEBI only if `RBI_FEED_PERMITTED=1` / `SEBI_FEED_PERMITTED=1` after written
   permission; 15-min cache; fails soft). Google News removed. See D-54.
+- **`analytics.ts` (D-69)** — server-side product funnel: `trackFirst(user,'signup'|'first_dream'|'first_move_done')`
+  (one row per user, partial unique index) + `track(user,'login'|'dream_added'|'move_done')` into `product_events`;
+  hooks in auth verify (mobile + email), `POST /goals`, `autopilot.saveDream`, action done/complete. `computeFunnel()`
+  (pure, tested) + `loadFunnel(days)` (demo personas `+9190000000%` excluded). Read it:
+  `curl -H "x-cron-key: $CRON_SECRET" https://api.paywatch.in/v1/cron/funnel?days=90` → signups, dream/move rates,
+  % acting within 7 days, median hours to each step, active last 7 days. Fire-and-forget; never breaks a request.
 - `alerts.ts` — alert generators; `monitor.ts` — shared regenerate/gatherSignals (used by route + cron).
 - `goals.ts`, `cfo-ai.ts` (RAG Q&A — scope guard `checkScope()`, `parseGoalIntent()` for chat goal
   creation, models per D-56: chat `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), voice `VOICE_MODEL` (default `claude-haiku-5-5`), benefit extraction on the fast model; **context includes the user's active goals AND uploaded insurance
@@ -388,7 +398,7 @@ routes, `requireAuth` rejects CA tokens. JSON body limit raised to 12mb for base
 `users`(+state,risk_appetite,email,**connect_code**), `otp_codes`, `refresh_tokens`, `profiles`,
 `score_history`, `actions`(+priority), `goals`, `messages`(+**visuals** JSONB), `transactions`(+**fingerprint**, partial-unique on
 user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`, `invoices`, `consents`,
-`notifications`, `documents`, **`monthly_records`**(period YYYY-MM, doc_type, encrypted file +
+`notifications`, `documents`, **`product_events`** (D-69 funnel), **`monthly_records`**(period YYYY-MM, doc_type, encrypted file +
 `extracted` JSONB), **`insurance_policies`**(category, insurer, sum_assured, premium, issue/expiry/maturity/
 renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, **`profiles.context`** (JSONB —
 occupation/employer + benefit facts), **`benefit_patterns`** (crowd-learned employer/occupation→benefit
@@ -643,7 +653,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **249 assertions** (incl. `dreamdraft.test.ts`) (incl. `marketdeck.test.ts`) (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **254 assertions** (incl. `analytics.test.ts`: funnel maths + new dream quick-picks) (incl. `dreamdraft.test.ts`) (incl. `marketdeck.test.ts`) (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property
@@ -763,7 +773,14 @@ A second account type (Chartered Accountants) alongside users. Built across phas
   lead with the respondent's benefit.
 - Name brainstorm for the rebrand also happened (outcome: Neodream/Neodreams, §12.1).
 
-### 12.4 Voice cost (Nov 2026 estimate, list prices — real spend is in each provider dashboard)
+### 12.4 Vighnesh docs (Nov 2026)
+- **App workflow for partners/research:** https://claude.ai/artifact/GpTHJJ3yDQTBdM8aUL29EN (every page, data-flow diagram,
+  user journey, partner seams, compliance lanes). **Keep it in sync when features change.**
+- **Task 8 — Value map, competitive edge & channel partners:** https://claude.ai/artifact/6exAgesNxigapxUeUDvGb6 — value
+  inventory (28 Nov) → competitor map (2 Dec) → edge (4 Dec) → partner list (6 Dec) → partner pitches (9 Dec) → connected
+  BMC flows (10 Dec) → investor day 12 Dec. Research findings: https://claude.ai/artifact/9HYp3wHKdfiTo4c9xmVoMf
+
+### 12.5 Voice cost (Nov 2026 estimate, list prices — real spend is in each provider dashboard)
 - Routing (code): EN TTS = ElevenLabs `eleven_multilingual_v2` voice "Sarah"; HI TTS = Sarvam `bulbul:v3` speaker
   `ritu` (ElevenLabs fallback); STT = ElevenLabs Scribe v2 if key set, else Sarvam saaras:v4→v3→saarika:v2.5, else device;
   reply text = Claude Haiku 5.5 (voice) / Sonnet 5.5 (chat). Check live providers at `GET /v1/voice/status`.

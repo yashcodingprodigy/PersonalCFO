@@ -109,7 +109,7 @@ export const CATALOG: CatalogBrand[] = [
   { re: /harley|davidson/i, brand: 'Harley-Davidson', kind: 'bike', basis: BIKE, models: [
     { re: /x ?440/i, name: 'Harley-Davidson X440', variants: [V('X440', 240000), V('X440 S', 300000)] },
   ], fallback: [V('X440 (entry)', 240000), V('Nightster / Sportster S', 1600000), V('Fat Boy / Street Glide', 2500000)] },
-  { re: /ducati/i, brand: 'Ducati', kind: 'bike', basis: BIKE, models: [], fallback: [V('Scrambler', 1100000), V('Monster', 1300000), V('Panigale V4', 3000000)] },
+  { re: /\bducati\b/i, brand: 'Ducati', kind: 'bike', basis: BIKE, models: [], fallback: [V('Scrambler', 1100000), V('Monster', 1300000), V('Panigale V4', 3000000)] },
   { re: /kawasaki|ninja|\bz ?900/i, brand: 'Kawasaki', kind: 'bike', basis: BIKE, models: [
     { re: /ninja ?300|ninja ?500/i, name: 'Kawasaki Ninja 300/500', variants: [V('Ninja 300', 340000), V('Ninja 500', 540000)] },
     { re: /zx-?10|zx10/i, name: 'Kawasaki ZX-10R', variants: [V('ZX-10R', 1800000)] },

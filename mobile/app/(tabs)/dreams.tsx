@@ -23,6 +23,8 @@ const PICKS = [
   { key: 'home', emoji: '🏡', label: 'A home', goal_type: 'home_purchase', kind: 'purchase', name: 'Home down payment' },
   { key: 'wedding', emoji: '💍', label: 'A wedding', goal_type: 'custom', kind: 'family', name: 'Wedding' },
   { key: 'business', emoji: '☕', label: 'My own business', goal_type: 'custom', kind: 'milestone', name: 'My own business' },
+  { key: 'kids_edu', emoji: '🎒', label: 'Children’s education', goal_type: 'child_education', kind: 'family', name: 'Children’s education' },
+  { key: 'retire', emoji: '🌅', label: 'Retirement', goal_type: 'retirement', kind: 'growth', name: 'Retirement' },
   { key: 'other', emoji: '✨', label: 'Something else', goal_type: 'custom', kind: 'experience', name: '' },
 ];
 const WHEN = [{ v: '', label: 'No fixed date' }, ...[3, 6, 12, 18, 24, 36, 60, 120].map((m) => ({ v: String(m), label: m < 12 ? `In ${m} months` : `In ${m / 12} year${m > 12 ? 's' : ''}` }))];

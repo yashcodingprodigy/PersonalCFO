@@ -1,3 +1,4 @@
+import { track, trackFirst } from '../services/analytics';
 import { Router } from 'express';
 import { z } from 'zod';
 import { query, one } from '../db';
@@ -47,6 +48,8 @@ goalsRouter.post('/', async (req: AuthedRequest, res) => {
     [req.userId, g.goal_type, g.name, g.target_amount, g.target_date || null, g.current_amount, g.monthly_contribution, JSON.stringify({ ...defaultMeta, ...g.meta })]
   );
   scheduleBrainTick(req.userId!, 'dream_added', 300);
+  trackFirst(req.userId, 'first_dream', { source: 'dreams_page', goal_type: g.goal_type });
+  track(req.userId, 'dream_added', { source: 'dreams_page', goal_type: g.goal_type });
   res.status(201).json({ ...row, math: computeGoalMath(row!) });
 });
 

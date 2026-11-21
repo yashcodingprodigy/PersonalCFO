@@ -4,7 +4,7 @@
 > and business — each with the reasoning and the main alternative we rejected. Read this before
 > re-litigating a settled choice. **Append new decisions as they're made; don't delete history —
 > if a decision is reversed, add a new dated entry noting what changed and why.**
-> Format: **D-##  Decision** — Why · *Rejected: alternative (reason)*. Last updated: 21 Nov 2026 (D-01…D-67).
+> Format: **D-##  Decision** — Why · *Rejected: alternative (reason)*. Last updated: 21 Nov 2026 (D-01…D-69).
 
 ---
 
@@ -355,6 +355,24 @@ English ≈ ₹2.7 (ElevenLabs Multilingual v2 ≈ 95% of it), Hindi ≈ ₹1.0 
 ≈ ₹0.05. Options when usage grows: ElevenLabs Flash v2.5 via env (`ELEVENLABS_TTS_MODEL`, ~½ price) or Sarvam Bulbul for
 English too (~3× cheaper). Keep the TTS cache. Refines D-44/D-56.
 
+**D-68  Research-led changes: young earners first, trial-first pricing test, lead with progress hooks — Nov 2026.**
+From the unbranded survey (100 valid answers; STRATEGY.md §10): (1) **first customer = working 22–30s** (25% very
+disappointed, 82% waitlist) — students stay a free funnel (11%); (2) **pricing to be re-tested**: people expect
+~₹600–1,000/yr and picked ₹99/month most; most 25+ won't decide before trying → 30-day free trial for everyone, then test
+~₹99/month vs ~₹799/year; a premium tier only once paid features are proven. This **supersedes D-31's ₹199/₹499 monthly
+prices pending the test** (code/config not changed yet — `config.PLANS` still holds the D-31 prices); (3) home screen
+leads with **dream progress, weekly check-in and deadline alerts** (top 3 return reasons); voice stays but isn't the
+headline (1/20 votes, highest cost per use — D-67); (4) add **children's education** and **retirement** to the Dreams
+quick-picks (31+ top dreams). *Caveat: small, network-skewed sample (63% already invest) — re-check with real users.*
+
+**D-69  Server-side product analytics for investor day — Nov 2026.** One table (`product_events`) and three funnel
+milestones — sign-up → first dream → first next move done — plus activity events, written from the server where those
+things already happen (auth verify, goal/dream save, action complete). Read via a secret-protected endpoint
+(`GET /v1/cron/funnel`). Why: investors weigh behaviour over survey answers (D-68); the one metric is "% of new users who act
+on a next move in week 1". *Rejected: a third-party SDK (Mixpanel/GA) — cookies/consent work, ad-blockers, PII leaving our
+DB, and DPDP overhead for a 30-tester cohort.* Also: added children's education + retirement quick-picks, and fixed a price
+catalogue bug where "education" matched the Ducati brand regex (`/ducati/` → `/\bducati\b/`).
+
 ---
 
 ## E. Reversals / revisits log
@@ -368,5 +386,6 @@ English too (~3× cheaper). Keep the TTS cache. Refines D-44/D-56.
 - **Nov 2026:** D-61 refines D-43 — in chat/voice, dreams are drafted and confirmed, not auto-saved.
 - **Nov 2026:** D-62/D-63/D-65 settle D-33 (Pvt Ltd, Haryana, father as 2nd director, family CA). D-35 revisited: the
   trademark will be filed for the final brand (Neodream/Neodreams) in the company's name, not "PayWatch".
+- **Nov 2026:** D-68 supersedes D-31's monthly prices pending a trial-first pricing test (survey: ₹600–1,000/yr expected).
 - **Nov 2026:** D-44 voice now also uses Sarvam (Hindi TTS + STT fallback); D-67 records the cost picture.
 - **Oct 2026:** D-52 supersedes the Capacitor "one codebase, mobile = build step" approach (CLAUDE.md §6).

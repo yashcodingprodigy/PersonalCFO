@@ -226,6 +226,12 @@ back = personal meaning + CTA + publisher link) → web `FlipDeck.tsx` / mobile 
 **Money Quest (D-60):** Actions page orders actions (done by `completed_at`, then open by priority/impact) → `LevelMap`
 (5 levels per world, stars, current pin, XP = score points) → "Mark done" → confetti + "Level up!" (client-only).
 
+**Funnel tracking (D-69):** `POST /auth/otp/verify` or `/auth/email/verify` → new user → `trackFirst('signup')`; every login →
+`track('login')` · `POST /goals` and `autopilot.saveDream` (chat/voice/landing capture) → `trackFirst('first_dream')` +
+`track('dream_added')` · `PATCH /actions/:id {status:'done'}` and `POST /actions/:id/complete` → `trackFirst('first_move_done')`
++ `track('move_done')` → rows in `product_events` (fire-and-forget). Report: `GET /v1/cron/funnel?days=90` with
+`x-cron-key` → `loadFunnel` → `computeFunnel` (cohort = users with a signup row; demo personas excluded).
+
 ---
 
 ## 9. Future flows (fill in as built)

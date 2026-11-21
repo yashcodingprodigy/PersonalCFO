@@ -1,3 +1,4 @@
+import { track, trackFirst } from '../analytics';
 // Autopilot — makes the money brain an always-on OS instead of a page.
 //
 // • brainTick(user): re-thinks the user's whole plan whenever ANY data changes
@@ -184,6 +185,8 @@ export async function saveDream(
   const message = lang === 'hi'
     ? `✨ मैंने **${d.name}** को आपके सपनों में जोड़ दिया — ${inr(amount)}${est}। आपका प्लान अपने-आप अपडेट हो गया है।`
     : `✨ Added **${d.name}** to your dreams — ${inr(amount)}${est}. Your plan has updated itself.`;
+  trackFirst(userId, 'first_dream', { source, goal_type: d.goalType });
+  track(userId, 'dream_added', { source, goal_type: d.goalType });
   return { goalId: row!.goal_id, amount, message };
 }
 

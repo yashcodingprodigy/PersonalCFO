@@ -1,3 +1,4 @@
+import { track, trackFirst } from '../services/analytics';
 import { Router } from 'express';
 import { z } from 'zod';
 import { query, one } from '../db';
@@ -97,6 +98,8 @@ actionsRouter.patch('/:id/status', async (req: AuthedRequest, res) => {
   // this user acts on (SRS §7.4)
   if (status === 'done') {
     await remember(req.userId!, 'action_completed', `Completed: ${action.title}`, `User completed the action "${action.title}" (${action.category}, ${action.difficulty}) on ${new Date().toISOString().slice(0, 10)}. ${action.impact_text}`);
+    trackFirst(req.userId, 'first_move_done', { rule: action.rule_id });
+    track(req.userId, 'move_done', { rule: action.rule_id });
     await recalculateAndStoreScore(req.userId!, 'action_complete');
   } else if (status === 'skipped') {
     await remember(req.userId!, 'action_skipped', `Skipped: ${action.title}`, `User skipped the action "${action.title}" (${action.category}, ${action.difficulty}). They may prefer different approaches to ${action.category}.`);
@@ -158,6 +161,8 @@ actionsRouter.post('/:id/complete', async (req: AuthedRequest, res) => {
   await remember(req.userId!, 'action_completed', `Completed: ${action.title}`,
     `User completed "${action.title}" (${action.category}) on ${new Date().toISOString().slice(0, 10)}.` +
     (invested_amount && invested_type ? ` They reported ${invested_type.replace('_', ' ')} of ₹${Math.round(invested_amount / 100).toLocaleString('en-IN')}.` : ''));
+  trackFirst(req.userId, 'first_move_done', { rule: action.rule_id });
+  track(req.userId, 'move_done', { rule: action.rule_id });
   const result = await recalculateAndStoreScore(req.userId!, 'action_complete');
 
   const updated = await one(`SELECT * FROM actions WHERE action_id = $1`, [req.params.id]);

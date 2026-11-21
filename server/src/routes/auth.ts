@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { track, trackFirst } from '../services/analytics';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -99,8 +100,10 @@ authRouter.post('/otp/verify', rateLimit({ windowMs: 60_000, max: 10, keyPrefix:
     );
     await query(`INSERT INTO profiles (user_id) VALUES ($1)`, [user!.user_id]);
     await query(`INSERT INTO audit_log (user_id, event) VALUES ($1, 'user_registered')`, [user!.user_id]);
+    trackFirst(user!.user_id, 'signup');
   }
   await query(`UPDATE users SET last_active_at = now() WHERE user_id = $1`, [user!.user_id]);
+  track(user!.user_id, 'login');
 
   const { accessToken, refreshToken } = issueTokens(user!.user_id);
   await storeRefresh(user!.user_id, refreshToken);
@@ -180,7 +183,9 @@ authRouter.post('/email/verify', rateLimit({ windowMs: 60_000, max: 10, keyPrefi
       `INSERT INTO users (email, email_verified) VALUES ($1, true) RETURNING user_id, name, onboarding_status, plan`, [email]);
     await query(`INSERT INTO profiles (user_id) VALUES ($1)`, [user!.user_id]);
     await query(`INSERT INTO audit_log (user_id, event, meta) VALUES ($1, 'user_registered', '{"via":"email"}')`, [user!.user_id]);
+    trackFirst(user!.user_id, 'signup', { via: 'email' });
   }
+  track(user!.user_id, 'login', { via: 'email' });
   await query(`UPDATE users SET last_active_at = now() WHERE user_id = $1`, [user!.user_id]);
   const { accessToken, refreshToken } = issueTokens(user!.user_id);
   await storeRefresh(user!.user_id, refreshToken);

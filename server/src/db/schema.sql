@@ -473,6 +473,20 @@ CREATE TABLE IF NOT EXISTS translations (
   PRIMARY KEY (src_hash, lang)
 );
 
+-- ── Product analytics (Nov 2026, D-69) ─────────────────────────────────────
+-- Server-side funnel events: signup → first_dream → first_move_done (one row per user each, enforced by
+-- the partial unique index) plus activity rows (login, dream_added, move_done). No third-party SDK.
+CREATE TABLE IF NOT EXISTS product_events (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  event      VARCHAR(40) NOT NULL,
+  meta       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_product_events_milestone ON product_events (user_id, event)
+  WHERE event IN ('signup', 'first_dream', 'first_move_done');
+CREATE INDEX IF NOT EXISTS ix_product_events_event_time ON product_events (event, created_at);
+
 -- ── Security: lock tables away from Supabase's public API (Oct 2026) ──────
 -- Supabase exposes the `public` schema over its REST API to the `anon` /
 -- `authenticated` roles. PayWatch never uses that API (the Express server talks
