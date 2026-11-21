@@ -3,11 +3,14 @@
 > Single source of truth for the PayWatch project. Read this first before working on the codebase.
 > Keep it updated when architecture, features, deployment, branding, or compliance decisions change.
 
-Last updated: **Oct 2026** (vision shift to the **Money Brain / dreams-first** product; brain engine built;
+Last updated: **21 Nov 2026** (Nov: Markets flip deck, reply visuals, AI cost/model discipline, reply-language rules,
+Sarvam voice, dream drafts (talk-through before save), Money Quest level map, guide pop-up close; **company incorporation
+underway as Neodream Technologies Pvt Ltd** (§12); unbranded survey campaign; final-year-project registration; voice cost
+analysis). Oct 2026: vision shift to the **Money Brain / dreams-first** product; brain engine built;
 email-OTP login + demo login; Supabase RLS lockdown; mentor sessions with Upendra Namburi & Ellen van Andel; canvases;
-promo video). **Companion docs: `STRATEGY.md` (vision, canvases, journeys, lifecycle economics, action plan — READ
+promo video. **Companion docs: `STRATEGY.md` (vision, canvases, journeys, lifecycle economics, action plan — READ
 FIRST for "what are we doing and why"), `WORKFLOW.md` (runtime flow per feature) and `DECISIONS.md` (why we chose what
-we chose, D-01…D-42). Keep all four updated.**
+we chose, D-01…D-67). Keep all four updated. Company / brand / outreach / founder admin = §12.**
 
 **Vision (Oct 2026 — supersedes "CFO in your pocket" as the lead message):** PayWatch is **one money brain that turns
 every dream into a plan** — it quietly handles tax, insurance and investing in the background so the user can focus on
@@ -24,12 +27,16 @@ Peter / Dr. Mohammed Zuber) and has been **accepted into the XElevate Super Acce
 (60% scholarship, net fee ₹50,000; program focus = validation → adoption → scale → investor-readiness).
 Founder: Yash Saini (solo build). **First hire: a Market & User Research intern (Vighnesh, task-based,
 ₹8–10k/mo merit stipend, started 22 Aug 2026)** — inducted via the IC (IC registers the intern + issues the
-internship letter on the founder's recommendation, since PayWatch isn't incorporated yet). **Company:** leaning
-**Private Limited**, registered in the founder's hometown with local CA/CS help (needs a 2nd director — a
-trusted family member/co-founder with a small stake); **trademark** "PayWatch" to be filed (classes 9/36/42)
-before heavy public promotion; public LinkedIn launch announcement deliberately held until trademark filed +
-traction. Not yet incorporated, no live users/revenue — prototype stage (TRL 7), now moving to validation +
-commercialisation. Tagline: **"Watch your money grow."**
+internship letter on the founder's recommendation, since PayWatch isn't incorporated yet). **Company (Nov 2026 decision, details §12):** incorporating **Neodream Technologies Private Limited** (backup name
+Neobud Technologies Pvt Ltd) in **Haryana** through the **family CA** (not an online incorporator). Directors: Yash +
+father **Mr. Dayanand Saini**; shareholding **99 : 1**; authorised ₹10,00,000 / paid-up ₹1,00,000 (₹10 shares). Product
+may later rebrand **PayWatch → "Neodreams"** (not public). **Brand rule until trademark is filed:** the public never sees
+"PayWatch" in surveys/posts (rebrand pending) — surveys and posts stay unbranded; the trademark will be filed for the
+final brand (Neodream/Neodreams, classes 9/36/42), not "PayWatch". Public LinkedIn launch held until trademark +
+traction. Not yet incorporated, no live users/revenue — prototype stage (TRL 7), moving to validation +
+commercialisation. Tagline (current app): **"Watch your money grow."** **College:** the startup is Yash's **final-year
+project** (startup-as-FYP route mentioned by Dr. Zuber), with **Dr. Suhas Prabhu** as project mentor (agreed); request
+mailed to Dr. Mathew Peter at the IC.
 **Oct 2026 update:** mentors — **Upendra Namburi** (XElevate expert; "be bold, think 50 years ahead, build deep
 personas from real interviews, delight > features, become headless/everywhere") and **Ellen van Andel** (TU Delft VPC /
 BMC / Blue Ocean sessions). Research assets: Vighnesh's Task 1 (empathy maps, 20 conversations + 49 surveys), Task 3
@@ -345,7 +352,8 @@ unread-alerts badge, native biometric lock overlay).
 - **Assistant actions (D-51):** `services/assistantActions.ts` `planActions()` runs before every Ask answer (chat + voice):
   navigate to any page (EN/HI/Hinglish), insurance marketplace deep-link `?category=` (picks the user's biggest gap),
   personal corner **guide** (do / avoid, compliance footnote) for marketplace/tax/invest, update a dream's amount/date,
-  set risk or language. `/qa` returns `actions[]`; web `Assistant.runActions()` + `GuidePanel.tsx`. Voice and chat share
+  set risk or language. `/qa` returns `actions[]`; web `Assistant.runActions()` + `GuidePanel.tsx` (Nov 2026: clearly visible ✕ close, a
+"Got it, hide" button and Esc; mobile `GuideCard.tsx` has the same close + "Got it, hide"). Voice and chat share
   ONE conversation (`sessionStorage paywatch_conv`; switch keeps history); `cfo-ai.recallMemory()` adds snippets from the
   user's other conversations (60 days) to the prompt. **Self-healing conversations:** posting to a conversation id that no longer exists (cleared chat / re-seeded demo) starts a fresh one instead of a 404; `askClaude` falls back voice model → main model → Sonnet 4 with a timeout per call; `/qa` async errors go to the JSON error handler. **Clear chat:** `DELETE /qa/conversations/:id` (one) and `DELETE /qa/conversations` (all) — messages cascade, so cleared chats also leave the memory recall; web ChatPanel has a "Clear chat" bar (confirm, + "Clear all chats" on /ask), mobile Ask tab has a trash button. Voice: mic kept open across turns, "Getting ready…" → chime →
   listening (no lost first words), VAD threshold 0.025. **Hindi voice:** Sarvam AI Bulbul (`SARVAM_API_KEY`, speaker
@@ -526,6 +534,10 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
   rule). ARN is mutual-funds only; **stocks/ETFs need a SEBI stockbroker** — offer later only via a broker partner
   (e.g. smallcase gateway, execution at the user's own broker). Interim (no licence): keep category-only + an
   execution **hand-off**. Alternative for direct plans: SEBI **Execution-Only Platform (EOP)** registration.
+  **Advice vs distribution (Nov 2026 note):** SEBI IA Regulations require advice and distribution to be segregated
+  (one entity can't do both for the same client) — if RIA is ever pursued alongside ARN, plan a separate entity/
+  subsidiary. Stockbroker "aggregator" path = referral/Authorised Person tie-ups with SEBI brokers. Company MOA
+  (Neodream Technologies) is drafted broad: these are listed as objects "subject to licence"; lending/deposits/NBFC excluded.
 - **CAs / advisor feature (ICAI) — legality clarified: keep it a PRIVATE user↔own-CA tool, NEVER a marketplace.**
   ICAI bans CA **advertising/solicitation**, **listing on app-based aggregators for exclusive services**, and
   **fee-sharing with non-members**. Our CA portal is a code-based handshake where a user connects their *own* CA
@@ -598,8 +610,11 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 ### Business / legal / registrations (Goal B — needs professionals)
 0. **Incubation** ✓ — MAHE Innovation Centre (mentor assigned; help offered on trademark, testing, registrations,
    workspace, interns). Now: recruit interns, start trademark, validate with users.
-1. **Company** — incorporate Pvt Ltd, PAN/TAN (CA/CS). Update legal copy CIN/address. (Unlocks most tie-ups.)
-2. **Trademark** "PayWatch" with IP India (classes 9 / 36 / 42) — start early via the IC, before heavy promotion.
+1. **Company — IN PROGRESS (Nov 2026):** Neodream Technologies Pvt Ltd via the family CA (requirements sent — §12).
+   Then: INC-20A, auditor, Udyam, DPIIT (MAHE IC letter), 80-IAC, founder IP assignment, founders' agreement.
+   Update legal copy CIN/address once incorporated. (Unlocks DLT SMS, Razorpay live, partner contracts.)
+2. **Trademark** for the final brand ("Neodream" / "Neodreams", not "PayWatch") with IP India (classes 9 / 36 / 42) —
+   file in the company's name (₹4,500/class for startups/MSMEs) before heavy promotion.
 2b. **AMFI Mutual Fund Distributor (ARN)** — NISM V-A exam + ARN; unlocks in-app fund/SIP investing via BSE StAR
    MF + trail commission. Cheapest "actually invest" step. See §8. (Stocks need a separate broker partner.)
 3. **GST registration** (billing already issues 18% GST invoices).
@@ -670,3 +685,90 @@ A second account type (Chartered Accountants) alongside users. Built across phas
   monthly records, and offers a **downloadable client-summary report**. Documents need `SUPABASE_*` env + a
   private `ca-documents` bucket.
 - **Demo:** no CA seed yet; create one via the signup flow (OTP from logs / `424242` locally).
+
+---
+
+## 12. Company, brand, outreach & founder admin (Nov 2026)
+
+> Non-code context. None of this is legal advice — the family CA (and a lawyer for SEBI/IP questions) has the final word.
+
+### 12.1 Incorporation — Neodream Technologies Private Limited (D-62…D-65)
+- **Name:** **Neodream Technologies Private Limited** (option 1), **Neobud Technologies Private Limited** (option 2).
+  "Neo" = Yash's dog. Research (public registries, not the MCA tool): "Neo" is very crowded in finance (Neo-Progress
+  Fintech, Neobillion Fintech, Neofin Technologies, Neo Finance Pvt Ltd; **Neo Group** owns Neo Wealth / Neo Asset Mgmt /
+  NeoFinity) → avoid "Neo + Fin/Fintech/Finance"; "Fintech/Finance" in a name also invites ROC/RBI questions → use
+  "Technologies". Taken/risky: Neofinity, Neokosh (≈ Neuokosh Capital), Neo Yug (Haryana edtech). Other shortlisted:
+  Neopaw, Neoarth, Neomitra, Neoplan. Still run the MCA "check name" + IP India trademark search before filing.
+- **Company name ≠ product brand.** The app may become **"Neodreams"** later; trademark the final brand in the company's name.
+- **State / office:** Haryana (founder's family home); ROC Delhi covers Haryana; Haryana appears to levy **no Professional
+  Tax**; Haryana Shops & Commercial Establishments + Labour Welfare Fund if applicable. Address: from Yash's father.
+- **Directors:** Yash Saini + father **Mr. Dayanand Saini** (both Indian residents).
+- **Shareholding 99 : 1** (Yash 9,900 shares, father 100) — keeps the cap table clean for investors; father's 1% meets the
+  2-shareholder minimum and can be transferred later.
+- **Capital:** authorised **₹10,00,000** (1,00,000 × ₹10) — headroom for ESOP/investor issues without raising the ceiling
+  (MCA filing fee is nil up to ₹15L authorised; Haryana stamp duty small); paid-up **₹1,00,000** (Yash ₹99,000, father
+  ₹1,000), deposited after the bank account opens, then INC-20A. (₹10,000 paid-up would also be legal if cash is tight.)
+- **MOA objects (broad, "subject to licence"):** main = software/technology platform for personal finance (planning,
+  education, document organisation, tax computation/preparation). Other: insurance distribution (partners / IRDAI
+  intermediary), mutual-fund distribution (AMFI ARN), referral / Authorised-Person tie-ups with SEBI stockbrokers (the
+  "broker aggregator" idea), investment advisory & research (only if SEBI-registered later), ERI/tax filing, data &
+  analytics, digital marketing/lead-gen, IT & consulting, any other lawful business. **Excluded:** lending, deposits,
+  NBFC, chit funds, banking. **SEBI note:** advice and distribution must be segregated (one entity can't advise and
+  distribute to the same client) → if RIA is ever pursued alongside ARN/insurance, use a separate subsidiary. The app
+  itself stays **education / category guidance — never describe it as "investment advice"** (that needs RIA).
+- **Who files:** the **family CA** (dad's preference; personal relationship — fees/timelines are discussed privately, so
+  the requirements doc carries no cost/timeline questions). Comparison done: Startupwala quoted ₹13,999 (+₹1,999 Udyam)
+  for Pvt Ltd (capital < ₹5L, 2 promoters) ≈ ₹7.3k govt fees/stamp/DSC + ₹6.3k professional; its "free perks" (PAN, TAN,
+  EPFO, ESIC, PT come with SPICe+/AGILE-PRO-S anyway; Udyam is free on the govt portal; domain/hosting/10 emails ~₹2–4k and
+  already owned) are standard — the CA can do all of it.
+- **Requirements doc sent to the CA** (keep both in sync if edited): Claude Doc
+  https://claude.ai/artifact/LTHijCTkrGBFVKdBLxt6Fb · Google Doc
+  https://docs.google.com/document/d/1c0AT-Bss76juhpO-uH588wcTf4_uq1-Mv3Nriv2NCf0/edit . Contents: company details table,
+  MOA objects, brand note (Neodreams), Step 1 incorporation (name approval, DSC+DIN ×2, MOA/AOA, COI + PAN + TAN, EPFO/ESIC,
+  current account at [BANK], Haryana Shops & Est.), Step 2 first months (board meeting + auditor ≤30 days, share
+  certificates ≤60 days, capital deposit + INC-20A ≤180 days, bookkeeping), Step 3 registrations (Udyam, DPIIT with MAHE IC
+  support letter, 80-IAC after DPIIT, GST only if advised), and "guide me on": trademark (Neodream/Neodreams, cl. 9/36/42),
+  **founder IP assignment** (code, app, designs, paywatch.in built pre-incorporation → assign to the company; investors
+  check this), founders' agreement with father. Documents list was removed by Yash (handled in person).
+- **Rules checked (Nov 2026):** DPIIT recognition — 10 yrs / ₹200 cr turnover (2026 notification; deep-tech 20 yrs /
+  ₹300 cr); 80-IAC tax holiday — 3 of first 10 years, incorporated before ~1 Apr 2030, via the Inter-Ministerial Board;
+  under the Income-tax Act 2025 (from tax year 2026-27) the deduction is renumbered (≈ s.140) — CA to confirm. Angel tax
+  abolished. GST not mandatory below ₹20L services turnover, but billing issues GST invoices → CA to advise timing.
+
+### 12.2 College — final-year project
+- Startup taken as the **final-year project** (route mentioned by Dr. Mohammed Zuber); **Dr. Suhas Prabhu** agreed to be
+  the mentor; email sent to **Dr. Mathew Peter** (IC) — written without the PayWatch name (rebrand pending).
+
+### 12.3 Survey campaign (validation, Nov 2026) — unbranded
+- **Goal:** ~1,000 responses across segments; surveys never show the PayWatch name (D-66).
+- **Forms:** Students → `https://forms.gle/163azSFxV7YPgjf2A` (gift-card "chance to win" draw for 2–3 winners);
+  25–40 + 50+/retirement → `https://forms.gle/sxXcYrrqTbewDoqCA` (no gift card; word of mouth + groundwork).
+- **Share assets (project root):** `Survey-Share-Image.png` (student form QR), `Survey-Share-Image-25-plus.png` +
+  `QR-Survey-25-plus.png` (25+ form). QRs are **static** (Python `qrcode`, URL encoded directly) → never expire; they
+  break only if the form link changes. Generator: outputs `survey_poster.py` (recreate if needed).
+- **Gift-card draw (legal posture, not legal advice):** free entry + "chance to win" is a promotional draw, low risk if
+  rules are stated (number of winners, draw date, one entry per person, free entry, not affiliated with the gift-card
+  brand, avoid brand logos); keep draw contact details **separate** from survey answers (separate route/form) and
+  delete them after the draw (DPDP). Waitlist / early access is a separate optional question.
+- **Outstanding fixes advised (not confirmed):** student form — a separate "enter the draw? Yes/No" question (waitlist
+  "No" currently forces gift-card contact), typo "Preferred gift cad", Hindi description still says "8 मिनट" while
+  captions say 2–4 min; 25+ form — add "Retired" + retirement dreams, neutral description for 50+, "Can't say until I
+  try it" option; use the 25-plus poster for those groups.
+- **Distribution done:** WhatsApp captions per segment; LinkedIn post (short, **link in the first comment with context**
+  so LinkedIn doesn't hide it); email to the HOD to circulate to faculty (25+ form, 4 min, anonymous, EN/HI, mentions MAHE
+  incubation, no startup name).
+- **Rejected ideas:** "Dream Check" mini-site (revealed the brand + asked for income); unbranded money-personality game
+  (built in `money-personality/` — index.html + apps-script.gs + README — kept but **not used**; Yash chose "form only").
+  Mentor (Upendra) feedback: the form felt long and "why would I fill a stranger's form" → keep it short, segment it,
+  lead with the respondent's benefit.
+- Name brainstorm for the rebrand also happened (outcome: Neodream/Neodreams, §12.1).
+
+### 12.4 Voice cost (Nov 2026 estimate, list prices — real spend is in each provider dashboard)
+- Routing (code): EN TTS = ElevenLabs `eleven_multilingual_v2` voice "Sarah"; HI TTS = Sarvam `bulbul:v3` speaker
+  `ritu` (ElevenLabs fallback); STT = ElevenLabs Scribe v2 if key set, else Sarvam saaras:v4→v3→saarika:v2.5, else device;
+  reply text = Claude Haiku 5.5 (voice) / Sonnet 5.5 (chat). Check live providers at `GET /v1/voice/status`.
+- Per voice reply (~8 s speech in, ~300 chars out, ₹88/$): **English ≈ ₹2.7** (TTS ≈ ₹2.6 at $0.10/1k chars = ~95%),
+  **Hindi ≈ ₹1.0** (Bulbul ₹30/10k chars ≈ ₹0.9; Sarvam STT ₹30/hr). Haiku 5.5 ($0.10/$0.50 per M tokens) ≈ ₹0.05.
+  Typed chat ≈ ₹0.05–0.30/message. TTS replies are LRU-cached.
+- Cheap levers (not done yet): `ELEVENLABS_TTS_MODEL=eleven_flash_v2_5` (env only, ~½ price) or Sarvam Bulbul for
+  English (Indian-English voices, ~3× cheaper; small code change).

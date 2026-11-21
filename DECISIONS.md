@@ -4,7 +4,7 @@
 > and business — each with the reasoning and the main alternative we rejected. Read this before
 > re-litigating a settled choice. **Append new decisions as they're made; don't delete history —
 > if a decision is reversed, add a new dated entry noting what changed and why.**
-> Format: **D-##  Decision** — Why · *Rejected: alternative (reason)*. Last updated: Oct 2026.
+> Format: **D-##  Decision** — Why · *Rejected: alternative (reason)*. Last updated: 21 Nov 2026 (D-01…D-67).
 
 ---
 
@@ -316,6 +316,45 @@ real actions in the order PayWatch recommends — no fake tasks, no streak press
 and how much, checks affordability with the brain, suggests adjustments, and saves only when the user clearly says yes
 (button or "yes, add it"). Explicit "create a goal of ₹X" also goes through a confirm. Landing/onboarding captures (where
 the user typed the dream on purpose) still save directly. Refines D-43's auto-capture for conversations.
+**D-62  Company name: Neodream Technologies Private Limited (backup: Neobud Technologies) — Nov 2026.** "Neo" (Yash's
+dog) + "dream" fits the dreams-first vision. Company name and product brand are separate; the app may later be
+renamed "Neodreams". *Rejected: "Neo Fintech Solutions" — "Neo" is crowded in finance (Neo Group's Neo Wealth / Neo
+Asset Management / NeoFinity, Neofin, Neobillion, Neo-Progress Fintech, Neo Finance), so ROC similarity rejection and
+trademark conflict were likely; "Fintech/Finance" in a name also draws ROC/RBI questions. Also ruled out Neofinity
+(taken), Neokosh (sounds like Neuokosh Capital), Neo Yug (taken).* Verify with the MCA name check before filing.
+
+**D-63  Ownership & capital: 99 : 1 (Yash : father), ₹10L authorised / ₹1L paid-up, ₹10 shares — Nov 2026.** Father
+Mr. Dayanand Saini is the second director and 1% shareholder (meets the 2-shareholder minimum, keeps the cap table clean
+for investors, transferable later). ₹10L authorised leaves room for ESOP/investor issues without an early
+capital-increase filing, while staying in the nil-MCA-fee band (≤ ₹15L). Registered in Haryana (ROC Delhi). Refines D-33
+(hometown + family member + Pvt Ltd confirmed).
+
+**D-64  MOA objects drafted broad, every regulated activity "subject to licence" — Nov 2026.** Main object = software
+platform for personal finance; other objects: insurance distribution, MF distribution (ARN), referral / Authorised
+Person with SEBI stockbrokers (broker-aggregator idea), investment advisory & research (only if SEBI-registered later),
+ERI/tax filing, data & analytics, marketing/lead-gen, IT & consulting, any lawful business. Excluded: lending,
+deposits, NBFC, chit funds, banking. Why: avoid amending the MOA every time we add a licence. Guardrail: listing advisory
+in the MOA is fine, but the app stays education/category guidance (D-05/D-41) — never called "investment advice"; SEBI
+requires advice and distribution to be segregated, so a future RIA arm would be a separate subsidiary.
+
+**D-65  Incorporate through the family CA, not an online incorporator — Nov 2026.** Father's preference (the CA is a
+family relationship). Checked: the online package's "free perks" (PAN, TAN, EPFO, ESIC, PT via SPICe+/AGILE-PRO-S; free
+Udyam; domain/hosting we already own) are standard and the CA can do all of them. The requirements doc lists only what we
+need (no fee/timeline questions — discussed personally): Claude Doc + Google Doc links in CLAUDE.md §12.1. Founder IP
+assignment and a founders' agreement are included so the pre-incorporation code/domain belong to the company.
+
+**D-66  Validation surveys stay unbranded, Google Forms only — Nov 2026.** Trademark isn't filed and a rebrand is
+pending, so surveys, posters and posts never show "PayWatch". Segmented forms (students with a free-entry gift-card draw;
+25–40 and 50+/retirement on a shared form), static QR posters, link-in-first-comment on LinkedIn, HOD-circulated email to
+faculty. Draw contact details kept separate from answers and deleted after the draw (DPDP). *Rejected: a "Dream Check"
+mini-site (revealed the brand, asked for income — nobody types income into a random site) and an unbranded
+money-personality game (built in `money-personality/`, parked).*
+
+**D-67  Voice cost: English text-to-speech is the cost centre — Nov 2026 (note, no change yet).** Estimate per voice reply:
+English ≈ ₹2.7 (ElevenLabs Multilingual v2 ≈ 95% of it), Hindi ≈ ₹1.0 (Sarvam Bulbul v3 + Saaras), Haiku 5.5 thinking
+≈ ₹0.05. Options when usage grows: ElevenLabs Flash v2.5 via env (`ELEVENLABS_TTS_MODEL`, ~½ price) or Sarvam Bulbul for
+English too (~3× cheaper). Keep the TTS cache. Refines D-44/D-56.
+
 ---
 
 ## E. Reversals / revisits log
@@ -325,4 +364,9 @@ the user typed the dream on purpose) still save directly. Refines D-43's auto-ca
   the OS is now the invisible brain behind dreams). Research recommends testing a ₹999/yr plan + free trial alongside
   D-31 monthly prices (56-interview willingness-to-pay data).
 - **Nov 2026:** D-57 refines D-53's "reply in the language the user used" — app language is now the default.
+- **Nov 2026:** D-58 refines D-57 (spoken/typed Hindi or an explicit request beats the app language).
+- **Nov 2026:** D-61 refines D-43 — in chat/voice, dreams are drafted and confirmed, not auto-saved.
+- **Nov 2026:** D-62/D-63/D-65 settle D-33 (Pvt Ltd, Haryana, father as 2nd director, family CA). D-35 revisited: the
+  trademark will be filed for the final brand (Neodream/Neodreams) in the company's name, not "PayWatch".
+- **Nov 2026:** D-44 voice now also uses Sarvam (Hindi TTS + STT fallback); D-67 records the cost picture.
 - **Oct 2026:** D-52 supersedes the Capacitor "one codebase, mobile = build step" approach (CLAUDE.md §6).

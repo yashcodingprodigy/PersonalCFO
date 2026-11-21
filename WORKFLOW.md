@@ -205,6 +205,27 @@ licensed sources, 15-min cache) → `personaliseNews` (theme, For-you, why-it-ma
 sources, …}`. **Monthly chore:** update `server/src/services/marketFacts.ts` after each CPI release (~12th) and RBI
 policy meeting, then push.
 
+**Dream drafts (D-61):** `/qa` message → load `conversations.pending_dream` → cancel? (`isCancel`, a bare "no" only if we
+just asked to add) → confirm? (`isConfirm`: explicit "add it", or a bare "yes" only after our "Shall I add it?") →
+`autopilot.saveDream` (dup check, plan goal limit, insert goal, `brain_activity`, `scheduleBrainTick`) → reply says it
+was saved, `data_changed: true` → clients refresh. Otherwise `updateDraft` (amount via `parseRupees` with years stripped,
+date via `parseMonths`) or `startDraft` (`detectDream` / goal intent) → `brainAfford` verdict → `draftNote` tells the AI to
+ask only what's missing, then "Shall I add it to your dreams?" (never claim it saved) → when nothing is missing the reply
+carries `proposedAction {kind:'add_dream', confirmText}` → web ChatPanel / VoiceMode / mobile Ask show "Yes, add it" /
+"Change something". Landing/onboarding captures still save directly.
+
+**Voice provider routing (Nov 2026):** TTS `POST /voice/tts` → Hindi: Sarvam Bulbul v3 (`ritu`) if `SARVAM_API_KEY`, else
+ElevenLabs (auto-picked Hindi library voice) → English: ElevenLabs Multilingual v2 ("Sarah") → else 503 and the device
+voice; results LRU-cached by text hash. STT `POST /voice/stt` → ElevenLabs Scribe v2 if `ELEVENLABS_API_KEY` → else Sarvam
+saaras:v4 → v3 → saarika:v2.5 (`language_code=unknown`) → else 503 and the client uses the device recogniser
+(`serverSttBroken` flag after a failure). Cost per reply ≈ ₹2.7 EN / ₹1.0 HI (D-67).
+
+**Markets deck (D-59):** `getMarketPage` → `buildDeck(facts, impacts, news, lang)` → `deck[]` pamphlets (front = fact/news,
+back = personal meaning + CTA + publisher link) → web `FlipDeck.tsx` / mobile `FlipDeck.tsx`.
+
+**Money Quest (D-60):** Actions page orders actions (done by `completed_at`, then open by priority/impact) → `LevelMap`
+(5 levels per world, stars, current pin, XP = score points) → "Mark done" → confetti + "Level up!" (client-only).
+
 ---
 
 ## 9. Future flows (fill in as built)

@@ -2,7 +2,7 @@
 
 > The one place that connects *why* (vision, research, canvases) to *what we do next* (product + weekly plan).
 > Read with `CLAUDE.md` (project context), `WORKFLOW.md` (how the code runs) and `DECISIONS.md` (why we chose).
-> Last updated: 20 Oct 2026.
+> Last updated: 21 Nov 2026 (status in §9).
 
 ---
 
@@ -107,3 +107,27 @@ trademark; ask counsel the SEBI “financial planning” question (RIA partner v
 4. **One truth:** every number comes from the brain; if two screens disagree, it’s a P0 bug (`brain.test.ts` “engines agree”).
 5. **Seams, not blockers:** anything needing a licence/API ships as a mock behind a seam (`GET /v1/brain/readiness`).
 6. **Log decisions** in `DECISIONS.md` the day they’re made.
+
+## 9. Status check — 21 Nov 2026 (weeks 1–5 of the plan)
+**Product (shipped on top of the plan):** Markets as "Money Wrapped" flip pamphlets with licensed sources + personal
+rupee impact (D-54/D-59); visuals in dream replies (D-55); AI cost discipline — Sonnet 5.5 chat / Haiku 5.5 voice &
+translation, own tables first (D-56); reply-language rules incl. "speak Hindi, get Hindi" and explicit requests (D-57/58);
+Sarvam for Hindi voice + STT fallback; "every dream fits" pricing incl. procedures/pets; dreams talked through before
+saving (D-61); Money Quest level map on Actions (D-60); guide pop-up close. Native mobile app mirrors all of it.
+Not yet done from the plan: product analytics + tester onboarding (week 3), chat door (week 4), pricing test (week 6).
+
+**Validation (research):** moved from interviews to an **unbranded segmented survey** aiming at ~1,000 responses
+(D-66): students (gift-card draw), 25–40 (word of mouth + groundwork), 50+/retirement (retirement-dream narrative),
+agency outreach last. Upendra's feedback: the form felt long and generic → keep it short and lead with the respondent's
+benefit. Faculty reached via the HOD. Pricing/"would you pay" questions feel abstract without trying the app → treat them
+as weak signals; the tester cohort + trial pricing test is the real WTP test.
+
+**Company:** incorporation of **Neodream Technologies Pvt Ltd** started with the family CA (D-62…D-65). Unlocks after
+incorporation: DLT SMS OTP, Razorpay live KYC, insurance/MF partner contracts, Udyam → DPIIT → 80-IAC, trademark for the
+final brand (possible rebrand PayWatch → Neodreams). College: the startup is the final-year project (mentor Dr. Suhas
+Prabhu).
+
+**Next 2 weeks (priority order):** (1) push pending code + onboard the first 20–30 testers with analytics on "% who act
+on a next move in week 1"; (2) close the survey, summarise by segment, feed Daisy v2; (3) follow up the CA on name
+approval + DSC/DIN; (4) decide the brand (PayWatch vs Neodreams) before the trademark filing; (5) consider
+`eleven_flash_v2_5` for English voice if voice usage grows (D-67).
