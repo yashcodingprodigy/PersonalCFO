@@ -395,6 +395,18 @@ consented automatic fetch through tie-ups — AA (bank, MF, insurance, NPS), MF 
 reports**, ERI (AIS/26AS), payroll/HRMS (payslips, Form 16), insurers/repositories, DigiLocker — all landing in the same
 stores so nothing downstream changes. Still ICAI-safe: the user's own CA only, no listing, no commission.
 
+**D-72  Go for SEBI Investment Adviser (RIA) registration before commercial launch — Nov 2026 (open question inside).**
+Yash's intent: PayWatch's value is advice ("what should I do next"), so register as an RIA before going commercial or
+signing partners. **Wording:** docs/decks say "not yet SEBI-registered; we plan to apply for RIA registration before
+commercial launch; until then education and fund-category guidance only". App copy stays "not a SEBI-registered
+Investment Adviser" until the registration is granted (it must be literally true). **The catch (open):** SEBI IA
+Regulations require client-level segregation of advice and distribution across the whole group (holding, subsidiaries,
+associates) — "unbiased options + commission on what the user picks" is still distribution to an advisory client and
+isn't allowed. Choose: (A) fee-only adviser (subscription; direct plans; no product commissions), (B) per-user split —
+advisory clients vs distribution clients, never both, or (C) stay education + distribution (no RIA). Insurance-commission
+treatment for advisory clients to be confirmed with a SEBI lawyer. Also: Task 8 dates removed (steps run in order);
+Task 8 Step 6 now models revenue under route A vs B.
+
 ---
 
 ## E. Reversals / revisits log

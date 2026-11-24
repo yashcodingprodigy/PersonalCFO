@@ -10,7 +10,7 @@ analysis). Oct 2026: vision shift to the **Money Brain / dreams-first** product;
 email-OTP login + demo login; Supabase RLS lockdown; mentor sessions with Upendra Namburi & Ellen van Andel; canvases;
 promo video. **Companion docs: `STRATEGY.md` (vision, canvases, journeys, lifecycle economics, action plan — READ
 FIRST for "what are we doing and why"), `WORKFLOW.md` (runtime flow per feature) and `DECISIONS.md` (why we chose what
-we chose, D-01…D-71). Keep all four updated. Company / brand / outreach / founder admin = §12.**
+we chose, D-01…D-72). Keep all four updated. Company / brand / outreach / founder admin = §12.**
 
 **Vision (Oct 2026 — supersedes "CFO in your pocket" as the lead message):** PayWatch is **one money brain that turns
 every dream into a plan** — it quietly handles tax, insurance and investing in the background so the user can focus on
@@ -86,6 +86,12 @@ tax-preparation** tool. It is **NOT** a SEBI-registered Investment Adviser and n
 specific stock, mutual-fund scheme or product — only asset-class / fund-**category** guidance. For tax
 it *prepares and computes* returns and guides self-filing; it is not a CA. See §8 for the legal limits
 (ERI for one-click e-filing; audits/certifications legally need a CA).
+**Nov 2026 (D-72): we intend to register as a SEBI Investment Adviser (RIA) before commercial launch / partner deals.**
+Until registered, the education-only lane above stays exactly as is (app copy keeps "not a SEBI-registered Investment
+Adviser" because it is true today). Docs say "not yet SEBI-registered; applying for RIA before commercial launch".
+After registration SEBI requires **client-level segregation**: the same client can't get both advice and
+commission-earning distribution from us or any group company → each user is either an advisory client (fee, direct plans,
+no partner commissions) or a distribution client (no personalised advice). Revenue model must pick/split routes.
 
 ---
 
