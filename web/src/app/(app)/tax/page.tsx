@@ -11,7 +11,7 @@ const TAX_QUIPS = [
 ];
 
 import { useEffect, useState } from 'react';
-import { get } from '@/lib/api';
+import { get, post, downloadFile } from '@/lib/api';
 import { inr } from '@/lib/format';
 import Link from 'next/link';
 import { Disclosure, Section, Pill, C } from '@/components/kit';
@@ -19,14 +19,12 @@ import { UpgradeBanner } from '@/components/UpgradeBanner';
 import { ItrDocPrep } from '@/components/ItrDocPrep';
 
 const TAX_TABS = [
-  { id: 'computation', label: 'Full computation' },
-  { id: 'regime', label: 'Old vs new' },
-  { id: 'copilot', label: 'Plan ahead' },
-  { id: 'reduce', label: 'Reduce tax' },
-  { id: 'deductions', label: 'Deductions' },
-  { id: 'calendar', label: 'Calendar' },
-  { id: 'file', label: 'Prepare ITR docs' },
-  { id: 'docs', label: 'Docs & terms' },
+  { id: 'story', label: 'Your tax' },
+  { id: 'save', label: 'Save more' },
+  { id: 'ca', label: 'For your CA' },
+  { id: 'plan', label: 'Plan ahead' },
+  { id: 'file', label: 'File my ITR' },
+  { id: 'learn', label: 'Learn' },
 ];
 
 const INST_STATUS: Record<string, { tone: any; label: string }> = {
@@ -264,11 +262,170 @@ function FullBreakdown({ f, onFile }: { f: any; onFile: () => void }) {
   );
 }
 
+
+// ── "Your tax" — the whole page explained in plain words (D-70) ─────────────
+const STATUS_UI: Record<string, { label: string; cls: string }> = {
+  refund: { label: 'Refund coming', cls: 'bg-signal-green/15 text-signal-green' },
+  payable: { label: 'Still to pay', cls: 'bg-signal-red/15 text-signal-red' },
+  settled: { label: 'All settled', cls: 'bg-white/15 text-white' },
+  no_tax: { label: 'No tax due', cls: 'bg-signal-green/15 text-signal-green' },
+};
+function ItrPackActions({ caLinkId, compact = false }: { caLinkId: string | null; compact?: boolean }) {
+  const [busy, setBusy] = useState(''); const [msg, setMsg] = useState(''); const [err, setErr] = useState('');
+  async function download() { setBusy('dl'); setErr(''); try { await downloadFile('/user/itr-pack', 'ITR-pack.zip'); setMsg('Downloaded — the zip has your computation and every document, sorted into folders.'); } catch (e: any) { setErr(e.message); } finally { setBusy(''); } }
+  async function send() { if (!caLinkId) return; setBusy('send'); setErr(''); try { const r = await post(`/user/ca/links/${caLinkId}/itr-pack`, {}); setMsg(`Sent to your CA — ${r.included.length} sections.${r.missing.length ? ` Not in PayWatch yet: ${r.missing.join(', ')}.` : ''}`); } catch (e: any) { setErr(e.message); } finally { setBusy(''); } }
+  return (
+    <div className={compact ? '' : 'card p-5 bg-pine-950 text-white'}>
+      {!compact && <><p className="text-sm font-bold text-mint-300">📦 Your ITR pack, in one click</p>
+        <p className="text-xs text-white/75 mt-1 leading-relaxed">Your tax computation plus Form 16, 26AS/AIS, payslips, interest certificates, capital gains, deduction proofs and policies — one zip, in numbered folders, with a list of anything missing.</p></>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {caLinkId
+          ? <button onClick={send} disabled={!!busy} className="rounded-full bg-mint-500 text-pine-950 px-5 py-2 text-sm font-bold hover:bg-mint-400 disabled:opacity-50">{busy === 'send' ? 'Sending…' : 'Send to my CA'}</button>
+          : <Link href="/advisor" className="rounded-full bg-mint-500 text-pine-950 px-5 py-2 text-sm font-bold hover:bg-mint-400">Connect my CA</Link>}
+        <button onClick={download} disabled={!!busy} className={`rounded-full px-5 py-2 text-sm font-bold border disabled:opacity-50 ${compact ? 'border-paper-200 text-ink hover:border-pine-600' : 'border-white/30 text-white hover:bg-white/10'}`}>{busy === 'dl' ? 'Packing…' : 'Download zip'}</button>
+      </div>
+      {msg && <p className={`text-xs mt-2 ${compact ? 'text-pine-800' : 'text-mint-200'}`}>{msg}</p>}
+      {err && <p className="text-xs mt-2 text-signal-red">{err}</p>}
+    </div>
+  );
+}
+
+function StoryView({ s, goto }: { s: any; goto: (t: string) => void }) {
+  const [open, setOpen] = useState<string>('');
+  const h = s.headline;
+  const st = STATUS_UI[h.status] || STATUS_UI.settled;
+  const earned = Math.max(1, s.steps.find((x: any) => x.key === 'earned')?.amount || 1);
+  const bands = (s.slabs || []).filter((b: any) => b.taxedAmount > 0);
+  const maxBand = Math.max(1, ...bands.map((b: any) => b.taxedAmount));
+  const rc = s.regimeCompare;
+  const maxR = Math.max(1, rc.oldTax, rc.newTax);
+  const confDots = s.confidence.level === 'verified' ? 3 : s.confidence.level === 'partly_verified' ? 2 : 1;
+  return (
+    <div className="space-y-5 pw-fade-up">
+      {/* 1 · The answer */}
+      <div className="rounded-3xl p-6 sm:p-8 text-white bg-gradient-to-br from-pine-950 to-pine-800 shadow-card">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-mint-300">
+          <span>FY {s.fy}</span><span className="text-white/40">·</span><span>{s.regime} regime</span><span className="text-white/40">·</span><span>{s.ca.form.code}</span>
+        </div>
+        <p className="mt-3 text-sm text-white/70">Your income tax this year</p>
+        <p className="font-display text-5xl sm:text-6xl font-semibold tabular-nums mt-1">{inr(h.totalTax)}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/80">
+          <span>≈ {inr(h.monthly)} a month</span><span className="text-white/30">|</span><span>{h.effectiveRatePct}% of what you earn</span>
+          <span className={`chip ${st.cls}`}>{st.label}{h.status === 'refund' || h.status === 'payable' ? ` · ${inr(Math.abs(h.refundOrPayable))}` : ''}</span>
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-white/90 max-w-2xl">{h.sentence}</p>
+      </div>
+
+      {/* 2 · Saving + confidence */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="card p-6 border-l-4 border-l-signal-green">
+          <p className="text-xs font-bold uppercase tracking-widest text-ink-faint">Already saving you</p>
+          <p className="font-display text-3xl font-semibold text-signal-green tabular-nums mt-1">{inr(s.saving.total)}</p>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            <li className="flex justify-between"><span className="text-ink-soft">Choosing the {s.regime} regime</span><span className="tabular-nums">{inr(s.saving.regime)}</span></li>
+            <li className="flex justify-between"><span className="text-ink-soft">Deductions you claim</span><span className="tabular-nums">{inr(s.saving.deductions)}</span></li>
+          </ul>
+          <button onClick={() => goto('save')} className="mt-3 text-sm font-semibold text-pine-700 hover:underline">See how to save more →</button>
+        </div>
+        <div className="card p-6">
+          <p className="text-xs font-bold uppercase tracking-widest text-ink-faint">How sure is this?</p>
+          <div className="flex items-center gap-1.5 mt-2">{[1, 2, 3].map((d) => <span key={d} className={`h-2.5 w-10 rounded-full ${d <= confDots ? 'bg-pine-700' : 'bg-paper-200'}`} />)}
+            <span className="text-sm font-semibold ml-2">{s.confidence.level === 'verified' ? 'Verified' : s.confidence.level === 'partly_verified' ? 'Partly verified' : 'Estimate'}</span></div>
+          <p className="text-sm text-ink-soft mt-3 leading-relaxed">{s.confidence.sentence}</p>
+          {s.confidence.missingDocs.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">{s.confidence.missingDocs.map((m: any) => <Link key={m.type} href="/records" className="chip bg-paper-100 text-ink hover:bg-mint-100">+ {m.label}</Link>)}</div>
+          )}
+          <p className="text-[11px] text-ink-faint mt-3">Soon PayWatch will fetch these for you automatically (with your permission) — no uploads.</p>
+        </div>
+      </div>
+
+      {/* 3 · How we got there */}
+      <div className="card p-6">
+        <h3 className="font-display text-xl font-medium">How we got from your income to your tax</h3>
+        <p className="text-xs text-ink-soft mt-1">Tap any line to see what it means.</p>
+        <ul className="mt-4 space-y-1">
+          {s.steps.map((x: any) => {
+            const isEq = x.sign === '=';
+            const tone = x.key === 'result' ? (h.refundOrPayable >= 0 ? 'text-signal-green' : 'text-signal-red') : x.sign === '-' ? 'text-signal-green' : 'text-ink';
+            const w = Math.max(2, Math.min(100, (x.amount / earned) * 100));
+            return (
+              <li key={x.key} className={isEq ? 'border-t border-paper-200 pt-2 mt-2' : ''}>
+                <button onClick={() => setOpen(open === x.key ? '' : x.key)} className="w-full text-left group">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`text-sm ${isEq ? 'font-semibold' : 'text-ink-soft'} group-hover:text-ink`}>{x.label} <span className="text-[10px] text-ink-faint">ⓘ</span></span>
+                    <span className={`tabular-nums text-sm ${isEq ? 'font-semibold' : ''} ${tone}`}>{x.sign === '-' ? '−' : x.sign === '+' && x.key !== 'earned' ? '+' : ''}{inr(x.amount)}</span>
+                  </div>
+                  <div className="h-1.5 mt-1 bg-paper-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${x.sign === '-' ? 'bg-signal-green/60' : isEq ? 'bg-pine-800' : 'bg-pine-600/60'}`} style={{ width: `${w}%` }} /></div>
+                </button>
+                {open === x.key && <p className="text-xs text-ink-soft mt-1.5 mb-1 leading-relaxed">{x.explain}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* 4 · Slabs + regime */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="card p-6">
+          <h3 className="font-display text-lg font-medium">Where your tax comes from</h3>
+          <p className="text-xs text-ink-soft mt-1">Each slice of your income is taxed at its own rate — only the top slices pay the higher rates.</p>
+          {bands.length ? (
+            <ul className="mt-4 space-y-2.5">
+              {bands.map((b: any, k: number) => (
+                <li key={k}>
+                  <div className="flex justify-between text-xs"><span className="text-ink-soft">{inr(b.from)} – {b.to ? inr(b.to) : 'above'} <strong className="text-ink">at {b.ratePct}%</strong></span><span className="tabular-nums">{inr(b.tax)}</span></div>
+                  <div className="h-2 mt-1 bg-paper-100 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(b.taxedAmount / maxBand) * 100}%`, background: b.ratePct === 0 ? '#9fd8b8' : C.pine700, opacity: 0.35 + Math.min(0.65, b.ratePct / 40) }} /></div>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-ink-faint mt-4">No slab income yet.</p>}
+          {s.steps.some((x: any) => x.key === 'rebate') && <p className="text-[11px] text-ink-faint mt-3">The 87A rebate then wipes out this slab tax because your taxable income is under the limit.</p>}
+        </div>
+        <div className="card p-6">
+          <h3 className="font-display text-lg font-medium">Old or new regime?</h3>
+          <div className="mt-4 space-y-3">
+            {[['old', rc.oldTax], ['new', rc.newTax]].map(([r, v]: any) => (
+              <div key={r}>
+                <div className="flex justify-between text-sm"><span className={rc.recommended === r ? 'font-semibold' : 'text-ink-soft'}>{r === 'old' ? 'Old regime' : 'New regime'}{rc.recommended === r ? ' · best for you' : ''}</span><span className="tabular-nums">{inr(v)}</span></div>
+                <div className="h-2.5 mt-1 bg-paper-100 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(v / maxR) * 100}%`, background: rc.recommended === r ? C.pine700 : '#c9d3cf' }} /></div>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm text-ink-soft mt-4 leading-relaxed">{rc.sentence}</p>
+        </div>
+      </div>
+
+      {/* 5 · Next moves */}
+      {s.moves.length > 0 && (
+        <div className="card p-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="font-display text-lg font-medium">Do these next</h3>
+            <span className="text-sm font-semibold text-signal-green">up to {inr(s.moves.reduce((a: number, m: any) => a + m.taxSaved, 0))} less tax</span>
+          </div>
+          <ul className="mt-3 divide-y divide-paper-100">
+            {s.moves.slice(0, 3).map((m: any, k: number) => (
+              <li key={k} className="py-3 flex items-start justify-between gap-4">
+                <div><p className="text-sm font-semibold">{m.title}</p><p className="text-xs text-ink-soft mt-0.5 leading-relaxed">{m.how}</p></div>
+                <span className="font-display text-base font-semibold text-signal-green tabular-nums whitespace-nowrap">−{inr(m.taxSaved)}</span>
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => goto('save')} className="mt-1 text-sm font-semibold text-pine-700 hover:underline">All ways to save →</button>
+        </div>
+      )}
+
+      {/* 6 · Hand-off */}
+      <ItrPackActions caLinkId={s.caLinkId} />
+    </div>
+  );
+}
+
 export default function TaxPage() {
   const [tax, setTax] = useState<any>(null);
   const [full, setFull] = useState<any>(null);
-  const [tab, setTab] = useState('computation');
-  useEffect(() => { get('/tax').then(setTax).catch(() => {}); get('/tax/full').then(setFull).catch(() => {}); }, []);
+  const [story, setStory] = useState<any>(null);
+  const [tab, setTab] = useState('story');
+  useEffect(() => { get('/tax').then(setTax).catch(() => {}); get('/tax/full').then(setFull).catch(() => {}); get('/tax/story').then(setStory).catch(() => {}); }, []);
   const c = tax?.comparison;
   const d = tax?.deductions;
   const rp = tax?.reductionPlan;
@@ -282,7 +439,7 @@ export default function TaxPage() {
     <div className="space-y-5 pw-page-in">
       <div>
         <h1 className="font-display text-3xl font-medium">Tax</h1>
-        <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · updated for the latest Finance Act.</p>
+        <p className="text-sm text-ink-soft mt-1">Financial year {tax.fy} · what you owe, how we worked it out, and how to pay less.</p>
       </div>
 
       {/* Tab bar — one section at a time, no more info dump */}
@@ -295,20 +452,24 @@ export default function TaxPage() {
         </div>
       </div>
 
-      {tab === 'computation' && (
+      {tab === 'story' && (story ? <StoryView s={story} goto={setTab} /> : <p className="text-sm text-ink-faint">Working out your tax…</p>)}
+
+      {tab === 'ca' && (
         <div className="space-y-5 pw-fade-up">
+          <div className="card p-5 border-l-4 border-l-mint-500">
+            <p className="text-sm text-ink-soft leading-relaxed"><strong className="text-ink">For you and your CA.</strong> The complete computation across every income head and both regimes — the same numbers as “Your tax”, laid out the way a CA files them. Send it with every document in one zip.</p>
+            {story && <div className="mt-3"><ItrPackActions caLinkId={story.caLinkId} compact /></div>}
+          </div>
           {full && <FullBreakdown f={full} onFile={() => setTab('file')} />}
           {noTax && (
             <div className="card p-5 border-l-4 border-l-signal-green">
-              <p className="text-sm text-ink-soft leading-relaxed">
-                <strong className="text-signal-green">Good news — you owe no income tax yet.</strong> At your income, the new regime&apos;s rebate covers you fully. Skim the rest so you know how it works for when you earn more.
-              </p>
+              <p className="text-sm text-ink-soft leading-relaxed"><strong className="text-signal-green">Good news — you owe no income tax yet.</strong> At your income, the new regime&apos;s rebate covers you fully.</p>
             </div>
           )}
         </div>
       )}
 
-      {tab === 'regime' && (
+      {tab === 'learn' && (
       <Section id="regime" title="Old vs new regime" hint="Which one saves you more.">
         <div className="grid sm:grid-cols-2 gap-4">
           {[c.oldRegime, c.newRegime].map((r: any) => (
@@ -331,14 +492,14 @@ export default function TaxPage() {
       </Section>
       )}
 
-      {tab === 'copilot' && (
+      {tab === 'plan' && (
         <div className="space-y-4 pw-fade-up">
           <UpgradeBanner feature="The year-round Tax Copilot and CA-ready pack" />
           {tax.copilot && <TaxCopilot c={tax.copilot} />}
         </div>
       )}
 
-      {tab === 'reduce' && (
+      {tab === 'save' && (
         <div className="space-y-4 pw-fade-up">
       {rp && (
         <Section id="reduce" title="How to reduce your tax"
@@ -373,7 +534,7 @@ export default function TaxPage() {
         </div>
       )}
 
-      {tab === 'deductions' && (
+      {tab === 'save' && (
       <Section id="deductions" title="Deduction tracker" hint="How much of each limit you've used (old regime).">
         <div className="card p-6 space-y-4">
           {d.items.map((i: any) => {
@@ -390,7 +551,7 @@ export default function TaxPage() {
 
       )}
 
-      {tab === 'calendar' && (
+      {tab === 'plan' && (
       <Section id="calendar" title="Tax calendar" hint="Don't miss a deadline.">
         <div className="card p-6">
           <ul className="space-y-4">
@@ -413,7 +574,8 @@ export default function TaxPage() {
 
       {tab === 'file' && (
         <div className="space-y-4 max-w-2xl pw-fade-up">
-          <p className="text-sm text-ink-soft leading-relaxed">Gather everything you need to file — store each document safely (encrypted) and send it to your CA in a tap.</p>
+          <p className="text-sm text-ink-soft leading-relaxed">Two ways to file. Either way, PayWatch has already done the maths.</p>
+          {story && <ItrPackActions caLinkId={story.caLinkId} />}
           <div className="grid sm:grid-cols-2 gap-3">
             <Link href="/advisor" className="card p-5 hover:border-pine-600 hover:shadow-card transition-all">
               <p className="text-2xl">🤝</p>
@@ -434,7 +596,7 @@ export default function TaxPage() {
         </div>
       )}
 
-      {tab === 'docs' && rp && (
+      {tab === 'learn' && rp && (
         <Section id="docs" title="Docs &amp; terms">
           <div className="grid sm:grid-cols-2 gap-3 mb-4">
             {[['/rent-receipts', 'Rent receipts', 'For HRA'], ['/donation-receipts', '80G receipt', 'For donations']].map(([href, t, s]) => (

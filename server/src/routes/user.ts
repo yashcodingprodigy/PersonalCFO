@@ -10,6 +10,8 @@ import { getActiveLink, listMessages, sendMessage, markRead, listDocs, addDoc, g
 import { getVaultFile } from '../services/vault';
 import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS } from '../services/itr';
+import { listRequests, fulfilRequest, sendItrPackToCa } from '../services/caRequests';
+import { buildItrPack } from '../services/caDocs';
 
 export const userRouter = Router();
 userRouter.use(requireAuth);
@@ -203,6 +205,40 @@ userRouter.patch('/ca/links/:id/checklist', async (req: AuthedRequest, res) => {
   const state = await setChecklistField(link.link_id, parsed.data.key, 'sent', parsed.data.sent);
   publish(link.ca_id);
   res.json({ state });
+});
+
+// ── CA document requests + ITR pack (user side, D-71) ───────────────
+userRouter.get('/ca/links/:id/requests', async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  res.json(await listRequests(link.link_id));
+});
+// One tap: PayWatch sends every requested document it already holds; replies in the chat with what's missing.
+userRouter.post('/ca/links/:id/requests/:rid/fulfil', rateLimit({ windowMs: 60_000, max: 10, keyPrefix: 'cafulfil' }), async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const u = await one<any>(`SELECT name FROM users WHERE user_id = $1`, [req.userId]);
+  try { res.json(await fulfilRequest(req.userId!, link.link_id, req.params.rid, u?.name || '')); }
+  catch (e: any) { res.status(e.code === 'not_found' ? 404 : e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'failed', message: e.message }); }
+});
+// GET /user/itr-pack → downloads the zip (works without a CA). POST /user/ca/links/:id/itr-pack → shares it with the CA.
+userRouter.get('/itr-pack', rateLimit({ windowMs: 60_000, max: 6, keyPrefix: 'itrpack' }), async (req: AuthedRequest, res) => {
+  const u = await one<any>(`SELECT name FROM users WHERE user_id = $1`, [req.userId]);
+  try {
+    const pack = await buildItrPack(req.userId!, u?.name || '');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${pack.fileName}"`);
+    res.setHeader('X-Pack-Included', String(pack.included.length));
+    res.setHeader('X-Pack-Missing', encodeURIComponent(pack.missing.join('|')));
+    res.send(pack.zip);
+  } catch (e: any) { res.status(500).json({ error: 'pack_failed', message: e?.message }); }
+});
+userRouter.post('/ca/links/:id/itr-pack', rateLimit({ windowMs: 60_000, max: 4, keyPrefix: 'itrpacksend' }), async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { userId: req.userId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  const u = await one<any>(`SELECT name FROM users WHERE user_id = $1`, [req.userId]);
+  try { res.json(await sendItrPackToCa(req.userId!, link.link_id, u?.name || '')); }
+  catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'failed', message: e.message }); }
 });
 
 // POST /ca/links/:id/documents/from-vault { vault_id } — share a vault file to the CA.

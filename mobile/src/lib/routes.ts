@@ -21,6 +21,7 @@ export function nativeRoute(webPath: string): { route?: string; web?: string } {
   const [path, qs] = String(webPath || '/').split('?');
   const clean = path.replace(/\/+$/, '') || '/';
   if (WEB_ONLY.includes(clean)) return { web: `${WEB_URL}${webPath}` };
+  if (clean === '/advisor/thread') { const id = ((qs || '').match(/(?:^|&)id=([^&]+)/) || [])[1]; return { route: id ? `/ca/${id}` : '/ca' }; }
   if (clean.startsWith('/advisor/')) return { route: `/ca/${clean.split('/')[2]}` };
   const r = MAP[clean];
   if (!r) return { route: '/' };

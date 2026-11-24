@@ -107,6 +107,9 @@ trademark; ask counsel the SEBI “financial planning” question (RIA partner v
 4. **One truth:** every number comes from the brain; if two screens disagree, it’s a P0 bug (`brain.test.ts` “engines agree”).
 5. **Seams, not blockers:** anything needing a licence/API ships as a mock behind a seam (`GET /v1/brain/readiness`).
 6. **Log decisions** in `DECISIONS.md` the day they’re made.
+7. **Zero manual uploads is the end state (D-71):** uploads are the fallback; each data tie-up (AA, MF Central/RTAs, broker
+   APIs, ERI, payroll/HRMS, insurers, DigiLocker) removes one manual step and lands in the same stores. Task 8 prices and
+   ranks these data partners alongside revenue partners.
 
 ## 9. Status check — 21 Nov 2026 (weeks 1–5 of the plan)
 **Product (shipped on top of the plan):** Markets as "Money Wrapped" flip pamphlets with licensed sources + personal

@@ -148,6 +148,10 @@ Multiple encrypted files per slot → `POST /v1/documents/:id/file` (AES-256-GCM
 
 ### Your CA / CA portal (`(app)/advisor` + `/ca/*` → `services/caLink.ts`, `services/caShare.ts`)
 Handshake: each side has a `connect_code` (`PW-…`/`CA-…`) → enter other's code → `ca_client_links` pending → other approves → active (auto-activates if both requested). Active: `ca_messages` (encrypted) + `ca_documents` (encrypted, Supabase, signed URLs). SSE (`/v1/events`) pushes instant refresh on message/handshake. CA read-only client view computes score/net-worth/full ITR (`fullFiling`) live + downloadable summary. **Private tool, never a marketplace (ICAI).**
+**Requests + ITR pack (D-71):** CA ticks docs → `POST /ca/clients/:id/requests` → `ca_doc_requests` row + "📄 Requested" message → `notifyUserOfCa('request')` → `notifications` (Alerts, one per link/day) + SSE. Client taps "Let PayWatch send them" → `POST /user/ca/links/:id/requests/:rid/fulfil` (or Ask PayWatch: `/qa` → `detectCaIntent` → `fulfilAllPending`) → `caDocs.gatherFiles` per key (records / vault / policies; `tax_computation` generated from `taxStory`) → `caShare.addDoc` (encrypted) → checklist ticked → reply message listing sent + missing → status fulfilled/partial. ITR pack: `buildItrPack` → zip (README + computation + numbered folders) → `GET /user/itr-pack` download or `POST /user/ca/links/:id/itr-pack` (≤8 MB) into the thread. CA messages/docs also call `notifyUserOfCa('message')`.
+
+### Tax story (`(app)/tax` default tab → `GET /v1/tax/story` → `services/taxStory.ts`, D-70)
+Profile + doc types held (monthly_records + vault) → `prepareFiling` (recommended regime) → headline, saving (vs other regime + vs zero deductions), waterfall steps, `salaryTaxBreakdown` slabs, `breakEvenExtraDeductions` (binary search), top `taxReductionPlan` moves, confidence from Form 16 / 26AS-AIS / payslip / interest cert, `ca` = `fullFiling`. Response also carries `caLinkId` for the pack buttons.
 
 ### Billing (`(app)/plans` → `routes/billing.ts`, `adapters/billing.ts`)
 `GET /v1/billing/plans` → `config.PLANS` (Free anchor + Starter ₹199 [regular ₹349] + CFO ₹499 [regular ₹799]; `regular_price` powers struck price). `POST /v1/billing/subscribe` { plan, cycle } → sandbox/Razorpay → welcome modal. GST invoices listed.
@@ -240,4 +244,5 @@ back = personal meaning + CTA + publisher link) → web `FlipDeck.tsx` / mobile 
 - **AMFI MFD investing** → Invest "start" → BSE StAR MF order (via Cybrilla/FintechPrimitives) instead of "mark started".
 - **Insurance go-live** → swap indicative premium → live quote; application submit → KYC + pay + issue (needs corporate-agent licence / broker partner). *No UI/engine rebuild — only data source + issue/pay step.*
 - **Live bank data (AA/FIU)** → replace statement upload with consented AA pull → same de-dup import.
+- **Automatic data tie-ups (D-71 direction)** → MF Central/RTAs + **broker APIs** (holdings, capital gains, investment reports), ERI (AIS/26AS), payroll/HRMS (payslips, Form 16), insurers/repositories, DigiLocker → each writes into the same `monthly_records` / `documents` / `insurance_policies` / `tax_data` stores → CA requests and the ITR pack fill themselves with no user upload.
 - **Hard paywall** → gate premium endpoints server-side for non-CFO plans.

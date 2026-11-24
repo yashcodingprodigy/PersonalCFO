@@ -28,6 +28,8 @@ import { publish } from '../services/realtime';
 import { ITR_DOCUMENTS, CA_FILING_STEPS } from '../services/itr';
 import { listRecords, getRecordFile } from '../services/monthlyRecords';
 import { fullFiling } from '../services/taxFiling';
+import { createRequest, listRequests, notifyUserOfCa } from '../services/caRequests';
+import { DOC_SOURCES } from '../services/caDocs';
 
 export const caRouter = Router();
 
@@ -254,8 +256,29 @@ caRouter.post('/clients/:id/messages', requireCa, async (req: AuthedRequest, res
   const link = await getActiveLink(req.params.id, { caId: req.caId });
   if (!link) return res.status(404).json({ error: 'not_found' });
   const msg = await sendMessage(link.link_id, 'ca', parsed.data.body);
-  publish(link.user_id); // notify the client instantly
+  const preview = parsed.data.body.length > 120 ? parsed.data.body.slice(0, 117) + '…' : parsed.data.body;
+  await notifyUserOfCa(link.user_id, link.link_id, 'message', `“${preview}”`);
   res.json(msg);
+});
+
+// ── Document requests (CA side, D-71) ────────────────────────────────
+// GET  /ca/clients/:id/requests  → the request types the CA can pick + past requests and their status
+// POST /ca/clients/:id/requests  { keys: string[], note? } → posts a request card into the chat + alerts the client
+caRouter.get('/clients/:id/requests', requireCa, async (req: AuthedRequest, res) => {
+  const link = await getActiveLink(req.params.id, { caId: req.caId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  res.json({ types: DOC_SOURCES.map((d) => ({ key: d.key, label: d.label })), requests: await listRequests(link.link_id) });
+});
+caRouter.post('/clients/:id/requests', requireCa, async (req: AuthedRequest, res) => {
+  const parsed = z.object({ keys: z.array(z.string().max(40)).min(1).max(20), note: z.string().max(500).optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Pick at least one document.' });
+  const link = await getActiveLink(req.params.id, { caId: req.caId });
+  if (!link) return res.status(404).json({ error: 'not_found' });
+  try {
+    const r = await createRequest(link.link_id, parsed.data.keys, parsed.data.note);
+    await notifyUserOfCa(link.user_id, link.link_id, 'request', `Requested: ${r.items.map((i) => i.label).join(', ')}.`);
+    res.status(201).json(r);
+  } catch (e: any) { res.status(400).json({ error: e.code || 'failed', message: e.message }); }
 });
 
 // ── Documents (CA side) ─────────────────────────────────────────────
@@ -269,7 +292,7 @@ caRouter.post('/clients/:id/documents', requireCa, async (req: AuthedRequest, re
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', message: 'Missing file.' });
   const link = await getActiveLink(req.params.id, { caId: req.caId });
   if (!link) return res.status(404).json({ error: 'not_found' });
-  try { const d = await addDoc(link.link_id, 'ca', { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data }); publish(link.user_id); res.json(d); }
+  try { const d = await addDoc(link.link_id, 'ca', { name: parsed.data.file_name, mimeType: parsed.data.mime_type, dataBase64: parsed.data.data }); await notifyUserOfCa(link.user_id, link.link_id, 'message', `Your CA shared a document: ${parsed.data.file_name.slice(0, 80)}`); res.json(d); }
   catch (e: any) { res.status(e.code === 'not_configured' ? 503 : 400).json({ error: e.code || 'upload_failed', message: e.message }); }
 });
 // ── ITR checklist (CA side) ─────────────────────────────────────────

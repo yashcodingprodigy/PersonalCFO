@@ -19,6 +19,8 @@ import { inrIN } from '../lib/money';
 import { planActions, ActionPlan } from '../services/assistantActions';
 import { buildVisuals, looksLikeDreamTalk, Visual } from '../services/brain/visuals';
 import { runBrain } from '../services/brain';
+import { detectCaIntent } from '../services/caDocs';
+import { fulfilAllPending, sendItrPackToCa } from '../services/caRequests';
 
 const fmtRupees = inrIN;
 
@@ -166,9 +168,40 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
   const draftAfford = draft ? await brainAfford(req.userId!, draft.amount, draft.months, draft.name, lang).catch(() => null) : null;
   const dreamNote = draft ? draftNote(draft, draftAfford?.headline || null, fmtRupees, whenText) : null;
 
+  // "Send my CA what he asked for" / "send my ITR documents to my CA" (D-71) — done for real, then reported.
+  let caNote: string | null = null, caText: string | null = null;
+  const caIntent = detectCaIntent(question);
+  if (caIntent) {
+    const hi = lang === 'hi';
+    const u = await one<any>(`SELECT name FROM users WHERE user_id = $1`, [req.userId]);
+    const link = await one<any>(`SELECT link_id FROM ca_client_links WHERE user_id = $1 AND status = 'active' ORDER BY created_at LIMIT 1`, [req.userId]);
+    try {
+      if (!link) {
+        caNote = 'The user asked to send documents to their CA, but no CA is connected yet. Tell them to connect their CA on the "Your CA" page (share their connect code), or download the ITR pack from the Tax page. One or two lines.';
+        caText = hi ? 'अभी आपका कोई CA जुड़ा नहीं है। "Your CA" पेज पर अपने CA को जोड़ें, या Tax पेज से ITR पैक डाउनलोड कर लें।' : 'You haven’t connected a CA yet. Add your CA on the “Your CA” page, or download your ITR pack from the Tax page.';
+      } else if (caIntent === 'send_requested') {
+        const r = await fulfilAllPending(req.userId!, u?.name || '');
+        if (r.none) {
+          caNote = 'The user asked to send what their CA requested, but there are no pending requests. Offer to send the complete ITR pack instead (they can say "send my ITR pack to my CA").';
+          caText = hi ? 'आपके CA ने अभी कोई डॉक्यूमेंट नहीं माँगा है। चाहें तो कहिए "मेरा ITR पैक CA को भेज दो" — मैं पूरा पैक भेज दूँगा।' : 'Your CA hasn’t asked for anything right now. Say “send my ITR pack to my CA” and I’ll send the complete pack.';
+        } else {
+          caNote = `DONE (real action): PayWatch sent these to the user's CA: ${r.sent.join(', ') || 'nothing'}. ${r.missing.length ? `Not found in PayWatch: ${r.missing.join(', ')} — ask them to upload these on Monthly records.` : ''} Confirm briefly; do not claim anything else was sent.`;
+          caText = (hi ? `✅ आपके CA को भेज दिया: ${r.sent.join(', ') || '—'}।` : `✅ Sent to your CA: ${r.sent.join(', ') || '—'}.`) + (r.missing.length ? (hi ? ` अभी नहीं मिला: ${r.missing.join(', ')} — इन्हें Monthly records में अपलोड करें।` : ` Not in PayWatch yet: ${r.missing.join(', ')} — upload them on Monthly records.`) : '');
+        }
+      } else {
+        const r = await sendItrPackToCa(req.userId!, link.link_id, u?.name || '');
+        caNote = `DONE (real action): PayWatch sent the user's ITR pack (FY ${r.fy}, ${r.included.length} sections: ${r.included.map((x) => x.label).join(', ')}) to their CA as one zip. ${r.missing.length ? `Missing: ${r.missing.join(', ')}.` : ''} Confirm briefly.`;
+        caText = (hi ? `📦 आपका ITR पैक (FY ${r.fy}) CA को भेज दिया — ${r.included.length} हिस्से।` : `📦 Sent your ITR pack (FY ${r.fy}) to your CA — ${r.included.length} sections.`) + (r.missing.length ? (hi ? ` अभी नहीं है: ${r.missing.join(', ')}।` : ` Not in PayWatch yet: ${r.missing.join(', ')}.`) : '');
+      }
+    } catch (e: any) {
+      caNote = `Tried to send documents to the CA but it failed: ${String(e?.message || e).slice(0, 160)}. Apologise briefly and suggest the Tax page's "Send to my CA" button.`;
+      caText = hi ? 'माफ़ कीजिए, अभी भेज नहीं पाया। Tax पेज पर "Send to my CA" बटन से दोबारा कोशिश करें।' : 'Sorry, I couldn’t send that right now. Try the “Send to my CA” button on the Tax page.';
+    }
+  }
+
   // What should the app DO for this message? (navigate, guide, update a dream, settings)
-  const act = await planActions(req.userId!, question, p, lang).catch(() => ({ actions: [], note: null, confirm: null } as ActionPlan));
-  const actionNote = [act.note, dreamAction].filter(Boolean).join(' ') || null;
+  const act = caIntent ? ({ actions: [], note: null, confirm: null } as ActionPlan) : await planActions(req.userId!, question, p, lang).catch(() => ({ actions: [], note: null, confirm: null } as ActionPlan));
+  const actionNote = [act.note, dreamAction, caNote].filter(Boolean).join(' ') || null;
   const answer = await answerQuestion(req.userId!, question, p, history, { lang, voice: mode === 'voice', conversationId: convId, actionNote, dreamNote, draftAfford });
   if (answer.engine === 'rules' && act.actions.some((a) => a.type === 'navigate')) {
     // Without the AI, keep it short and about the action instead of a generic answer.
@@ -179,6 +212,7 @@ async function handleMessage(req: AuthedRequest, res: any, conversationId: strin
       : `Sure — opening ${nav.label}.${hasGuide ? ' I’ve pinned a quick guide in the corner: what to do and what to avoid.' : ''}`;
   }
   if (act.confirm) answer.content = `${act.confirm}\n\n${answer.content}`;
+  if (caText && answer.engine === 'rules') answer.content = caText;
 
   // Without the AI, keep the dream conversation going with simple deterministic lines.
   if (answer.engine === 'rules' && (draft || dreamAction)) {

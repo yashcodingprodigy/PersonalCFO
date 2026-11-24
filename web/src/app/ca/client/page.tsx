@@ -20,6 +20,12 @@ export default function CaClient() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [chk, setChk] = useState<any>(null);
   const [draft, setDraft] = useState('');
+  const [reqTypes, setReqTypes] = useState<{ key: string; label: string }[]>([]);
+  const [reqs, setReqs] = useState<any[]>([]);
+  const [pick, setPick] = useState<string[]>([]);
+  const [reqNote, setReqNote] = useState('');
+  const [reqBusy, setReqBusy] = useState(false);
+  const [reqMsg, setReqMsg] = useState('');
   const chatRef = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState('');
   useEffect(() => { try { setId(new URLSearchParams(window.location.search).get('id') || ''); } catch {} }, []);
@@ -27,12 +33,20 @@ export default function CaClient() {
   function loadMsgs() { caGet(`/ca/clients/${id}/messages`).then(setMessages).catch(() => {}); }
   function loadDocs() { caGet(`/ca/clients/${id}/documents`).then(setDocs).catch(() => {}); }
   function loadChk() { caGet(`/ca/clients/${id}/checklist`).then(setChk).catch(() => {}); }
+  function loadReqs() { caGet(`/ca/clients/${id}/requests`).then((d) => { setReqTypes(d.types || []); setReqs(d.requests || []); }).catch(() => {}); }
+  // Structured request (D-71): the client gets an alert and can let PayWatch send everything in one tap.
+  async function sendRequest(keys: string[], note = '') {
+    if (!keys.length) return;
+    setReqBusy(true); setReqMsg(''); setErr('');
+    try { await caPost(`/ca/clients/${id}/requests`, { keys, note: note || undefined }); setPick([]); setReqNote(''); setReqMsg('Request sent. Your client has been alerted and can let PayWatch send these in one tap.'); loadReqs(); loadMsgs(); }
+    catch (e: any) { setErr(e.message); } finally { setReqBusy(false); }
+  }
   async function toggleChk(key: string, _field: 'sent' | 'received', value: boolean) { await caPatch(`/ca/clients/${id}/checklist`, { key, received: value }); loadChk(); }
   useEffect(() => {
     if (!id) return;
     if (!getCaTokens().access) { router.replace('/ca/login'); return; }
-    caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); loadChk(); }).catch((e) => setErr(e.message));
-    const refresh = () => { loadMsgs(); loadDocs(); loadChk(); };
+    caGet(`/ca/clients/${id}/overview`).then((d) => { setOv(d); loadMsgs(); loadDocs(); loadChk(); loadReqs(); }).catch((e) => setErr(e.message));
+    const refresh = () => { loadMsgs(); loadDocs(); loadChk(); loadReqs(); };
     const unsub = subscribeCaEvents(refresh);
     const t = setInterval(() => { if (!document.hidden) refresh(); }, 8000);
     return () => { clearInterval(t); unsub(); };
@@ -42,8 +56,10 @@ export default function CaClient() {
   async function upload(file: File) { const { data, mime } = await fileToBase64(file); await caPost(`/ca/clients/${id}/documents`, { file_name: file.name, mime_type: mime, data }); loadDocs(); }
   async function download(docId: string) { const d = docs.find((x) => x.document_id === docId); await caDownloadFile(`/ca/clients/${id}/documents/${docId}/file`, d?.file_name || 'document'); }
   async function removeDoc(docId: string) { await caDel(`/ca/clients/${id}/documents/${docId}`); loadDocs(); }
-  function requestDoc(_key: string, name: string) {
-    setDraft(`Hi, could you please share your ${name} for the ITR? 🙏`);
+  function requestDoc(key: string, name: string) {
+    // Checklist "request" now creates a structured request the client's PayWatch can fulfil automatically.
+    if (reqTypes.some((t) => t.key === key)) { sendRequest([key]); }
+    else setDraft(`Hi, could you please share your ${name} for the ITR? 🙏`);
     chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -265,6 +281,36 @@ export default function CaClient() {
 
         {/* Shared document checklist */}
         {chk?.documents && <ChecklistPanel role="ca" documents={chk.documents} state={chk.state || {}} onToggle={toggleChk} onRequest={requestDoc} />}
+
+        {/* Request documents — the client's PayWatch can send them automatically */}
+        {reqTypes.length > 0 && (
+          <div className="card p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-ink-faint mb-1">Request documents</h2>
+            <p className="text-xs text-ink-soft mb-3">Tick what you need. Your client gets an alert, and PayWatch can send everything it already holds in one tap.</p>
+            <div className="flex flex-wrap gap-2">
+              {reqTypes.map((t) => {
+                const on = pick.includes(t.key);
+                return <button key={t.key} type="button" onClick={() => setPick((p) => on ? p.filter((k) => k !== t.key) : [...p, t.key])}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-colors ${on ? 'bg-pine-900 text-white border-pine-900' : 'bg-white border-paper-200 hover:border-pine-600'}`}>{on ? '✓ ' : ''}{t.label}</button>;
+              })}
+            </div>
+            <input className="input mt-3 w-full" placeholder="Note for your client (optional)" value={reqNote} maxLength={500} onChange={(e) => setReqNote(e.target.value)} />
+            <div className="mt-3 flex items-center gap-3">
+              <button onClick={() => sendRequest(pick, reqNote)} disabled={reqBusy || !pick.length} className="rounded-full bg-pine-900 text-white px-5 py-2 text-sm font-bold disabled:opacity-40">{reqBusy ? 'Sending…' : `Request ${pick.length || ''} document${pick.length === 1 ? '' : 's'}`}</button>
+              {reqMsg && <span className="text-xs text-pine-800">{reqMsg}</span>}
+            </div>
+            {reqs.length > 0 && (
+              <ul className="mt-4 divide-y divide-paper-100 text-sm">
+                {reqs.slice(0, 6).map((r) => (
+                  <li key={r.request_id} className="py-2 flex items-start justify-between gap-3">
+                    <span className="text-ink-soft">{r.items.map((i: any) => i.label).join(', ')}</span>
+                    <span className={`chip shrink-0 ${r.status === 'fulfilled' ? 'bg-signal-green/10 text-signal-green' : r.status === 'partial' ? 'bg-signal-amber/10 text-signal-amber' : 'bg-paper-100 text-ink-soft'}`}>{r.status === 'fulfilled' ? 'Received' : r.status === 'partial' ? `Partly · missing ${r.result?.missing?.length || 0}` : 'Waiting'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div ref={chatRef}>
           <CaThread role="ca" messages={messages} onSend={send} docs={docs} onUpload={upload} onDownload={download} onDelete={removeDoc} initialDraft={draft} />

@@ -1,5 +1,6 @@
 // Net worth, tax, insurance, transactions & spend analytics routes.
 import { Router } from 'express';
+import { taxStory } from '../services/taxStory';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { query, one, withTransaction } from '../db';
@@ -291,6 +292,18 @@ insightsRouter.get('/tax/filing/prefill', async (req: AuthedRequest, res) => {
   const p = await loadProfileData(req.userId!);
   if (!p) return res.status(404).json({ error: 'not_found' });
   res.json({ fy: currentFY(), inputs: assembleFilingInputs(p) });
+});
+
+// GET /tax/story — the tax page explained in plain words (D-70): headline, saving, waterfall, slabs,
+// regime break-even, next moves, data confidence, and the full computation for the CA.
+insightsRouter.get('/tax/story', async (req: AuthedRequest, res) => {
+  const p = await loadProfileData(req.userId!);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  const docs = await query<{ doc_type: string }>(`SELECT DISTINCT doc_type FROM monthly_records WHERE user_id = $1`, [req.userId]);
+  const vault = await query<{ slot: string }>(`SELECT DISTINCT slot FROM documents WHERE user_id = $1 AND storage_path IS NOT NULL`, [req.userId]);
+  const types = [...docs.map((d) => d.doc_type), ...vault.map((v) => (v.slot === 'salary_slips' ? 'payslip' : v.slot))];
+  const links = await query<{ link_id: string }>(`SELECT link_id FROM ca_client_links WHERE user_id = $1 AND status = 'active' ORDER BY created_at LIMIT 1`, [req.userId]);
+  res.json({ ...taxStory(p, types), caLinkId: links[0]?.link_id || null });
 });
 
 // GET /tax/full — the complete computed return from the user's whole picture:

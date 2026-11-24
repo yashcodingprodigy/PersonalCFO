@@ -37,6 +37,7 @@ function Chat({ id }: { id: string }) {
   }
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={100}>
+      <Requests id={id} onDone={load} />
       <FlatList ref={list} data={msgs} keyExtractor={(m) => String(m.message_id)} contentContainerStyle={{ padding: SP.lg, gap: 8, flexGrow: 1 }}
         ListEmptyComponent={<Small style={{ textAlign: 'center', marginTop: 40 }}>No messages yet. Say hello to your CA.</Small>}
         renderItem={({ item: m }) => (
@@ -113,5 +114,34 @@ function Checklist({ id }: { id: string }) {
         ))}
       </View>
     </Screen>
+  );
+}
+
+// CA document requests + one-tap ITR pack (D-71): PayWatch sends what it already holds; reports what's missing.
+function Requests({ id, onDone }: { id: string; onDone: () => void }) {
+  const reqs = useApi<any[]>(`/user/ca/links/${id}/requests`);
+  const [busy, setBusy] = useState(''); const [msg, setMsg] = useState('');
+  const open = (reqs.data || []).filter((r) => r.status !== 'fulfilled');
+  async function fulfil(rid: string) {
+    setBusy(rid); setMsg('');
+    try { const r = await post(`/user/ca/links/${id}/requests/${rid}/fulfil`, {}); setMsg(r.message); reqs.reload(); onDone(); } catch (e: any) { setMsg(e.message); } finally { setBusy(''); }
+  }
+  async function pack() {
+    setBusy('pack'); setMsg('');
+    try { const r = await post(`/user/ca/links/${id}/itr-pack`, {}); setMsg(`📦 Sent your ITR pack (FY ${r.fy}) — ${r.included.length} sections.${r.missing.length ? ` Not in PayWatch yet: ${r.missing.join(', ')}.` : ''}`); onDone(); } catch (e: any) { setMsg(e.message); } finally { setBusy(''); }
+  }
+  return (
+    <View style={{ paddingHorizontal: SP.lg, gap: 8 }}>
+      {open.map((r) => (
+        <Card key={r.request_id} style={{ borderLeftWidth: 4, borderLeftColor: C.amber }}>
+          <Label>Your CA asked for</Label>
+          <Small noTr style={{ marginTop: 4, color: C.ink }}>{r.items.map((i: any) => i.label).join(' · ')}</Small>
+          <Button small title={busy === r.request_id ? 'Finding your documents…' : '✨ Let PayWatch send them'} loading={busy === r.request_id} onPress={() => fulfil(r.request_id)} style={{ marginTop: 10 }} />
+          <Tiny style={{ marginTop: 6 }}>Or tell Ask PayWatch: “send my CA what he asked for”.</Tiny>
+        </Card>
+      ))}
+      <Button small kind="secondary" icon="archive-outline" title={busy === 'pack' ? 'Packing…' : 'Send my complete ITR pack'} loading={busy === 'pack'} onPress={pack} />
+      {!!msg && <Small noTr>{msg}</Small>}
+    </View>
   );
 }

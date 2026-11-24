@@ -3,14 +3,14 @@
 > Single source of truth for the PayWatch project. Read this first before working on the codebase.
 > Keep it updated when architecture, features, deployment, branding, or compliance decisions change.
 
-Last updated: **21 Nov 2026** (Nov: Markets flip deck, reply visuals, AI cost/model discipline, reply-language rules,
+Last updated: **24 Nov 2026** (Nov: plain-language Tax page (D-70), CA requests fulfilled by PayWatch + CA alerts + ITR pack zip (D-71); Markets flip deck, reply visuals, AI cost/model discipline, reply-language rules,
 Sarvam voice, dream drafts (talk-through before save), Money Quest level map, guide pop-up close; **company incorporation
 underway as Neodream Technologies Pvt Ltd** (§12); unbranded survey campaign; final-year-project registration; voice cost
 analysis). Oct 2026: vision shift to the **Money Brain / dreams-first** product; brain engine built;
 email-OTP login + demo login; Supabase RLS lockdown; mentor sessions with Upendra Namburi & Ellen van Andel; canvases;
 promo video. **Companion docs: `STRATEGY.md` (vision, canvases, journeys, lifecycle economics, action plan — READ
 FIRST for "what are we doing and why"), `WORKFLOW.md` (runtime flow per feature) and `DECISIONS.md` (why we chose what
-we chose, D-01…D-69). Keep all four updated. Company / brand / outreach / founder admin = §12.**
+we chose, D-01…D-71). Keep all four updated. Company / brand / outreach / founder admin = §12.**
 
 **Vision (Oct 2026 — supersedes "CFO in your pocket" as the lead message):** PayWatch is **one money brain that turns
 every dream into a plan** — it quietly handles tax, insurance and investing in the background so the user can focus on
@@ -147,7 +147,11 @@ unread-alerts badge, native biometric lock overlay).
   (rupee impacts from the profile / personal "why it matters" + CTA + link to the publisher). For-you cards first; filter
   chips; "Flip all". Web `components/markets/FlipDeck.tsx` (CSS 3D flip, snap carousel, `pw-flip-*` in globals.css),
   mobile `src/components/FlipDeck.tsx` (Animated rotateY). Then learn (themes/basics) → sources & licences.
-- **Tax** (`tax`) — **Full computation** section (`GET /tax/full` → `fullFiling`): comprehensive CA-usable
+- **Tax** (`tax`, reworked Nov 2026, D-70) — default tab **"Your tax"** from `GET /tax/story` (`services/taxStory.ts`):
+  headline number + sentence, "already saving you" (regime + deductions), "how sure is this" (estimate/partly verified/
+  verified by Form 16, 26AS/AIS, payslips, interest certs), income→tax waterfall with tap-to-explain, slabs, old vs new +
+  break-even deductions, top moves, **ITR pack** buttons (send to CA / download zip). Tabs: Your tax · Save more · For your
+  CA · Plan ahead · File my ITR · Learn. The "For your CA" tab = the older **Full computation** section (`GET /tax/full` → `fullFiling`): comprehensive CA-usable
   breakdown across **every income head** (salary, interest, house property, dividends, business, STCG/LTCG),
   deductions, both regimes, ITR form + why, TDS reconciliation, refund/payable, downloadable for the CA.
   Then regime comparison, "how to reduce your tax", **Tax Copilot** (advance-tax timeline, proof calendar,
@@ -304,7 +308,12 @@ unread-alerts badge, native biometric lock overlay).
   data — both in the Claude prompt and the rules fallback), `rag.ts` (Postgres FTS, **47-doc** seeded KB,
   incremental seed), `profile.ts` (load ProfileData + recalc).
 - `caLink.ts` (connect-code gen + `requestLink` handshake), `caShare.ts` (messaging + documents for an
-  active link). `db/index.ts` exports **`withTransaction()`** (ACID) — used by statement import + AA refresh.
+  active link). **D-71:** `caDocs.ts` (`DOC_SOURCES` request key → records/vault/policies, `gatherFiles`,
+  `computationHtml`, dependency-free `makeZip`, `buildItrPack`, `detectCaIntent`) + `caRequests.ts` (`notifyUserOfCa` →
+  Alerts, `createRequest`, `fulfilRequest`, `fulfilAllPending`, `sendItrPackToCa`). Table `ca_doc_requests`. Routes:
+  CA `GET/POST /ca/clients/:id/requests`; user `GET /user/ca/links/:id/requests`, `POST …/requests/:rid/fulfil`,
+  `GET /user/itr-pack` (zip), `POST /user/ca/links/:id/itr-pack`. `/qa` handles "send my CA what he asked for" / "send my
+  ITR pack to my CA" before planActions. `db/index.ts` exports **`withTransaction()`** (ACID) — used by statement import + AA refresh.
 - `realtime.ts` — **SSE** live-update hub: in-memory registry keyed by user/CA id; `index.ts` serves
   `GET /v1/events?token=` (JWT in query — EventSource can't set headers) and pushes a tiny refresh *signal*
   (not data) on CA/user messages + connection handshake; client subscribes via `api.subscribeEvents()`.
@@ -403,7 +412,7 @@ user+fingerprint), `conversations`, `messages`, `rag_documents`, `subscriptions`
 renewal dates, encrypted file + `extracted`), `device_tokens`, `audit_log`, **`profiles.context`** (JSONB —
 occupation/employer + benefit facts), **`benefit_patterns`** (crowd-learned employer/occupation→benefit
 aggregates for the shared catalog), and the **CA portal**: `cas`,
-`ca_client_links`(handshake: status pending/active, initiated_by), `ca_messages`, `ca_documents`.
+`ca_client_links`(handshake: status pending/active, initiated_by), `ca_messages`, `ca_documents`, **`ca_doc_requests`** (D-71).
 
 ---
 
@@ -653,7 +662,7 @@ Total wipe: also `DELETE FROM rag_documents;` then `DATABASE_URL=… npm run see
 - Keep every money feature inside the education/organisation lane; tax features stay "prepare + guide
   self-file"; add disclaimers on new surfaces.
 - Verify with `cd server && npx tsc --noEmit` and `cd web && npx tsc --noEmit` after changes.
-- **Test suite:** `cd server && npm test` runs **254 assertions** (incl. `analytics.test.ts`: funnel maths + new dream quick-picks) (incl. `dreamdraft.test.ts`) (incl. `marketdeck.test.ts`) (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
+- **Test suite:** `cd server && npm test` runs **263 assertions** (incl. `taxstory.test.ts`: tax-story maths, break-even, confidence, ZIP validity, CA intent) (incl. `analytics.test.ts`: funnel maths + new dream quick-picks) (incl. `dreamdraft.test.ts`) (incl. `marketdeck.test.ts`) (incl. `visuals.test.ts`: dream match, cost split, savings path, Hindi labels, trigger gate) (incl. `market.test.ts`: impacts, news themes, RSS parse, source gating) (incl. `lang.test.ts`: reply-language detection) (incl. `fileparse.test.ts`: CSV/holdings/capital-gains server parsing) (+ `translate.test.ts`: chunking, truncated-reply salvage, failure fallback) (incl. `brain.test.ts`, 44 checks: money map, planning maths
   round-trips, dreams waterfall, cascade, affordability, life events, next-moves ranking, engine-agreement) across `test/*.ts` (the script loops
   every file): `calc` (tax/filing/score/networth math + edge cases), `engines` (score dimensions, ITR
   form branches, surcharge + **marginal relief**, **capital-loss set-off / carry-forward / house-property
@@ -774,11 +783,13 @@ A second account type (Chartered Accountants) alongside users. Built across phas
 - Name brainstorm for the rebrand also happened (outcome: Neodream/Neodreams, §12.1).
 
 ### 12.4 Vighnesh docs (Nov 2026)
-- **App workflow for partners/research:** https://claude.ai/artifact/GpTHJJ3yDQTBdM8aUL29EN (every page, data-flow diagram,
-  user journey, partner seams, compliance lanes). **Keep it in sync when features change.**
-- **Task 8 — Value map, competitive edge & channel partners:** https://claude.ai/artifact/6exAgesNxigapxUeUDvGb6 — value
-  inventory (28 Nov) → competitor map (2 Dec) → edge (4 Dec) → partner list (6 Dec) → partner pitches (9 Dec) → connected
-  BMC flows (10 Dec) → investor day 12 Dec. Research findings: https://claude.ai/artifact/9HYp3wHKdfiTo4c9xmVoMf
+- **v2 (24 Nov, current) as Word/Google-Docs files in the project root:** `PayWatch-How-the-App-Works-v2.docx` (every
+  page, data-in today vs with tie-ups, journey, new Tax page, CA request flow, ITR pack, partner seams, rules, glossary)
+  and `Task-8-Value-Map-Partners-v2.docx` (value inventory 28 Nov → competitor map 2 Dec → edge 4 Dec → partner long list
+  incl. **data partners** 6 Dec → pitches 9 Dec → connected BMC 10 Dec → investor day 12 Dec). Upload to Drive → opens as
+  a Google Doc. Generator: outputs `build_docs.js` (docx-js) + Graphviz diagrams. **Keep in sync when features change.**
+- Superseded v1 Claude Docs: workflow https://claude.ai/artifact/GpTHJJ3yDQTBdM8aUL29EN · Task 8
+  https://claude.ai/artifact/6exAgesNxigapxUeUDvGb6 . Research findings: https://claude.ai/artifact/9HYp3wHKdfiTo4c9xmVoMf
 
 ### 12.5 Voice cost (Nov 2026 estimate, list prices — real spend is in each provider dashboard)
 - Routing (code): EN TTS = ElevenLabs `eleven_multilingual_v2` voice "Sarah"; HI TTS = Sarvam `bulbul:v3` speaker

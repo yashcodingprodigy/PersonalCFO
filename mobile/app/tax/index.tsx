@@ -5,12 +5,13 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useApi } from '@/lib/hooks';
 import { groupIN, inr, prettyDate } from '@/lib/format';
-import { shareText } from '@/lib/files';
+import { shareText, openProtectedFile } from '@/lib/files';
+import { post } from '@/lib/api';
 import { C, FONT, R, SP } from '@/lib/theme';
 import { Bar, Bullets, Button, Card, Chip, Disclaimer, Disclosure, ErrorBox, Label, Loading, Num, Screen, Small, Soft, Tiny, Txt, H3 } from '@/components/ui';
 
 const TABS = [
-  { id: 'computation', label: 'Computation' }, { id: 'regime', label: 'Old vs new' }, { id: 'copilot', label: 'Plan ahead' },
+  { id: 'story', label: 'Your tax' }, { id: 'computation', label: 'For your CA' }, { id: 'regime', label: 'Old vs new' }, { id: 'copilot', label: 'Plan ahead' },
   { id: 'reduce', label: 'Reduce tax' }, { id: 'deductions', label: 'Deductions' }, { id: 'calendar', label: 'Calendar' }, { id: 'terms', label: 'Terms' },
 ];
 const R_ = (v: number) => `₹${groupIN((v || 0) / 100)}`;
@@ -24,7 +25,8 @@ const Line = ({ k, v, bold, color }: { k: string; v: string; bold?: boolean; col
 export default function Tax() {
   const tax = useApi<any>('/tax');
   const full = useApi<any>('/tax/full');
-  const [tab, setTab] = useState('computation');
+  const story = useApi<any>('/tax/story');
+  const [tab, setTab] = useState('story');
   const t = tax.data;
   if (tax.loading && !t) return <Screen><Loading /></Screen>;
   if (!t) return <Screen><ErrorBox message={tax.error || 'Could not load'} onRetry={tax.reload} /></Screen>;
@@ -42,10 +44,13 @@ export default function Tax() {
           </Pressable>
         ))}
       </ScrollView>
-      <Screen onRefresh={() => { tax.reload(); full.reload(); }} refreshing={tax.refreshing}>
+      <Screen onRefresh={() => { tax.reload(); full.reload(); story.reload(); }} refreshing={tax.refreshing}>
         <Small noTr>{`Financial year ${t.fy}`}</Small>
 
+        {tab === 'story' && (story.data ? <Story s={story.data} goto={setTab} /> : <Loading />)}
+
         {tab === 'computation' && <>
+          <PackButtons caLinkId={story.data?.caLinkId || null} />
           {full.data ? <Full f={full.data} /> : full.loading ? <Loading /> : null}
           {noTax && <Card style={{ marginTop: SP.md, borderLeftWidth: 4, borderLeftColor: C.green }}><Small><Txt style={{ color: C.green, fontWeight: '700', fontSize: 13 }}>Good news — you owe no income tax yet. </Txt>At your income, the new regime’s rebate covers you fully.</Small></Card>}
         </>}
@@ -200,6 +205,82 @@ function Copilot({ c }: { c: any }) {
         <Small style={{ color: 'rgba(255,255,255,0.8)', marginTop: 6 }}>Your regime, income, deductions, estimated tax and document checklist — ready to hand to a CA.</Small>
         <Button kind="mint" small title="Share my tax pack" icon="share-outline" style={{ marginTop: 12, alignSelf: 'flex-start' }} onPress={share} />
       </Card>
+    </View>
+  );
+}
+
+// "Your tax" in plain words (D-70): the answer, what PayWatch saves, how sure it is, the steps, regime, next moves.
+function PackButtons({ caLinkId }: { caLinkId: string | null }) {
+  const [busy, setBusy] = useState(''); const [msg, setMsg] = useState('');
+  async function send() { if (!caLinkId) return router.push('/ca'); setBusy('s'); try { const r = await post(`/user/ca/links/${caLinkId}/itr-pack`, {}); setMsg(`Sent to your CA — ${r.included.length} sections.${r.missing.length ? ` Missing: ${r.missing.join(', ')}.` : ''}`); } catch (e: any) { setMsg(e.message); } finally { setBusy(''); } }
+  async function dl() { setBusy('d'); try { await openProtectedFile('/user/itr-pack', 'ITR-pack.zip'); } catch (e: any) { setMsg(e.message); } finally { setBusy(''); } }
+  return (
+    <Card tone="dark" style={{ marginTop: SP.md }}>
+      <Txt style={{ color: C.mint300, fontWeight: '800', fontSize: 14 }}>📦 Your ITR pack, in one tap</Txt>
+      <Small style={{ color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>Tax computation + Form 16, 26AS, payslips, proofs and policies in one zip.</Small>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <Button small kind="mint" title={caLinkId ? 'Send to my CA' : 'Connect my CA'} loading={busy === 's'} onPress={send} />
+        <Button small kind="light" title="Download zip" loading={busy === 'd'} onPress={dl} />
+      </View>
+      {!!msg && <Small noTr style={{ color: C.mint300, marginTop: 6 }}>{msg}</Small>}
+    </Card>
+  );
+}
+
+function Story({ s, goto }: { s: any; goto: (t: string) => void }) {
+  const [open, setOpen] = useState('');
+  const h = s.headline;
+  const earned = Math.max(1, s.steps.find((x: any) => x.key === 'earned')?.amount || 1);
+  const status = h.status === 'refund' ? `Refund · ${R_(h.refundOrPayable)}` : h.status === 'payable' ? `To pay · ${R_(-h.refundOrPayable)}` : h.status === 'no_tax' ? 'No tax due' : 'All settled';
+  const rc = s.regimeCompare, maxR = Math.max(1, rc.oldTax, rc.newTax);
+  return (
+    <View style={{ gap: 12, marginTop: SP.md }}>
+      <Card tone="dark">
+        <Tiny noTr style={{ color: C.mint300, fontWeight: '800' }}>{`FY ${s.fy} · ${s.regime.toUpperCase()} REGIME · ${s.ca.form.code}`}</Tiny>
+        <Small style={{ color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>Your income tax this year</Small>
+        <Num style={{ fontFamily: FONT.display, fontSize: 40, color: C.white }}>{R_(h.totalTax)}</Num>
+        <Small noTr style={{ color: 'rgba(255,255,255,0.8)' }}>{`≈ ${R_(h.monthly)} a month · ${h.effectiveRatePct}% of income`}</Small>
+        <Chip label={status} noTr style={{ marginTop: 8 }} />
+        <Small style={{ color: C.white, marginTop: 10 }}>{h.sentence}</Small>
+      </Card>
+      <Card style={{ borderLeftWidth: 4, borderLeftColor: C.green }}>
+        <Label>Already saving you</Label>
+        <Num style={{ fontFamily: FONT.display, fontSize: 28, color: C.green }}>{R_(s.saving.total)}</Num>
+        <Line k={`Choosing the ${s.regime} regime`} v={R_(s.saving.regime)} /><Line k="Deductions you claim" v={R_(s.saving.deductions)} />
+      </Card>
+      <Card>
+        <Label>How sure is this?</Label>
+        <Small style={{ marginTop: 4 }}>{s.confidence.sentence}</Small>
+        {s.confidence.missingDocs.length > 0 && <Button small kind="secondary" title={`Add ${s.confidence.missingDocs[0].label}`} onPress={() => router.push('/records')} style={{ marginTop: 8 }} />}
+      </Card>
+      <Card>
+        <H3>From your income to your tax</H3>
+        <Tiny style={{ marginBottom: 8 }}>Tap a line to see what it means.</Tiny>
+        {s.steps.map((x: any) => (
+          <Pressable key={x.key} onPress={() => setOpen(open === x.key ? '' : x.key)} style={{ paddingVertical: 5, borderTopWidth: x.sign === '=' ? 1 : 0, borderTopColor: C.paper200, marginTop: x.sign === '=' ? 4 : 0 }}>
+            <Line k={x.label} v={`${x.sign === '-' ? '−' : ''}${R_(x.amount)}`} bold={x.sign === '='} color={x.key === 'result' ? (h.refundOrPayable >= 0 ? C.green : C.red) : x.sign === '-' ? C.green : undefined} />
+            <Bar value={x.amount / earned} height={4} color={x.sign === '-' ? C.green : C.pine700} />
+            {open === x.key && <Tiny style={{ marginTop: 4 }}>{x.explain}</Tiny>}
+          </Pressable>
+        ))}
+      </Card>
+      <Card>
+        <H3>Old or new regime?</H3>
+        {[['old', rc.oldTax], ['new', rc.newTax]].map(([r, v]: any) => (
+          <View key={r} style={{ marginTop: 8 }}><Line k={`${r === 'old' ? 'Old' : 'New'} regime${rc.recommended === r ? ' · best for you' : ''}`} v={R_(v)} bold={rc.recommended === r} /><Bar value={v / maxR} color={rc.recommended === r ? C.pine700 : C.inkFaint} /></View>
+        ))}
+        <Small style={{ marginTop: 10 }}>{rc.sentence}</Small>
+      </Card>
+      {s.moves.length > 0 && <Card>
+        <H3>Do these next</H3>
+        {s.moves.slice(0, 3).map((m: any, k: number) => (
+          <View key={k} style={{ paddingVertical: 8, borderTopWidth: k ? 1 : 0, borderTopColor: C.paper100 }}>
+            <Line k={m.title} v={`−${R_(m.taxSaved)}`} color={C.green} bold /><Tiny>{m.how}</Tiny>
+          </View>
+        ))}
+        <Button small kind="ghost" title="All ways to save →" onPress={() => goto('reduce')} />
+      </Card>}
+      <PackButtons caLinkId={s.caLinkId} />
     </View>
   );
 }

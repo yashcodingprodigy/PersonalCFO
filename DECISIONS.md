@@ -373,6 +373,28 @@ on a next move in week 1". *Rejected: a third-party SDK (Mixpanel/GA) — cookie
 DB, and DPDP overhead for a 30-tester cohort.* Also: added children's education + retirement quick-picks, and fixed a price
 catalogue bug where "education" matched the Ducati brand regex (`/ducati/` → `/\bducati\b/`).
 
+**D-70  Tax page rebuilt as a plain-language "tax story" — Nov 2026.** The old page opened with a dense computation
+nobody could read. New default tab **"Your tax"** (`GET /v1/tax/story` → `services/taxStory.ts`): one headline number +
+sentence (tax for the year, per month, refund/payable), **"already saving you"** (regime choice + deductions, each in ₹),
+**"how sure is this"** (estimate → partly verified → verified from Form 16 / 26AS-AIS / payslips / interest certificates,
+missing ones as one-tap fixes), a step-by-step waterfall from income to tax with a one-line explanation per step, slab
+picture, old-vs-new in one sentence incl. the **break-even extra deductions** the old regime would need, and the top 5
+moves. Tabs: Your tax · Save more · For your CA (the full `fullFiling` computation, unchanged) · Plan ahead · File my
+ITR · Learn. Same engine (`taxFiling.ts`) underneath, so the story and the CA view always match. Web + mobile.
+
+**D-71  CA requests fulfilled by PayWatch, CA alerts, one-click ITR pack; uploads become automatic via data tie-ups —
+Nov 2026.** (1) The CA ticks documents needed (`POST /ca/clients/:id/requests` → `ca_doc_requests` + a "📄 Requested"
+chat message). (2) Every CA message, document and request creates an **Alert** for the client (`notifyUserOfCa`, one per
+link per day, re-marked unread on new activity) + SSE refresh. (3) The client taps **"Let PayWatch send them"** or tells
+Ask PayWatch "send my CA what he asked for" (EN/Hinglish/Hindi, `detectCaIntent`) → `fulfilRequest` pulls each item
+from records / vault / policies (`caDocs.DOC_SOURCES`), generates the tax computation itself, shares the files into the
+thread, ticks the shared checklist and lists what's missing. (4) **ITR pack**: one zip (README + printable computation +
+numbered folders of every filing document; dependency-free ZIP writer) — sent to the CA (≤8 MB) or downloaded
+(`GET /user/itr-pack`, `POST /user/ca/links/:id/itr-pack`). (5) **Direction:** manual uploads are a fallback; the plan is
+consented automatic fetch through tie-ups — AA (bank, MF, insurance, NPS), MF Central/RTAs, **broker APIs for investment
+reports**, ERI (AIS/26AS), payroll/HRMS (payslips, Form 16), insurers/repositories, DigiLocker — all landing in the same
+stores so nothing downstream changes. Still ICAI-safe: the user's own CA only, no listing, no commission.
+
 ---
 
 ## E. Reversals / revisits log

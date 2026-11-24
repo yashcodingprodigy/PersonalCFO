@@ -473,6 +473,20 @@ CREATE TABLE IF NOT EXISTS translations (
   PRIMARY KEY (src_hash, lang)
 );
 
+-- ── CA document requests (Nov 2026, D-71) ─────────────────────────────────
+-- A CA asks for documents; the client (or Ask PayWatch) fulfils them from what PayWatch already holds.
+CREATE TABLE IF NOT EXISTS ca_doc_requests (
+  request_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  link_id      UUID NOT NULL REFERENCES ca_client_links(link_id) ON DELETE CASCADE,
+  items        JSONB NOT NULL DEFAULT '[]'::jsonb,        -- [{key,label}]
+  note         TEXT,
+  status       VARCHAR(12) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','partial','fulfilled')),
+  result       JSONB NOT NULL DEFAULT '{}'::jsonb,        -- {sent:[{key,label,files}], missing:[label]}
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  fulfilled_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_cadocreq_link ON ca_doc_requests(link_id, created_at);
+
 -- ── Product analytics (Nov 2026, D-69) ─────────────────────────────────────
 -- Server-side funnel events: signup → first_dream → first_move_done (one row per user each, enforced by
 -- the partial unique index) plus activity rows (login, dream_added, move_done). No third-party SDK.
